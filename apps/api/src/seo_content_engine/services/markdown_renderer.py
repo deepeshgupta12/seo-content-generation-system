@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from seo_content_engine.services.output_formatter import OutputFormatter
+
 
 class MarkdownRenderer:
     @staticmethod
@@ -15,7 +17,7 @@ class MarkdownRenderer:
 
         lines = [f"### {table['title']}", "", header, separator]
         for row in rows:
-            values = [str(row.get(column, "")) for column in columns]
+            values = [str(row.get(column, "—")) for column in columns]
             lines.append("| " + " | ".join(values) + " |")
 
         return "\n".join(lines) + "\n"
@@ -38,6 +40,14 @@ class MarkdownRenderer:
             metadata["intro_snippet"],
             "",
         ]
+
+        if draft.get("needs_review"):
+            lines.extend(
+                [
+                    "> Review required: one or more sections, FAQs, or metadata fields were flagged by the factual validator.",
+                    "",
+                ]
+            )
 
         for section in sections:
             lines.append(f"## {section['title']}")
@@ -76,12 +86,12 @@ class MarkdownRenderer:
                         if isinstance(item, list):
                             for nested in item:
                                 label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
-                                url = nested.get("url")
+                                url = OutputFormatter.resolve_url(nested.get("url"))
                                 if label and url:
                                     lines.append(f"- {label}: {url}")
                         elif isinstance(item, dict):
                             label = item.get("label")
-                            url = item.get("url")
+                            url = OutputFormatter.resolve_url(item.get("url"))
                             if label and url:
                                 lines.append(f"- {label}: {url}")
 

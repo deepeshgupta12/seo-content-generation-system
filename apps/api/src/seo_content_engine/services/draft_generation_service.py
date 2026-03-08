@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
-from seo_content_engine.services.keyword_intelligence_service import KeywordIntelligenceService
+from seo_content_engine.services.factual_validator import FactualValidator
 from seo_content_engine.services.markdown_renderer import MarkdownRenderer
 from seo_content_engine.services.openai_client import OpenAIClient
 from seo_content_engine.services.prompt_builder import PromptBuilder
@@ -29,6 +29,34 @@ class DraftGenerationService:
         return response.get("faqs", [])
 
     @staticmethod
+    def _resolve_internal_links(internal_links: dict) -> dict:
+        from seo_content_engine.services.output_formatter import OutputFormatter
+
+        resolved: dict = {}
+        for group_name, group_links in internal_links.items():
+            if not isinstance(group_links, list):
+                resolved[group_name] = group_links
+                continue
+
+            resolved_group = []
+            for item in group_links:
+                if isinstance(item, list):
+                    nested_group = []
+                    for nested in item:
+                        updated = dict(nested)
+                        if "url" in updated:
+                            updated["url"] = OutputFormatter.resolve_url(updated.get("url"))
+                        nested_group.append(updated)
+                    resolved_group.append(nested_group)
+                elif isinstance(item, dict):
+                    updated = dict(item)
+                    if "url" in updated:
+                        updated["url"] = OutputFormatter.resolve_url(updated.get("url"))
+                    resolved_group.append(updated)
+            resolved[group_name] = resolved_group
+        return resolved
+
+    @staticmethod
     def generate(
         normalized: dict,
         keyword_intelligence: dict,
@@ -45,9 +73,10 @@ class DraftGenerationService:
         sections = DraftGenerationService._generate_sections(content_plan, client)
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         tables = TableRenderer.render_all(content_plan["table_plan"], content_plan["data_context"])
+        internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
         draft = {
-            "version": "v2.0",
+            "version": "v2.1",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": content_plan["page_type"],
             "listing_type": content_plan["listing_type"],
@@ -56,10 +85,12 @@ class DraftGenerationService:
             "sections": sections,
             "tables": tables,
             "faqs": faqs,
-            "internal_links": content_plan["internal_links_plan"],
+            "internal_links": internal_links,
             "content_plan": content_plan,
             "keyword_intelligence_version": keyword_intelligence["version"],
         }
 
+        validation_report = FactualValidator.validate_draft(draft)
+        draft = FactualValidator.apply_sanitization(draft, validation_report)
         draft["markdown_draft"] = MarkdownRenderer.render(draft)
         return draft

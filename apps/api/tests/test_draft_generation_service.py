@@ -8,7 +8,7 @@ class DummyOpenAIClient:
                 "faqs": [
                     {
                         "question": "What is the average price of resale properties in Andheri West, Mumbai?",
-                        "answer": "The current asking price signal for Andheri West can be reviewed from Square Yards market data on this page.",
+                        "answer": "The current asking price signal is ₹40,238.",
                     }
                 ]
             }
@@ -19,21 +19,21 @@ class DummyOpenAIClient:
                     {
                         "id": "hero_intro",
                         "title": "Resale Property Overview in Andheri West, Mumbai",
-                        "body": "Andheri West has an active resale market with a broad mix of inventory, price points, and buyer options visible on Square Yards.",
+                        "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
                     },
                     {
                         "id": "market_snapshot",
                         "title": "Resale Market Snapshot",
-                        "body": "The resale supply in Andheri West spans multiple BHK formats and property types, giving buyers a wider comparison set within the locality.",
+                        "body": "The current asking price signal is ₹40,238 and total listings are 6,109.",
                     },
                 ]
             }
 
         return {
             "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-            "meta_description": "Explore resale properties in Andheri West, Mumbai with prices, BHK mix, and nearby locality insights on Square Yards.",
+            "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
             "h1": "Resale Properties in Andheri West, Mumbai",
-            "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with real market signals from Square Yards.",
+            "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with Square Yards data.",
         }
 
 
@@ -102,9 +102,11 @@ def test_draft_generation_service() -> None:
         openai_client=DummyOpenAIClient(),
     )
 
-    assert draft["version"] == "v2.0"
+    assert draft["version"] == "v2.1"
     assert draft["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
     assert len(draft["sections"]) > 0
     assert len(draft["tables"]) > 0
     assert len(draft["faqs"]) > 0
-    assert "# Resale Properties in Andheri West, Mumbai" in draft["markdown_draft"]
+    assert "validation_report" in draft
+    assert draft["needs_review"] is False
+    assert "https://www.squareyards.com/" in draft["markdown_draft"]

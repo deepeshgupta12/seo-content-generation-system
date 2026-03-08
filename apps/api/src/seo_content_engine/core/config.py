@@ -26,12 +26,15 @@ class Settings(BaseSettings):
     keyword_ready_to_move_max_count: int = 8
     keyword_faq_max_count: int = 12
     keyword_metadata_max_count: int = 8
+    keyword_metadata_exact_match_max_count: int = 5
 
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str = ""
     openai_model: str = "gpt-4.1-mini"
     openai_timeout_seconds: float = 90.0
     openai_temperature: float = 0.2
+
+    squareyards_base_url: str = "https://www.squareyards.com"
 
     model_config = SettingsConfigDict(
         env_file=".env",

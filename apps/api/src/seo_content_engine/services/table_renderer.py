@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from seo_content_engine.services.output_formatter import OutputFormatter
+
 
 class TableRenderer:
     @staticmethod
@@ -31,11 +33,17 @@ class TableRenderer:
         else:
             rows = []
 
+        formatted_rows = []
+        for row in rows:
+            formatted_rows.append(
+                {column: OutputFormatter.format_cell(column, row.get(column)) for column in columns}
+            )
+
         return {
             "id": table_plan["id"],
             "title": table_plan["title"],
             "columns": columns,
-            "rows": rows,
+            "rows": formatted_rows,
         }
 
     @staticmethod

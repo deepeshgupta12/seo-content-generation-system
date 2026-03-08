@@ -9,7 +9,9 @@ class PromptBuilder:
         system_prompt = (
             "You generate SEO metadata for Square Yards resale listing pages. "
             "You must stay grounded in the provided data and keyword plan. "
-            "Do not invent facts, amenities, connectivity claims, or numbers. "
+            "Do not invent facts, amenities, connectivity claims, demand claims, popularity claims, investment claims, or numbers. "
+            "Avoid phrases like premium, most sought-after, excellent connectivity, strong demand, investment potential, luxury, prime destination. "
+            "If a fact is not explicitly present in the input, do not mention it. "
             "Return only valid JSON."
         )
 
@@ -19,9 +21,11 @@ class PromptBuilder:
             "keyword_strategy": {
                 "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
                 "metadata_keywords": content_plan["keyword_strategy"]["metadata_keywords"],
+                "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
             },
             "requirements": {
                 "brand": "Square Yards",
+                "strict_grounding": True,
                 "output_schema": {
                     "title": "string",
                     "meta_description": "string",
@@ -39,8 +43,9 @@ class PromptBuilder:
             "You generate grounded section copy for Square Yards resale property pages. "
             "Use only the provided data context and section plan. "
             "Never invent numbers or unsupported claims. "
-            "Do not mention data not present in input. "
-            "Keep language clear and SEO-aware but natural. "
+            "Do not mention connectivity, amenities, appreciation, investment potential, market strength, popularity, luxury positioning, or buyer suitability unless explicitly present in the input. "
+            "Do not use adjectives like premium, excellent, prime, sought-after, fast-growing, high-demand. "
+            "Use neutral, factual, concise language. "
             "Return only valid JSON."
         )
 
@@ -60,8 +65,10 @@ class PromptBuilder:
                 "bhk_keywords": content_plan["keyword_strategy"]["bhk_keywords"],
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
                 "ready_to_move_keywords": content_plan["keyword_strategy"]["ready_to_move_keywords"],
+                "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
             },
             "requirements": {
+                "strict_grounding": True,
                 "output_schema": {
                     "sections": [
                         {
@@ -82,6 +89,7 @@ class PromptBuilder:
             "You generate FAQ answers for Square Yards resale listing pages. "
             "Use only the provided FAQ plan and data context. "
             "Answer directly, avoid fluff, and do not invent numbers or claims. "
+            "Do not add market interpretation beyond explicit data. "
             "Return only valid JSON."
         )
 
@@ -90,6 +98,7 @@ class PromptBuilder:
             "faq_plan": content_plan["faq_plan"],
             "data_context": content_plan["data_context"],
             "requirements": {
+                "strict_grounding": True,
                 "output_schema": {
                     "faqs": [
                         {

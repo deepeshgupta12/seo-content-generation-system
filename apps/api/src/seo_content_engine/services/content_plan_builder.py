@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from seo_content_engine.core.config import settings
 from seo_content_engine.domain.enums import PageType
 from seo_content_engine.utils.formatters import slugify
 
@@ -26,6 +27,36 @@ class ContentPlanBuilder:
         return deduped
 
     @staticmethod
+    def _select_metadata_keywords(keyword_clusters: dict) -> list[str]:
+        selected: list[str] = []
+
+        exact_match_keywords = keyword_clusters.get("exact_match_keywords", [])
+        secondary_keywords = keyword_clusters.get("secondary_keywords", [])
+        metadata_keywords = keyword_clusters.get("metadata_keywords", [])
+
+        for record in exact_match_keywords[: settings.keyword_metadata_exact_match_max_count]:
+            keyword = record.get("keyword")
+            if keyword and keyword not in selected:
+                selected.append(keyword)
+
+        for record in secondary_keywords:
+            keyword = record.get("keyword")
+            if not keyword:
+                continue
+            if keyword not in selected:
+                selected.append(keyword)
+            if len(selected) >= settings.keyword_metadata_max_count:
+                break
+
+        for keyword in metadata_keywords:
+            if keyword not in selected:
+                selected.append(keyword)
+            if len(selected) >= settings.keyword_metadata_max_count:
+                break
+
+        return ContentPlanBuilder._dedupe_metadata_keywords(selected)[: settings.keyword_metadata_max_count]
+
+    @staticmethod
     def _build_metadata_plan(entity: dict, keyword_clusters: dict) -> dict:
         entity_name = entity["entity_name"]
         city_name = entity["city_name"]
@@ -33,7 +64,7 @@ class ContentPlanBuilder:
         primary_keyword = keyword_clusters.get("primary_keyword")
         primary_keyword_text = primary_keyword["keyword"] if primary_keyword else f"resale properties in {entity_name} {city_name}"
 
-        metadata_keywords = ContentPlanBuilder._dedupe_metadata_keywords(keyword_clusters.get("metadata_keywords", []))
+        metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters)
         title_candidates = [
             f"Resale Properties in {entity_name}, {city_name} | Square Yards",
             f"{entity_name}, {city_name} Resale Properties for Sale | Square Yards",
@@ -77,7 +108,7 @@ class ContentPlanBuilder:
                 "title": "Nearby Localities to Explore",
                 "source_data_path": "nearby_localities",
                 "render_type": "deterministic",
-                "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft"],
+                "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
             },
         ]
 
@@ -89,7 +120,7 @@ class ContentPlanBuilder:
                     "title": "Top Projects by Transactions",
                     "source_data_path": "top_projects.byTransactions.projects",
                     "render_type": "deterministic",
-                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions"],
+                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions", "productUrl"],
                 }
             )
         elif top_projects.get("byListingRates", {}).get("projects"):
@@ -109,7 +140,7 @@ class ContentPlanBuilder:
                     "title": "Top Projects by Value",
                     "source_data_path": "top_projects.byValue.projects",
                     "render_type": "deterministic",
-                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions"],
+                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions", "productUrl"],
                 }
             )
 
