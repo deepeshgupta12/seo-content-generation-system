@@ -1,0 +1,638 @@
+{
+  "status": 1,
+  "message": "Property Rates Data Found",
+  "data": {
+    "id": "65173",
+    "slug": "property-rates/andheri-west-mumbai",
+    "type": "locality",
+    "propertyRatesData": {
+      "details": {
+        "id": "65173",
+        "name": "Andheri West",
+        "locationId": null,
+        "microMarketId": "129",
+        "microMarketName": "Mumbai Western Suburbs",
+        "cityId": "3",
+        "cityName": "Mumbai",
+        "diUrl": "/property-rates/andheri-west-mumbai",
+        "type": "LOCALITY"
+      },
+      "marketOverview": {
+        "askingPrice": 40238,
+        "registrationRate": 26616,
+        "avgRentalRate": null
+      },
+      "priceTrend": [
+        {
+          "quarterName": "Dec 2025",
+          "locationRate": 40238,
+          "micromarketRate": 21180
+        },
+        {
+          "quarterName": "Sep 2025",
+          "locationRate": 38465,
+          "micromarketRate": 21139
+        },
+        {
+          "quarterName": "Jun 2025",
+          "locationRate": 36900,
+          "micromarketRate": 21028
+        },
+        {
+          "quarterName": "Mar 2025",
+          "locationRate": 37975,
+          "micromarketRate": 19695
+        }
+      ],
+      "locationRates": [
+        {
+          "name": "Veera Desai Road",
+          "avgRate": 33765,
+          "changePercentage": 0
+        },
+        {
+          "name": "Yari Road",
+          "avgRate": 32638,
+          "changePercentage": 0
+        },
+        {
+          "name": "Jogeshwari West",
+          "avgRate": 28345,
+          "changePercentage": -2.56
+        },
+        {
+          "name": "Gulmohar Road",
+          "avgRate": 57726,
+          "changePercentage": 0.18
+        },
+        {
+          "name": "Juhu",
+          "avgRate": 60242,
+          "changePercentage": 2.89
+        },
+        {
+          "name": "Goregaon West",
+          "avgRate": 33246,
+          "changePercentage": 1.94
+        },
+        {
+          "name": "Jogeshwari East",
+          "avgRate": 27078,
+          "changePercentage": 2.28
+        },
+        {
+          "name": "Juhu Road",
+          "avgRate": 45398,
+          "changePercentage": 0
+        },
+        {
+          "name": "Madh",
+          "avgRate": 27303,
+          "changePercentage": -0.65
+        },
+        {
+          "name": "Vile Parle West",
+          "avgRate": 48142,
+          "changePercentage": 7.75
+        }
+      ],
+      "propertyTypes": [
+        {
+          "propertyType": "shop",
+          "avgPrice": 78643,
+          "changePercent": -6.11
+        },
+        {
+          "propertyType": "office space",
+          "avgPrice": 45508,
+          "changePercent": 2.68
+        },
+        {
+          "propertyType": "villa",
+          "avgPrice": 51864,
+          "changePercent": 3.63
+        },
+        {
+          "propertyType": "apartment",
+          "avgPrice": 40238,
+          "changePercent": 4.61
+        }
+      ],
+      "propertyStatus": [
+        {
+          "status": "Ready To Move",
+          "units": 957,
+          "avgPrice": 31639,
+          "changePercent": -2.88
+        },
+        {
+          "status": "Well Occupied",
+          "units": 433,
+          "avgPrice": 31857,
+          "changePercent": -1.37
+        },
+        {
+          "status": "Advanced Stage",
+          "units": 2,
+          "avgPrice": 33739,
+          "changePercent": -12.06
+        },
+        {
+          "status": "Partially Ready To Move",
+          "units": 4,
+          "avgPrice": 44546,
+          "changePercent": -0.81
+        },
+        {
+          "status": "Mid Stage",
+          "units": 5,
+          "avgPrice": 34944,
+          "changePercent": -1.17
+        },
+        {
+          "status": "Under Construction",
+          "units": 77,
+          "avgPrice": 34903,
+          "changePercent": 0.38
+        },
+        {
+          "status": "New Launch",
+          "units": 25,
+          "avgPrice": 33256,
+          "changePercent": -1.52
+        }
+      ],
+      "topProjects": {
+        "byTransactions": {
+          "projects": [
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 56551,
+              "location": "Andheri West",
+              "locality": "Shashtri Nagar",
+              "noOfTransactions": 5,
+              "productUrl": "https://www.squareyards.com/property-rates/k-raheja-raheja-classique-shashtri-nagar-andheri-west-mumbai",
+              "projectName": "K Raheja Raheja Classique",
+              "priority": 1,
+              "saleRentValue": 210000000
+            },
+            {
+              "changePercentage": -9.307190451459437,
+              "changeValue": -5139.68,
+              "currentRate": 50083,
+              "location": "Andheri West",
+              "locality": "Four Bunglows",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/rustomjee-elita-four-bunglows-andheri-west-mumbai",
+              "projectName": "Rustomjee Elita",
+              "priority": 2,
+              "saleRentValue": 158900000
+            },
+            {
+              "changePercentage": 3.2814110445704077,
+              "changeValue": 1448.9100000000035,
+              "currentRate": 45604,
+              "location": "Andheri West",
+              "locality": "Veera Desai Industrial Estate",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/oberoi-springs-veera-desai-industrial-estate-andheri-west-mumbai",
+              "projectName": "Oberoi Springs",
+              "priority": 3,
+              "saleRentValue": 129100000
+            },
+            {
+              "changePercentage": 15.065180824222036,
+              "changeValue": 5732,
+              "currentRate": 43780,
+              "location": "Andheri West",
+              "locality": "DN Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/platinum-life-dn-nagar-andheri-west-mumbai",
+              "projectName": "Platinum Life",
+              "priority": 4,
+              "saleRentValue": 80650000
+            },
+            {
+              "changePercentage": null,
+              "changeValue": null,
+              "currentRate": 41097,
+              "location": "Andheri West",
+              "locality": "Azad Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/mayfair-gardens-azad-nagar-andheri-west-mumbai",
+              "projectName": "Mayfair Gardens ",
+              "priority": 5,
+              "saleRentValue": 66600000
+            },
+            {
+              "changePercentage": 14.390335067841201,
+              "changeValue": 4654.610000000001,
+              "currentRate": 37000,
+              "location": "Andheri West",
+              "locality": "Industrial Area",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/kaveri-tower-andheri-west-industrial-area-andheri-west-mumbai",
+              "projectName": "Kaveri Tower Andheri West",
+              "priority": 6,
+              "saleRentValue": 50800000
+            },
+            {
+              "changePercentage": null,
+              "changeValue": null,
+              "currentRate": 35229,
+              "location": "Andheri West",
+              "locality": "DN Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/dlh-metroview-dn-nagar-andheri-west-mumbai",
+              "projectName": "DLH Metroview",
+              "priority": 7,
+              "saleRentValue": 52500000
+            },
+            {
+              "changePercentage": -15.226339644184309,
+              "changeValue": -5707.699999999997,
+              "currentRate": 31778,
+              "location": "Andheri West",
+              "locality": "Shashtri Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/evershine-embassy-shashtri-nagar-andheri-west-mumbai",
+              "projectName": "Evershine Embassy",
+              "priority": 8,
+              "saleRentValue": 71600000
+            },
+            {
+              "changePercentage": -12.78862284535627,
+              "changeValue": -4264.419999999998,
+              "currentRate": 29081,
+              "location": "Andheri West",
+              "locality": "DN Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/shree-ashtavinayak-chs-andheri-dn-nagar-andheri-west-mumbai",
+              "projectName": "Shree Ashtavinayak CHS Andheri",
+              "priority": 9,
+              "saleRentValue": 48200000
+            },
+            {
+              "changePercentage": -0.5190623148651349,
+              "changeValue": -144.04000000000087,
+              "currentRate": 27606,
+              "location": "Andheri West",
+              "locality": "Amboli",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/mayfair-meridian-amboli-andheri-west-mumbai",
+              "projectName": "Mayfair Meridian",
+              "priority": 10,
+              "saleRentValue": 68100000
+            }
+          ]
+        },
+        "byListingRates": {
+          "projects": [
+            {
+              "changePercentage": 0.22,
+              "changeValue": null,
+              "currentRate": 64762,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "Kalpataru Yashodhan",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 1.99,
+              "changeValue": null,
+              "currentRate": 57370,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "oberoi sky gardens",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 17.42,
+              "changeValue": null,
+              "currentRate": 56551,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "k raheja raheja classique",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 54166,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "zee sahyadri",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": -1.7,
+              "changeValue": null,
+              "currentRate": 53703,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "lokhandwala green acres",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 43.13,
+              "changeValue": null,
+              "currentRate": 53619,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "ganesh chs andheri west",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 53333,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "cheval class",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 52941,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "gulmohar chs",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 52778,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "krishna apartment",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 3.57,
+              "changeValue": null,
+              "currentRate": 52629,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Andheri West",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "adani western heights sky apartments",
+              "priority": null,
+              "saleRentValue": null
+            }
+          ]
+        },
+        "byValue": {
+          "projects": [
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 56551,
+              "location": "Andheri West",
+              "locality": "Shashtri Nagar",
+              "noOfTransactions": 5,
+              "productUrl": "https://www.squareyards.com/property-rates/k-raheja-raheja-classique-shashtri-nagar-andheri-west-mumbai",
+              "projectName": "K Raheja Raheja Classique",
+              "priority": 1,
+              "saleRentValue": 210000000
+            },
+            {
+              "changePercentage": -9.307190451459437,
+              "changeValue": -5139.68,
+              "currentRate": 50083,
+              "location": "Andheri West",
+              "locality": "Four Bunglows",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/rustomjee-elita-four-bunglows-andheri-west-mumbai",
+              "projectName": "Rustomjee Elita",
+              "priority": 2,
+              "saleRentValue": 158900000
+            },
+            {
+              "changePercentage": 3.2814110445704077,
+              "changeValue": 1448.9100000000035,
+              "currentRate": 45604,
+              "location": "Andheri West",
+              "locality": "Veera Desai Industrial Estate",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/oberoi-springs-veera-desai-industrial-estate-andheri-west-mumbai",
+              "projectName": "Oberoi Springs",
+              "priority": 3,
+              "saleRentValue": 129100000
+            },
+            {
+              "changePercentage": 16.370038960285914,
+              "changeValue": 3557.1800000000003,
+              "currentRate": 25287,
+              "location": "Andheri West",
+              "locality": "Mhada Colony",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/windermere-chs-mhada-colony-andheri-west-mumbai",
+              "projectName": "Windermere CHS",
+              "priority": 4,
+              "saleRentValue": 91500000
+            },
+            {
+              "changePercentage": 15.065180824222036,
+              "changeValue": 5732,
+              "currentRate": 43780,
+              "location": "Andheri West",
+              "locality": "DN Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/platinum-life-dn-nagar-andheri-west-mumbai",
+              "projectName": "Platinum Life",
+              "priority": 5,
+              "saleRentValue": 80650000
+            },
+            {
+              "changePercentage": -15.226339644184309,
+              "changeValue": -5707.699999999997,
+              "currentRate": 31778,
+              "location": "Andheri West",
+              "locality": "Shashtri Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/evershine-embassy-shashtri-nagar-andheri-west-mumbai",
+              "projectName": "Evershine Embassy",
+              "priority": 6,
+              "saleRentValue": 71600000
+            },
+            {
+              "changePercentage": null,
+              "changeValue": null,
+              "currentRate": 29582,
+              "location": "Andheri West",
+              "locality": "Shashtri Nagar",
+              "noOfTransactions": 1,
+              "productUrl": "https://www.squareyards.com/property-rates/infinite-poorna-apartments-shashtri-nagar-andheri-west-mumbai",
+              "projectName": "Infinite Poorna Apartments",
+              "priority": 7,
+              "saleRentValue": 70000000
+            },
+            {
+              "changePercentage": -0.5190623148651349,
+              "changeValue": -144.04000000000087,
+              "currentRate": 27606,
+              "location": "Andheri West",
+              "locality": "Amboli",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/mayfair-meridian-amboli-andheri-west-mumbai",
+              "projectName": "Mayfair Meridian",
+              "priority": 8,
+              "saleRentValue": 68100000
+            },
+            {
+              "changePercentage": null,
+              "changeValue": null,
+              "currentRate": 41097,
+              "location": "Andheri West",
+              "locality": "Azad Nagar",
+              "noOfTransactions": 3,
+              "productUrl": "https://www.squareyards.com/property-rates/mayfair-gardens-azad-nagar-andheri-west-mumbai",
+              "projectName": "Mayfair Gardens ",
+              "priority": 9,
+              "saleRentValue": 66600000
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 48076,
+              "location": "Andheri West",
+              "locality": "SV Patel Nagar",
+              "noOfTransactions": 2,
+              "productUrl": "https://www.squareyards.com/property-rates/ajmera-beverly-hills-and-royal-empire-sv-patel-nagar-andheri-west-mumbai",
+              "projectName": "Ajmera Beverly Hills and Royal Empire",
+              "priority": 10,
+              "saleRentValue": 64000000
+            }
+          ]
+        }
+      },
+      "govtRegistration": {
+        "transactionCount": 2920,
+        "grossValue": "₹ 7,241 Cr",
+        "dateRange": "Mar 25 to Feb 26",
+        "registeredRate": 26600,
+        "description": ""
+      },
+      "topDevelopers": {
+        "byTransactions": {
+          "developers": [
+            {
+              "developerName": "Chandiwala Enterprises",
+              "noOfTransactions": 11,
+              "priority": 2
+            },
+            {
+              "developerName": "Platinum Corp",
+              "noOfTransactions": 7,
+              "priority": 3
+            },
+            {
+              "developerName": "Dev Land Housing Ltd",
+              "noOfTransactions": 6,
+              "priority": 4
+            },
+            {
+              "developerName": "K Raheja Realty",
+              "noOfTransactions": 5,
+              "priority": 5
+            },
+            {
+              "developerName": "Shree Naman",
+              "noOfTransactions": 4,
+              "priority": 6
+            },
+            {
+              "developerName": "Evershine Builders Pvt Ltd",
+              "noOfTransactions": 4,
+              "priority": 7
+            },
+            {
+              "developerName": "Rustomjee",
+              "noOfTransactions": 4,
+              "priority": 8
+            },
+            {
+              "developerName": "Oberoi Realty",
+              "noOfTransactions": 4,
+              "priority": 9
+            },
+            {
+              "developerName": "Mayfair Housing",
+              "noOfTransactions": 4,
+              "priority": 10
+            }
+          ]
+        }
+      }
+    },
+    "propertyRatesAiData": {
+      "marketSnapshotOverview": "The Andheri West real estate market in Mumbai is currently dynamic, with asking prices averaging ₹40,238 per sq ft. Recent quarterly trends reveal a notable appreciation, particularly from June to December 2025, signaling strong market confidence. The area has seen substantial transaction activity, with 2,920 registered deals totaling a gross value of ₹7,241 Cr over the past year. This vibrant market caters to diverse preferences, offering a mix of apartments, villas, and commercial spaces, with significant demand for Ready To Move properties, and is actively shaped by leading developers like Chandiwala Enterprises and Platinum Corp.",
+      "insightsLong": "Andheri West, a prime location in Mumbai, presents a robust real estate landscape with an average asking price of ₹40,238 per sq ft. Analysis of price trends indicates a healthy upward trajectory; after a slight dip in Q2 2025, property values have consistently climbed, reaching current levels from ₹36,900 per sq ft in June 2025. This growth reflects sustained buyer interest and investor confidence in the region. Within Andheri West, micro-markets like Juhu command premium rates at ₹60,242 per sq ft, while areas such as Jogeshwari East offer more accessible entry points at ₹27,078 per sq ft, showcasing a diverse pricing spectrum.\n\nApartments remain a popular choice, currently priced at ₹40,238 per sq ft and experiencing a 4.61% increase. While shops exhibit the highest per-square-foot rate at ₹78,643, they have seen a 6.11% decline, suggesting market adjustments in the commercial segment. Villas and office spaces also contribute significantly to the market, with positive growth trends. The property status breakdown highlights a strong preference for Ready To Move units, which constitute the largest inventory at 957 units, though their average price has slightly decreased. Conversely, Under Construction projects show a marginal price increase, indicating potential for future appreciation.\n\nGovernment registration data underscores the market's activity, with 2,920 transactions recorded between March 2025 and February 2026, totaling over ₹7,241 Cr. This substantial volume indicates a liquid market. Top projects like K Raheja Raheja Classique and Rustomjee Elita lead in transaction values, while Kalpataru Yashodhan tops the asking rate charts. Developers such as Chandiwala Enterprises and Platinum Corp are instrumental in driving transaction volumes, reflecting their strong market presence. The market's diverse offerings, coupled with consistent demand, position Andheri West as a compelling destination for both end-users and investors.",
+      "insightsShort": "Andheri West's real estate market thrives with an average asking price of ₹40,238 per sq ft, showing positive quarterly price appreciation. With 2,920 transactions valued at over ₹7,241 Cr in the last year, the market is highly active, driven by strong demand for apartments and Ready To Move properties. Premium projects like K Raheja Raheja Classique and Kalpataru Yashodhan define the high-value segment, supported by key developers.",
+      "askingPriceTrendsDescription": "Andheri West has shown a dynamic price trajectory over recent quarters. Starting at ₹37,975 per sq ft in March 2025, the average asking price saw a slight dip to ₹36,900 per sq ft by June 2025. However, the market quickly rebounded, climbing to ₹38,465 per sq ft in September 2025, and further appreciating to its current average of ₹40,238 per sq ft in December 2025, indicating a strong recovery and upward trend.",
+      "byAreaDescription": "Property rates across Andheri West's sub-localities present a varied picture, catering to diverse budgets. Juhu stands out as a premium residential hub, commanding the highest average rate at ₹60,242 per sq ft, showing a 2.89% increase. Similarly, Gulmohar Road is also a high-value area, averaging ₹57,726 per sq ft. For those seeking growth potential, Vile Parle West has seen a significant 7.75% price appreciation, reaching ₹48,142 per sq ft. More affordable options are available in areas like Jogeshwari East, with an average rate of ₹27,078 per sq ft, and Madh at ₹27,303 per sq ft, offering entry-level opportunities.",
+      "ratesByPropertyTypesDescription": "Andheri West's real estate market caters to diverse buyer preferences across property categories. Commercial shops lead the premium segment, commanding an average of ₹78,643 per sq ft, despite a 6.11% decline. Residential apartments remain a cornerstone, priced at ₹40,238 per sq ft and experiencing a healthy 4.61% increase. Villas offer a luxurious alternative at ₹51,864 per sq ft with a 3.63% growth, while office spaces are valued at ₹45,508 per sq ft, showing a 2.68% rise. This varied mix reflects the broad investment and living opportunities available.",
+      "ratesByProjectStatusDescription": "The Andheri West market offers properties across various development stages, catering to different buyer timelines. Ready To Move inventory dominates the supply with 957 units, averaging ₹31,639 per sq ft, though experiencing a slight 2.88% price decrease. Under Construction projects present 77 opportunities at ₹34,903 per sq ft, showing a modest 0.38% increase, appealing to those with longer horizons. Notably, Partially Ready To Move properties command the highest average price at ₹44,546 per sq ft, despite a slight dip, while Advanced Stage projects have seen a significant 12.06% price reduction. This diverse supply mix enables buyers to balance possession timing with pricing preferences.",
+      "topProjectsAskingDescription": "Premium residential developments in Andheri West are commanding significant asking prices, reflecting their luxury positioning and prime locations. Leading the segment, Kalpataru Yashodhan in Andheri West is priced at ₹64,762 per sq ft, setting a high-value benchmark. Oberoi Sky Gardens follows with ₹57,370 per sq ft, showing a 1.99% increase, while K Raheja Raheja Classique offers properties at ₹56,551 per sq ft, marking a substantial 17.42% appreciation. These top-tier developments, including Zee Sahyadri and Lokhandwala Green Acres, represent the aspirational segment of the market, with high-end amenities and strategic locations.",
+      "registrationOverviewDescription": "Official registration data reveals robust transaction activity in Andheri West during the period from March 2025 to February 2026. The market recorded 2,920 transactions, generating a gross value of ₹7,241 Cr, with an average registered rate of ₹26,600 per sq ft. Developer activity was notably led by Chandiwala Enterprises and Platinum Corp in terms of transaction volumes. Project-wise, K Raheja Raheja Classique attracted significant buyer interest with 5 transactions, while also contributing substantially to the overall gross transaction value, indicating strong market momentum and investor confidence.",
+      "topProjectsByTransactionsDescription": "Transaction volumes reveal strong buyer interest in specific Andheri West developments. K Raheja Raheja Classique emerged as a market leader with 5 registrations at ₹56,551 per sq ft, demonstrating significant demand. Rustomjee Elita attracted 3 buyers at ₹50,083 per sq ft, despite a notable decline in its average rate. Oberoi Springs also recorded 3 transactions at ₹45,604 per sq ft, showing positive price growth. This concentration of activity in projects like Platinum Life and Mayfair Gardens reflects buyer confidence in established developments and trusted locations.",
+      "topProjectsByValueDescription": "Premium transaction values in Andheri West are concentrated in select developments. K Raheja Raheja Classique generated the highest transaction value of ₹21 Cr across 5 deals at ₹56,551 per sq ft, establishing it as a luxury market anchor. Rustomjee Elita recorded ₹15.89 Cr in gross sales from 3 transactions at ₹50,083 per sq ft, while Oberoi Springs contributed ₹12.91 Cr from 3 transactions. These high-value projects, including Windermere CHS and Platinum Life, account for a significant share of market turnover, highlighting their premium positioning and strong buyer appeal.",
+      "topDevelopersByTransactionsDescription": "The Andheri West development landscape is shaped by established builders driving transaction volumes. Chandiwala Enterprises leads with 11 registrations, demonstrating strong market presence and brand pull. Platinum Corp follows with 7 transactions, while Dev Land Housing Ltd secured 6 transactions. The top developer cohort, including K Raheja Realty, Shree Naman, and Evershine Builders Pvt Ltd, collectively represents the market's most active and trusted builders, contributing significantly to the area's property transactions.",
+      "topDevelopersByValueDescription": "",
+      "investmentOpportunities": [
+        "Investing in apartments in Andheri West, which show a healthy 4.61% price increase and an average rate of ₹40,238 per sq ft, presents a stable growth opportunity.",
+        "Considering localities like Vile Parle West, which recorded a substantial 7.75% price appreciation, offers potential for higher capital gains.",
+        "Exploring Under Construction projects, currently averaging ₹34,903 per sq ft with a slight positive trend, could provide entry at competitive prices before completion.",
+        "High-value projects such as K Raheja Raheja Classique, with significant transaction values and a strong per sq ft rate, indicate robust demand for premium properties.",
+        "The consistent registration activity and gross transaction value of ₹7,241 Cr signal a liquid market with reliable exit opportunities for investors."
+      ],
+      "marketChallenges": [
+        "The commercial shop segment in Andheri West has experienced a 6.11% price decline, despite commanding the highest per sq ft rate, suggesting potential oversupply or shifting demand.",
+        "Advanced Stage projects have seen a significant 12.06% price decrease, indicating possible challenges in offloading properties close to completion or pricing adjustments.",
+        "The absence of average rental rate data makes it difficult for potential investors to accurately assess rental yield and passive income opportunities.",
+        "Some top projects by transaction, like Rustomjee Elita, have seen price declines, which could indicate localized market corrections or specific project-related issues.",
+        "The wide disparity in average rates across sub-localities means careful due diligence is required to identify truly undervalued or high-potential areas."
+      ],
+      "marketStrengths": [
+        "Andheri West maintains a strong overall market sentiment with an average asking price of ₹40,238 per sq ft and positive quarterly price trends.",
+        "The significant volume of 2,920 registered transactions and a gross value of ₹7,241 Cr highlights a highly liquid and active real estate market.",
+        "The dominance of Ready To Move properties (957 units) caters to immediate occupancy needs, driving consistent buyer interest.",
+        "The presence of established and active developers like Chandiwala Enterprises and Platinum Corp ensures continued development and market stability.",
+        "Diverse property options, from apartments to villas and office spaces, cater to a broad spectrum of buyers and investors.",
+        "Premium micro-markets like Juhu and Gulmohar Road offer high-value investment prospects, attracting affluent buyers.",
+        "Areas like Vile Parle West show strong appreciation, indicating potential for capital growth in specific pockets."
+      ],
+      "recentTransactionsDescription": "The Andheri West real estate market has shown robust activity, with 2,920 property transactions officially registered between March 2025 and February 2026. These transactions collectively amounted to a substantial gross value of ₹7,241 Cr, reflecting a healthy and active market. The average registered rate for these properties stood at ₹26,600 per sq ft, indicating consistent demand and pricing."
+    }
+  }
+}
