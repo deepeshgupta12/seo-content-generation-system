@@ -57,6 +57,9 @@ class ArtifactWriter:
 
     @staticmethod
     def write_draft_bundle(draft: dict) -> dict[str, str]:
+        if settings.block_artifact_write_on_review and draft.get("needs_review"):
+            raise ValueError("Draft still needs review. Artifact writing is blocked by configuration.")
+
         entity = draft["entity"]["entity_name"]
         page_type = draft["page_type"]
         file_stem = f"{entity}-{page_type}-draft"

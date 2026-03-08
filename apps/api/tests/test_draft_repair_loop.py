@@ -1,9 +1,15 @@
 from seo_content_engine.services.draft_generation_service import DraftGenerationService
 
 
-class DummyOpenAIClient:
+class RepairingDummyOpenAIClient:
+    def __init__(self) -> None:
+        self.section_repair_called = False
+        self.faq_repair_called = False
+        self.metadata_repair_called = False
+
     def generate_json(self, system_prompt: str, user_prompt: str):
         if '"issues_by_field"' in user_prompt:
+            self.metadata_repair_called = True
             return {
                 "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
                 "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
@@ -12,12 +18,14 @@ class DummyOpenAIClient:
             }
 
         if '"faq"' in user_prompt and '"issues"' in user_prompt:
+            self.faq_repair_called = True
             return {
                 "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
-                "answer": "The asking price signal is ₹40,238.",
+                "answer": "The asking price signal is ₹40,238 based on Square Yards data.",
             }
 
         if '"section"' in user_prompt and '"issues"' in user_prompt:
+            self.section_repair_called = True
             return {
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
@@ -29,7 +37,7 @@ class DummyOpenAIClient:
                 "faqs": [
                     {
                         "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
-                        "answer": "The asking price signal is ₹40,238.",
+                        "answer": "This area has strong demand and the average price is ₹99,999.",
                     }
                 ]
             }
@@ -45,20 +53,20 @@ class DummyOpenAIClient:
                     {
                         "id": "market_snapshot",
                         "title": "Resale Market Snapshot",
-                        "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
+                        "body": "This locality has strong demand and the average price is ₹99,999.",
                     },
                 ]
             }
 
         return {
             "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-            "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
+            "meta_description": "Andheri West is one of the most sought-after areas.",
             "h1": "Resale Properties in Andheri West, Mumbai",
-            "intro_snippet": "Browse current resale property options in Andheri West, Mumbai on Square Yards.",
+            "intro_snippet": "Browse current resale property options in Andheri West, Mumbai.",
         }
 
 
-def test_draft_generation_service() -> None:
+def test_draft_repair_loop_repairs_flagged_content() -> None:
     normalized = {
         "entity": {
             "entity_type": "locality",
@@ -117,17 +125,15 @@ def test_draft_generation_service() -> None:
         },
     }
 
+    client = RepairingDummyOpenAIClient()
     draft = DraftGenerationService.generate(
         normalized=normalized,
         keyword_intelligence=keyword_intelligence,
-        openai_client=DummyOpenAIClient(),
+        openai_client=client,
     )
 
     assert draft["version"] == "v2.2"
-    assert draft["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
-    assert len(draft["sections"]) > 0
-    assert len(draft["tables"]) > 0
-    assert len(draft["faqs"]) > 0
-    assert "validation_report" in draft
-    assert "repair_passes_used" in draft
-    assert "https://www.squareyards.com/" in draft["markdown_draft"]
+    assert client.metadata_repair_called is True
+    assert client.section_repair_called is True
+    assert client.faq_repair_called is True
+    assert draft["repair_passes_used"] == 1

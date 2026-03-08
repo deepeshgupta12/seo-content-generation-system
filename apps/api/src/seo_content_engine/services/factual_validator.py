@@ -16,7 +16,30 @@ class FactualValidator:
         "luxury lifestyle",
         "world-class amenities",
         "prime destination",
+        "strong demand",
+        "high demand",
+        "premium",
+        "excellent",
     ]
+
+    PRICING_SYNONYMS = {
+        "asking_price": [
+            "asking price",
+            "current asking price",
+            "price signal",
+            "asking rate",
+        ],
+        "registration_rate": [
+            "registration rate",
+            "registered rate",
+            "registration price",
+        ],
+        "sale_avg_price_per_sqft": [
+            "average resale price",
+            "average price per sq ft",
+            "avg price per sq ft",
+        ],
+    }
 
     @staticmethod
     def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
@@ -80,6 +103,31 @@ class FactualValidator:
         return findings
 
     @staticmethod
+    def _detect_metric_mentions(text: str) -> set[str]:
+        lowered = text.lower()
+        found: set[str] = set()
+
+        for metric_name, phrases in FactualValidator.PRICING_SYNONYMS.items():
+            for phrase in phrases:
+                if phrase in lowered:
+                    found.add(metric_name)
+                    break
+
+        return found
+
+    @staticmethod
+    def _validate_metric_consistency(text: str, canonical_metric_name: str) -> list[str]:
+        metric_mentions = FactualValidator._detect_metric_mentions(text)
+        if not metric_mentions:
+            return []
+
+        issues: list[str] = []
+        non_canonical = [metric for metric in metric_mentions if metric != canonical_metric_name]
+        if non_canonical:
+            issues.append("non_canonical_pricing_metric_detected")
+        return issues
+
+    @staticmethod
     def _sanitize_text(text: str) -> str:
         sanitized = text
         for phrase in FactualValidator.FORBIDDEN_CLAIMS:
@@ -90,9 +138,10 @@ class FactualValidator:
         return sanitized.strip()
 
     @staticmethod
-    def validate_text(text: str, allowed_numbers: set[str]) -> dict[str, Any]:
+    def validate_text(text: str, allowed_numbers: set[str], canonical_metric_name: str | None = None) -> dict[str, Any]:
         forbidden_claims = FactualValidator._find_forbidden_claims(text)
         unreconciled_numbers = FactualValidator._find_unreconciled_numbers(text, allowed_numbers)
+        metric_issues = FactualValidator._validate_metric_consistency(text, canonical_metric_name) if canonical_metric_name else []
         sanitized_text = FactualValidator._sanitize_text(text)
 
         issues: list[str] = []
@@ -100,12 +149,14 @@ class FactualValidator:
             issues.append("forbidden_claims_detected")
         if unreconciled_numbers:
             issues.append("unreconciled_numbers_detected")
+        issues.extend(metric_issues)
 
         return {
             "original_text": text,
             "sanitized_text": sanitized_text,
             "forbidden_claims": forbidden_claims,
             "unreconciled_numbers": unreconciled_numbers,
+            "metric_issues": metric_issues,
             "passed": len(issues) == 0,
             "issues": issues,
         }
@@ -114,17 +165,18 @@ class FactualValidator:
     def validate_draft(draft: dict) -> dict[str, Any]:
         content_plan = draft["content_plan"]
         allowed_numbers = FactualValidator._extract_allowed_numeric_strings(content_plan)
+        canonical_metric_name = content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"]
 
         metadata_checks = {
-            "title": FactualValidator.validate_text(draft["metadata"].get("title", ""), allowed_numbers),
-            "meta_description": FactualValidator.validate_text(draft["metadata"].get("meta_description", ""), allowed_numbers),
-            "h1": FactualValidator.validate_text(draft["metadata"].get("h1", ""), allowed_numbers),
-            "intro_snippet": FactualValidator.validate_text(draft["metadata"].get("intro_snippet", ""), allowed_numbers),
+            "title": FactualValidator.validate_text(draft["metadata"].get("title", ""), allowed_numbers, canonical_metric_name),
+            "meta_description": FactualValidator.validate_text(draft["metadata"].get("meta_description", ""), allowed_numbers, canonical_metric_name),
+            "h1": FactualValidator.validate_text(draft["metadata"].get("h1", ""), allowed_numbers, canonical_metric_name),
+            "intro_snippet": FactualValidator.validate_text(draft["metadata"].get("intro_snippet", ""), allowed_numbers, canonical_metric_name),
         }
 
         section_checks = []
         for section in draft.get("sections", []):
-            body_check = FactualValidator.validate_text(section.get("body", ""), allowed_numbers)
+            body_check = FactualValidator.validate_text(section.get("body", ""), allowed_numbers, canonical_metric_name)
             section_checks.append(
                 {
                     "id": section.get("id"),
@@ -135,7 +187,7 @@ class FactualValidator:
 
         faq_checks = []
         for faq in draft.get("faqs", []):
-            answer_check = FactualValidator.validate_text(faq.get("answer", ""), allowed_numbers)
+            answer_check = FactualValidator.validate_text(faq.get("answer", ""), allowed_numbers, canonical_metric_name)
             faq_checks.append(
                 {
                     "question": faq.get("question"),
@@ -152,6 +204,7 @@ class FactualValidator:
             "metadata_checks": metadata_checks,
             "section_checks": section_checks,
             "faq_checks": faq_checks,
+            "canonical_metric_name": canonical_metric_name,
         }
 
     @staticmethod
