@@ -56,9 +56,15 @@ def test_content_plan_builder_for_locality() -> None:
 
     content_plan = ContentPlanBuilder.build(normalized=normalized, keyword_intelligence=keyword_intelligence)
 
-    assert content_plan["version"] == "v1.4"
+    assert content_plan["version"] == "v1.5"
+    assert content_plan["page_type"] == "resale_locality"
+    assert content_plan["entity"]["entity_name"] == "Andheri West"
     assert content_plan["metadata_plan"]["recommended_h1"] == "Resale Properties in Andheri West, Mumbai"
-    assert content_plan["keyword_strategy"]["primary_keyword"]["keyword"] == "flats for sale in andheri west mumbai"
+    assert "refresh_plan" in content_plan["metadata_plan"]
+    assert "comparison_plan" in content_plan
+    assert len(content_plan["comparison_plan"]) > 0
+    assert "internal_links_plan" in content_plan
+    assert "top_project_links" in content_plan["internal_links_plan"]
     assert len(content_plan["section_plan"]) > 0
     assert len(content_plan["table_plan"]) > 0
-    assert content_plan["faq_plan"]["total_faq_intents"] > 0
+    assert len(content_plan["faq_plan"]["faq_intents"]) > 0
