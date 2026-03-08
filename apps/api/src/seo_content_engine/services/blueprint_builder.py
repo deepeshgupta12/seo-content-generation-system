@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from seo_content_engine.domain.enums import PageType
 from seo_content_engine.utils.formatters import slugify
@@ -64,10 +64,7 @@ class BlueprintBuilder:
                 "links": normalized["links"],
                 "top_projects": normalized["top_projects"],
             },
-            "sections": [
-                {"id": section_id, "status": "planned"}
-                for section_id in section_map[page_type]
-            ],
+            "sections": [{"id": section_id, "status": "planned"} for section_id in section_map[page_type]],
             "faq_seed_questions": [
                 f"What is the average asking price of resale properties in {entity_name}, {city_name}?",
                 f"How many resale listings are available in {entity_name}, {city_name}?",

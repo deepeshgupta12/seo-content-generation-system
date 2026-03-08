@@ -37,3 +37,10 @@ class ArtifactWriter:
         page_type = keyword_intelligence["page_type"]
         file_stem = f"{entity}-{page_type}-keyword-intelligence"
         return ArtifactWriter.write_json_artifact(keyword_intelligence, file_stem)
+
+    @staticmethod
+    def write_content_plan(content_plan: dict) -> str:
+        entity = content_plan["entity"]["entity_name"]
+        page_type = content_plan["page_type"]
+        file_stem = f"{entity}-{page_type}-content-plan"
+        return ArtifactWriter.write_json_artifact(content_plan, file_stem)
