@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, datetime
+from typing import Any
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
@@ -67,12 +69,27 @@ class DraftGenerationService:
         if not issues_by_field:
             return metadata
 
-        system_prompt, user_prompt = PromptBuilder.repair_metadata_prompt(content_plan, metadata, issues_by_field)
+        validation_map = {
+            field_name: report
+            for field_name, report in validation_report["metadata_checks"].items()
+            if report["issues"]
+        }
+        system_prompt, user_prompt = PromptBuilder.repair_metadata_prompt(
+            content_plan,
+            metadata,
+            issues_by_field,
+            validation_map,
+        )
         repaired = client.generate_json(system_prompt, user_prompt)
         return repaired if isinstance(repaired, dict) else metadata
 
     @staticmethod
-    def _repair_sections(content_plan: dict, sections: list[dict], validation_report: dict, client: OpenAIClient) -> list[dict]:
+    def _repair_sections(
+        content_plan: dict,
+        sections: list[dict],
+        validation_report: dict,
+        client: OpenAIClient,
+    ) -> list[dict]:
         check_map = {item["id"]: item["validation"] for item in validation_report["section_checks"]}
         repaired_sections: list[dict] = []
 
@@ -83,7 +100,7 @@ class DraftGenerationService:
                 repaired_sections.append(section)
                 continue
 
-            system_prompt, user_prompt = PromptBuilder.repair_section_prompt(content_plan, section, issues)
+            system_prompt, user_prompt = PromptBuilder.repair_section_prompt(content_plan, section, validation)
             repaired = client.generate_json(system_prompt, user_prompt)
             if isinstance(repaired, dict) and repaired.get("body"):
                 repaired_sections.append(repaired)
@@ -93,7 +110,12 @@ class DraftGenerationService:
         return repaired_sections
 
     @staticmethod
-    def _repair_faqs(content_plan: dict, faqs: list[dict], validation_report: dict, client: OpenAIClient) -> list[dict]:
+    def _repair_faqs(
+        content_plan: dict,
+        faqs: list[dict],
+        validation_report: dict,
+        client: OpenAIClient,
+    ) -> list[dict]:
         check_map = {item["question"]: item["validation"] for item in validation_report["faq_checks"]}
         repaired_faqs: list[dict] = []
 
@@ -104,7 +126,7 @@ class DraftGenerationService:
                 repaired_faqs.append(faq)
                 continue
 
-            system_prompt, user_prompt = PromptBuilder.repair_faq_prompt(content_plan, faq, issues)
+            system_prompt, user_prompt = PromptBuilder.repair_faq_prompt(content_plan, faq, validation)
             repaired = client.generate_json(system_prompt, user_prompt)
             if isinstance(repaired, dict) and repaired.get("answer"):
                 repaired_faqs.append(repaired)
@@ -114,12 +136,18 @@ class DraftGenerationService:
         return repaired_faqs
 
     @staticmethod
-    def _build_base_draft(content_plan: dict, keyword_intelligence_version: str, metadata: dict, sections: list[dict], faqs: list[dict]) -> dict:
+    def _build_base_draft(
+        content_plan: dict,
+        keyword_intelligence_version: str,
+        metadata: dict,
+        sections: list[dict],
+        faqs: list[dict],
+    ) -> dict:
         tables = TableRenderer.render_all(content_plan["table_plan"], content_plan["data_context"])
         internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
         return {
-            "version": "v2.2",
+            "version": "v2.3",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": content_plan["page_type"],
             "listing_type": content_plan["listing_type"],
@@ -131,6 +159,16 @@ class DraftGenerationService:
             "internal_links": internal_links,
             "content_plan": content_plan,
             "keyword_intelligence_version": keyword_intelligence_version,
+        }
+
+    @staticmethod
+    def _build_validation_history_entry(pass_name: str, pass_index: int, validation_report: dict) -> dict[str, Any]:
+        return {
+            "pass_name": pass_name,
+            "pass_index": pass_index,
+            "passed": validation_report["passed"],
+            "debug_summary": FactualValidator.summarize_report(validation_report),
+            "validation_report": validation_report,
         }
 
     @staticmethod
@@ -159,6 +197,9 @@ class DraftGenerationService:
         )
 
         validation_report = FactualValidator.validate_draft(draft)
+        validation_history = [
+            DraftGenerationService._build_validation_history_entry("initial_generation", 0, validation_report)
+        ]
 
         repair_passes = 0
         while not validation_report["passed"] and repair_passes < settings.draft_repair_max_passes:
@@ -174,10 +215,24 @@ class DraftGenerationService:
                 faqs=faqs,
             )
 
-            validation_report = FactualValidator.validate_draft(draft)
             repair_passes += 1
+            validation_report = FactualValidator.validate_draft(draft)
+            validation_history.append(
+                DraftGenerationService._build_validation_history_entry(
+                    "repair_pass",
+                    repair_passes,
+                    validation_report,
+                )
+            )
 
-        draft = FactualValidator.apply_sanitization(draft, validation_report)
-        draft["repair_passes_used"] = repair_passes
-        draft["markdown_draft"] = MarkdownRenderer.render(draft)
-        return draft
+        pre_block_draft = deepcopy(draft)
+        final_debug_summary = FactualValidator.summarize_report(validation_report)
+
+        sanitized = FactualValidator.apply_sanitization(draft, validation_report)
+        sanitized["repair_passes_used"] = repair_passes
+        sanitized["validation_history"] = validation_history
+        sanitized["pre_block_draft"] = pre_block_draft
+        sanitized["debug_summary"] = final_debug_summary
+        sanitized["publish_ready"] = not sanitized["needs_review"]
+        sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
+        return sanitized

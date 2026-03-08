@@ -1,4 +1,5 @@
 from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -28,3 +29,9 @@ class DraftGenerateResponse(BaseModel):
     message: str
     draft: dict[str, Any]
     artifact_paths: dict[str, str] | None = None
+
+
+class DraftPublishResponse(BaseModel):
+    success: bool
+    message: str
+    artifact_paths: dict[str, str]

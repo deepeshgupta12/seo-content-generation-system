@@ -4,11 +4,13 @@ from seo_content_engine.schemas.requests import (
     BlueprintGenerateRequest,
     ContentPlanGenerateRequest,
     DraftGenerateRequest,
+    DraftPublishRequest,
 )
 from seo_content_engine.schemas.responses import (
     BlueprintGenerateResponse,
     ContentPlanGenerateResponse,
     DraftGenerateResponse,
+    DraftPublishResponse,
 )
 from seo_content_engine.services.artifact_writer import ArtifactWriter
 from seo_content_engine.services.blueprint_builder import BlueprintBuilder
@@ -112,18 +114,29 @@ def generate_draft(payload: DraftGenerateRequest) -> DraftGenerateResponse:
             keyword_intelligence=keyword_intelligence,
         )
 
-        artifact_paths = None
-        if payload.write_artifact:
-            artifact_paths = ArtifactWriter.write_draft_bundle(draft)
-
         return DraftGenerateResponse(
             success=True,
             message="Draft generated successfully",
             draft=draft,
-            artifact_paths=artifact_paths,
+            artifact_paths=None,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/draft/publish", response_model=DraftPublishResponse)
+def publish_draft(payload: DraftPublishRequest) -> DraftPublishResponse:
+    try:
+        artifact_paths = ArtifactWriter.write_draft_bundle(payload.draft)
+        return DraftPublishResponse(
+            success=True,
+            message="Draft artifact published successfully",
+            artifact_paths=artifact_paths,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

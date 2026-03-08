@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.domain.enums import PageType
@@ -77,12 +78,39 @@ class ContentPlanBuilder:
         return selected[: settings.keyword_metadata_max_count]
 
     @staticmethod
-    def _build_metadata_plan(entity: dict, keyword_clusters: dict) -> dict:
+    def _extract_rera_context(normalized: dict) -> dict[str, Any] | None:
+        possible_sources = [
+            normalized.get("rera"),
+            normalized.get("rera_details"),
+            normalized.get("buyer_protection"),
+            normalized.get("legal"),
+            normalized.get("pricing_summary", {}).get("rera"),
+            normalized.get("pricing_summary", {}).get("rera_details"),
+            normalized.get("raw_source_meta", {}).get("rera"),
+        ]
+        for item in possible_sources:
+            if isinstance(item, dict) and item:
+                return item
+        return None
+
+    @staticmethod
+    def _build_refresh_plan(raw_source_meta: dict) -> dict:
+        return {
+            "enable_last_updated_note": True,
+            "generated_at_source": "content_plan.generated_at",
+            "raw_source_meta_available": bool(raw_source_meta),
+            "raw_source_signals": raw_source_meta,
+        }
+
+    @staticmethod
+    def _build_metadata_plan(entity: dict, keyword_clusters: dict, raw_source_meta: dict) -> dict:
         entity_name = entity["entity_name"]
         city_name = entity["city_name"]
 
         primary_keyword = keyword_clusters.get("primary_keyword")
-        primary_keyword_text = primary_keyword["keyword"] if primary_keyword else f"resale properties in {entity_name} {city_name}"
+        primary_keyword_text = (
+            primary_keyword["keyword"] if primary_keyword else f"resale properties in {entity_name} {city_name}"
+        )
 
         metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity)
         title_candidates = [
@@ -111,6 +139,7 @@ class ContentPlanBuilder:
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
             "canonical_pricing_metric": canonical_pricing,
+            "refresh_plan": ContentPlanBuilder._build_refresh_plan(raw_source_meta),
         }
 
     @staticmethod
@@ -138,6 +167,18 @@ class ContentPlanBuilder:
                 "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
             },
         ]
+
+        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
+        if property_status:
+            tables.append(
+                {
+                    "id": "property_status_table",
+                    "title": "Property Status Snapshot",
+                    "source_data_path": "pricing_summary.property_status",
+                    "render_type": "deterministic",
+                    "columns": ["status", "units", "avgPrice"],
+                }
+            )
 
         top_projects = normalized.get("top_projects", {})
         if top_projects.get("byTransactions", {}).get("projects"):
@@ -185,9 +226,63 @@ class ContentPlanBuilder:
         return tables
 
     @staticmethod
+    def _build_comparison_plan(normalized: dict) -> list[dict]:
+        opportunities: list[dict] = []
+
+        price_trend = normalized.get("pricing_summary", {}).get("price_trend", [])
+        if price_trend:
+            opportunities.append(
+                {
+                    "id": "location_vs_micromarket_price_trend",
+                    "title": "Locality vs Micromarket Price Trend",
+                    "comparison_type": "trend",
+                    "enabled": True,
+                    "source_paths": ["pricing_summary.price_trend"],
+                }
+            )
+
+        nearby_localities = normalized.get("nearby_localities", [])
+        if nearby_localities:
+            opportunities.append(
+                {
+                    "id": "nearby_locality_comparison",
+                    "title": "Nearby Locality Price and Supply Comparison",
+                    "comparison_type": "tabular",
+                    "enabled": True,
+                    "source_paths": ["nearby_localities"],
+                }
+            )
+
+        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
+        if property_status:
+            opportunities.append(
+                {
+                    "id": "status_readiness_comparison",
+                    "title": "Ready-to-Move and Status Comparison",
+                    "comparison_type": "tabular",
+                    "enabled": True,
+                    "source_paths": ["pricing_summary.property_status"],
+                }
+            )
+
+        return opportunities
+
+    @staticmethod
     def _build_internal_links_plan(normalized: dict) -> dict:
         links = normalized["links"]
         nearby_localities = normalized["nearby_localities"]
+
+        top_project_links: list[dict] = []
+        for bucket_key in ["byTransactions", "byListingRates", "byValue"]:
+            projects = normalized.get("top_projects", {}).get(bucket_key, {}).get("projects", [])
+            for project in projects:
+                if project.get("projectName") and project.get("productUrl"):
+                    top_project_links.append(
+                        {
+                            "label": project["projectName"],
+                            "url": project["productUrl"],
+                        }
+                    )
 
         return {
             "sale_unit_type_links": links.get("sale_unit_type_urls", []),
@@ -201,6 +296,7 @@ class ContentPlanBuilder:
                 for item in nearby_localities
                 if item.get("name") and item.get("url")
             ],
+            "top_project_links": top_project_links,
         }
 
     @staticmethod
@@ -242,15 +338,27 @@ class ContentPlanBuilder:
             },
         ]
 
+        rera_context = ContentPlanBuilder._extract_rera_context(normalized)
+        if rera_context:
+            faq_intents.append(
+                {
+                    "id": "rera_buyer_protection",
+                    "question_template": f"What RERA or buyer-protection details are available for {entity_name}, {city_name} on this page?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                    "data_dependencies": ["rera_context"],
+                }
+            )
+
         return {
             "total_faq_intents": len(faq_intents),
             "faq_intents": faq_intents,
         }
 
     @staticmethod
-    def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict) -> list[dict]:
+    def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
         entity_name = entity["entity_name"]
         city_name = entity["city_name"]
+        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
 
         common_sections = [
             {
@@ -307,7 +415,7 @@ class ContentPlanBuilder:
                 "objective": "Guide users to relevant listing, unit-type, property-type, and nearby pages.",
                 "render_type": "deterministic",
                 "target_keywords": [],
-                "data_dependencies": ["links", "nearby_localities"],
+                "data_dependencies": ["links", "nearby_localities", "top_projects"],
             },
         ]
 
@@ -338,14 +446,27 @@ class ContentPlanBuilder:
             "data_dependencies": ["listing_summary", "links"],
         }
 
-        if page_type == PageType.RESALE_LOCALITY:
-            return common_sections[:4] + [locality_specific] + common_sections[4:]
-        if page_type == PageType.RESALE_MICROMARKET:
-            return common_sections[:2] + [micromarket_specific] + common_sections[2:]
-        if page_type == PageType.RESALE_CITY:
-            return common_sections[:2] + [city_specific] + common_sections[2:]
+        readiness_section = {
+            "id": "status_and_readiness",
+            "title": "Status and Readiness Snapshot",
+            "objective": "Summarize available status buckets such as ready-to-move using grounded property-status data.",
+            "render_type": "hybrid",
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("ready_to_move_keywords", []), 4),
+            "data_dependencies": ["pricing_summary.property_status"],
+        }
 
-        return common_sections
+        sections = list(common_sections)
+        if property_status:
+            sections.insert(4, readiness_section)
+
+        if page_type == PageType.RESALE_LOCALITY:
+            return sections[:4] + [locality_specific] + sections[4:]
+        if page_type == PageType.RESALE_MICROMARKET:
+            return sections[:2] + [micromarket_specific] + sections[2:]
+        if page_type == PageType.RESALE_CITY:
+            return sections[:2] + [city_specific] + sections[2:]
+
+        return sections
 
     @staticmethod
     def build(normalized: dict, keyword_intelligence: dict) -> dict:
@@ -353,14 +474,16 @@ class ContentPlanBuilder:
         entity["canonical_asking_price"] = normalized["pricing_summary"].get("asking_price")
         page_type = PageType(entity["page_type"])
         keyword_clusters = keyword_intelligence["keyword_clusters"]
+        raw_source_meta = normalized["raw_source_meta"]
+        rera_context = ContentPlanBuilder._extract_rera_context(normalized)
 
         return {
-            "version": "v1.4",
+            "version": "v1.5",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],
             "entity": entity,
-            "metadata_plan": ContentPlanBuilder._build_metadata_plan(entity, keyword_clusters),
+            "metadata_plan": ContentPlanBuilder._build_metadata_plan(entity, keyword_clusters, raw_source_meta),
             "keyword_strategy": {
                 "primary_keyword": keyword_clusters.get("primary_keyword"),
                 "secondary_keywords": keyword_clusters.get("secondary_keywords", []),
@@ -372,8 +495,9 @@ class ContentPlanBuilder:
                 "exact_match_keywords": keyword_clusters.get("exact_match_keywords", []),
                 "loose_match_keywords": keyword_clusters.get("loose_match_keywords", []),
             },
-            "section_plan": ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters),
+            "section_plan": ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized),
             "table_plan": ContentPlanBuilder._build_table_plan(page_type, normalized),
+            "comparison_plan": ContentPlanBuilder._build_comparison_plan(normalized),
             "faq_plan": ContentPlanBuilder._build_faq_plan(entity, keyword_clusters, normalized),
             "internal_links_plan": ContentPlanBuilder._build_internal_links_plan(normalized),
             "data_context": {
@@ -382,9 +506,10 @@ class ContentPlanBuilder:
                 "distributions": normalized["distributions"],
                 "nearby_localities": normalized["nearby_localities"],
                 "top_projects": normalized["top_projects"],
+                "rera_context": rera_context,
             },
             "source_meta": {
-                "raw_source_meta": normalized["raw_source_meta"],
+                "raw_source_meta": raw_source_meta,
                 "keyword_intelligence_version": keyword_intelligence["version"],
             },
         }

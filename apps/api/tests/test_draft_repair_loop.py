@@ -3,13 +3,13 @@ from seo_content_engine.services.draft_generation_service import DraftGeneration
 
 class RepairingDummyOpenAIClient:
     def __init__(self) -> None:
-        self.section_repair_called = False
-        self.faq_repair_called = False
-        self.metadata_repair_called = False
+        self.section_repair_called = 0
+        self.faq_repair_called = 0
+        self.metadata_repair_called = 0
 
     def generate_json(self, system_prompt: str, user_prompt: str):
-        if '"issues_by_field"' in user_prompt:
-            self.metadata_repair_called = True
+        if '"validation_by_field"' in user_prompt:
+            self.metadata_repair_called += 1
             return {
                 "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
                 "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
@@ -17,15 +17,15 @@ class RepairingDummyOpenAIClient:
                 "intro_snippet": "Browse current resale property options in Andheri West, Mumbai on Square Yards.",
             }
 
-        if '"faq"' in user_prompt and '"issues"' in user_prompt:
-            self.faq_repair_called = True
+        if '"faq"' in user_prompt and '"validator_feedback"' in user_prompt:
+            self.faq_repair_called += 1
             return {
                 "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
                 "answer": "The asking price signal is ₹40,238 based on Square Yards data.",
             }
 
-        if '"section"' in user_prompt and '"issues"' in user_prompt:
-            self.section_repair_called = True
+        if '"section"' in user_prompt and '"validator_feedback"' in user_prompt:
+            self.section_repair_called += 1
             return {
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
@@ -132,8 +132,10 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
         openai_client=client,
     )
 
-    assert draft["version"] == "v2.2"
-    assert client.metadata_repair_called is True
-    assert client.section_repair_called is True
-    assert client.faq_repair_called is True
-    assert draft["repair_passes_used"] == 1
+    assert draft["version"] == "v2.3"
+    assert client.metadata_repair_called >= 1
+    assert client.section_repair_called >= 1
+    assert client.faq_repair_called >= 1
+    assert draft["repair_passes_used"] >= 1
+    assert "pre_block_draft" in draft
+    assert "debug_summary" in draft

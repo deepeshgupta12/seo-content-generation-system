@@ -28,6 +28,8 @@ class FactualValidator:
             "current asking price",
             "price signal",
             "asking rate",
+            "average price",
+            "avg price",
         ],
         "registration_rate": [
             "registration rate",
@@ -135,13 +137,19 @@ class FactualValidator:
 
         sanitized = re.sub(r"\s{2,}", " ", sanitized)
         sanitized = re.sub(r"\s+([,.])", r"\1", sanitized)
+        sanitized = re.sub(r"\s+([)])", r"\1", sanitized)
+        sanitized = re.sub(r"([(])\s+", r"\1", sanitized)
         return sanitized.strip()
 
     @staticmethod
     def validate_text(text: str, allowed_numbers: set[str], canonical_metric_name: str | None = None) -> dict[str, Any]:
         forbidden_claims = FactualValidator._find_forbidden_claims(text)
         unreconciled_numbers = FactualValidator._find_unreconciled_numbers(text, allowed_numbers)
-        metric_issues = FactualValidator._validate_metric_consistency(text, canonical_metric_name) if canonical_metric_name else []
+        metric_issues = (
+            FactualValidator._validate_metric_consistency(text, canonical_metric_name)
+            if canonical_metric_name
+            else []
+        )
         sanitized_text = FactualValidator._sanitize_text(text)
 
         issues: list[str] = []
@@ -168,15 +176,25 @@ class FactualValidator:
         canonical_metric_name = content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"]
 
         metadata_checks = {
-            "title": FactualValidator.validate_text(draft["metadata"].get("title", ""), allowed_numbers, canonical_metric_name),
-            "meta_description": FactualValidator.validate_text(draft["metadata"].get("meta_description", ""), allowed_numbers, canonical_metric_name),
-            "h1": FactualValidator.validate_text(draft["metadata"].get("h1", ""), allowed_numbers, canonical_metric_name),
-            "intro_snippet": FactualValidator.validate_text(draft["metadata"].get("intro_snippet", ""), allowed_numbers, canonical_metric_name),
+            "title": FactualValidator.validate_text(
+                draft["metadata"].get("title", ""), allowed_numbers, canonical_metric_name
+            ),
+            "meta_description": FactualValidator.validate_text(
+                draft["metadata"].get("meta_description", ""), allowed_numbers, canonical_metric_name
+            ),
+            "h1": FactualValidator.validate_text(
+                draft["metadata"].get("h1", ""), allowed_numbers, canonical_metric_name
+            ),
+            "intro_snippet": FactualValidator.validate_text(
+                draft["metadata"].get("intro_snippet", ""), allowed_numbers, canonical_metric_name
+            ),
         }
 
         section_checks = []
         for section in draft.get("sections", []):
-            body_check = FactualValidator.validate_text(section.get("body", ""), allowed_numbers, canonical_metric_name)
+            body_check = FactualValidator.validate_text(
+                section.get("body", ""), allowed_numbers, canonical_metric_name
+            )
             section_checks.append(
                 {
                     "id": section.get("id"),
@@ -187,7 +205,9 @@ class FactualValidator:
 
         faq_checks = []
         for faq in draft.get("faqs", []):
-            answer_check = FactualValidator.validate_text(faq.get("answer", ""), allowed_numbers, canonical_metric_name)
+            answer_check = FactualValidator.validate_text(
+                faq.get("answer", ""), allowed_numbers, canonical_metric_name
+            )
             faq_checks.append(
                 {
                     "question": faq.get("question"),
@@ -205,6 +225,40 @@ class FactualValidator:
             "section_checks": section_checks,
             "faq_checks": faq_checks,
             "canonical_metric_name": canonical_metric_name,
+        }
+
+    @staticmethod
+    def summarize_report(validation_report: dict) -> dict[str, Any]:
+        failing_metadata_fields = [
+            field_name
+            for field_name, report in validation_report["metadata_checks"].items()
+            if report["issues"]
+        ]
+        failing_section_ids = [
+            item["id"]
+            for item in validation_report["section_checks"]
+            if item["validation"]["issues"]
+        ]
+        failing_faq_questions = [
+            item["question"]
+            for item in validation_report["faq_checks"]
+            if item["validation"]["issues"]
+        ]
+
+        blocking_reasons: list[str] = []
+        if failing_metadata_fields:
+            blocking_reasons.append("metadata_validation_failed")
+        if failing_section_ids:
+            blocking_reasons.append("section_validation_failed")
+        if failing_faq_questions:
+            blocking_reasons.append("faq_validation_failed")
+
+        return {
+            "blocked": not validation_report["passed"],
+            "blocking_reasons": blocking_reasons,
+            "failing_metadata_fields": failing_metadata_fields,
+            "failing_section_ids": failing_section_ids,
+            "failing_faq_questions": failing_faq_questions,
         }
 
     @staticmethod
@@ -237,5 +291,6 @@ class FactualValidator:
 
         sanitized["faqs"] = sanitized_faqs
         sanitized["validation_report"] = validation_report
+        sanitized["debug_summary"] = FactualValidator.summarize_report(validation_report)
         sanitized["needs_review"] = not validation_report["passed"]
         return sanitized

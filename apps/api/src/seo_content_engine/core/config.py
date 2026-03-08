@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     squareyards_base_url: str = "https://www.squareyards.com"
 
-    draft_repair_max_passes: int = 1
+    draft_repair_max_passes: int = 2
     block_artifact_write_on_review: bool = True
 
     model_config = SettingsConfigDict(

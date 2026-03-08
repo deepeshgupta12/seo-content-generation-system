@@ -3,7 +3,7 @@ from seo_content_engine.services.draft_generation_service import DraftGeneration
 
 class DummyOpenAIClient:
     def generate_json(self, system_prompt: str, user_prompt: str):
-        if '"issues_by_field"' in user_prompt:
+        if '"validation_by_field"' in user_prompt:
             return {
                 "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
                 "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
@@ -11,13 +11,13 @@ class DummyOpenAIClient:
                 "intro_snippet": "Browse current resale property options in Andheri West, Mumbai on Square Yards.",
             }
 
-        if '"faq"' in user_prompt and '"issues"' in user_prompt:
+        if '"faq"' in user_prompt and '"validator_feedback"' in user_prompt:
             return {
                 "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
                 "answer": "The asking price signal is ₹40,238.",
             }
 
-        if '"section"' in user_prompt and '"issues"' in user_prompt:
+        if '"section"' in user_prompt and '"validator_feedback"' in user_prompt:
             return {
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
@@ -123,11 +123,14 @@ def test_draft_generation_service() -> None:
         openai_client=DummyOpenAIClient(),
     )
 
-    assert draft["version"] == "v2.2"
+    assert draft["version"] == "v2.3"
     assert draft["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
     assert len(draft["sections"]) > 0
     assert len(draft["tables"]) > 0
     assert len(draft["faqs"]) > 0
     assert "validation_report" in draft
     assert "repair_passes_used" in draft
+    assert "validation_history" in draft
+    assert "pre_block_draft" in draft
+    assert "debug_summary" in draft
     assert "https://www.squareyards.com/" in draft["markdown_draft"]

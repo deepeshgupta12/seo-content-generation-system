@@ -42,7 +42,7 @@ class DummyDraftService:
     @staticmethod
     def generate(normalized, keyword_intelligence):
         return {
-            "version": "v2.0",
+            "version": "v2.3",
             "page_type": normalized["entity"]["page_type"],
             "listing_type": normalized["entity"]["listing_type"],
             "entity": normalized["entity"],
@@ -64,6 +64,11 @@ class DummyDraftService:
             "internal_links": {},
             "content_plan": {},
             "keyword_intelligence_version": "v1.1",
+            "validation_report": {"passed": True},
+            "validation_history": [],
+            "pre_block_draft": {},
+            "debug_summary": {"blocked": False, "blocking_reasons": []},
+            "publish_ready": True,
             "markdown_draft": "# Resale Properties in Andheri West, Mumbai\n",
         }
 
@@ -102,3 +107,4 @@ def test_draft_route(monkeypatch) -> None:
     assert payload["success"] is True
     assert payload["draft"]["entity"]["entity_name"] == "Andheri West"
     assert payload["draft"]["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
+    assert payload["artifact_paths"] is None

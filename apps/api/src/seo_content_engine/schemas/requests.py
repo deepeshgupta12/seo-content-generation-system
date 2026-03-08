@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+
 from seo_content_engine.domain.enums import ListingType
 
 
@@ -39,4 +40,8 @@ class DraftGenerateRequest(BaseModel):
     language_name: str | None = Field(default=None, description="Override DataForSEO language_name")
     limit: int | None = Field(default=None, ge=1, le=100, description="Max keyword rows to request")
     include_historical: bool = True
-    write_artifact: bool = True
+    write_artifact: bool = False
+
+
+class DraftPublishRequest(BaseModel):
+    draft: dict
