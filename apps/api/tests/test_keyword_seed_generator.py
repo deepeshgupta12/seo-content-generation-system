@@ -20,5 +20,6 @@ def test_keyword_seed_generation_for_locality() -> None:
     seeds = KeywordSeedGenerator.generate(normalized)
 
     assert len(seeds) > 0
-    assert any("resale properties in Andheri West Mumbai" == seed for seed in seeds)
-    assert any("property prices in Andheri West Mumbai" == seed for seed in seeds)
+    assert any(seed == "resale properties in Andheri West Mumbai" for seed in seeds)
+    assert any(seed == "property for sale in Andheri West Mumbai" for seed in seeds)
+    assert any(seed == "2 bhk flats for sale in Andheri West Mumbai" for seed in seeds)

@@ -60,3 +60,21 @@ class DataForSEOClient:
             }
         ]
         return self._post_tasks("dataforseo_labs/google/related_keywords/live", payload)
+
+    def get_historical_search_volume(
+        self,
+        keywords: list[str],
+        location_name: str,
+        language_name: str,
+    ) -> dict[str, Any]:
+        if not keywords:
+            return {"tasks": []}
+
+        payload = [
+            {
+                "keywords": keywords,
+                "location_name": location_name,
+                "language_name": language_name,
+            }
+        ]
+        return self._post_tasks("dataforseo_labs/google/historical_search_volume/live", payload)

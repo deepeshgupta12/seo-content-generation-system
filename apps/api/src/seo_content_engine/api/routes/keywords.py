@@ -25,6 +25,7 @@ def build_keyword_intelligence(payload: KeywordIntelligenceRequest) -> KeywordIn
             location_name=payload.location_name,
             language_name=payload.language_name,
             limit=payload.limit,
+            include_historical=payload.include_historical,
         )
 
         artifact_path = None

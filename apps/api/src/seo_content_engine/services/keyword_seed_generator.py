@@ -26,12 +26,13 @@ class KeywordSeedGenerator:
                     f"apartments for sale in {base_location}",
                     f"property prices in {base_location}",
                     f"ready to move flats in {base_location}",
-                    f"2 bhk resale flat in {base_location}",
-                    f"3 bhk resale flat in {base_location}",
+                    f"2 bhk flats for sale in {base_location}",
+                    f"3 bhk flats for sale in {base_location}",
+                    f"1 bhk flats for sale in {base_location}",
                 ]
             )
             if micromarket_name:
-                seeds.append(f"resale properties in {entity_name} {micromarket_name} {city_name}")
+                seeds.append(f"property for sale in {entity_name} {city_name}")
 
         elif page_type.value == "resale_micromarket":
             seeds.extend(
@@ -41,6 +42,8 @@ class KeywordSeedGenerator:
                     f"flats for sale in {entity_name} {city_name}",
                     f"property prices in {entity_name} {city_name}",
                     f"ready to move properties in {entity_name} {city_name}",
+                    f"2 bhk flats for sale in {entity_name} {city_name}",
+                    f"3 bhk flats for sale in {entity_name} {city_name}",
                 ]
             )
 
@@ -53,6 +56,8 @@ class KeywordSeedGenerator:
                     f"resale flats in {city_name}",
                     f"property prices in {city_name}",
                     f"ready to move properties in {city_name}",
+                    f"2 bhk flats for sale in {city_name}",
+                    f"3 bhk flats for sale in {city_name}",
                 ]
             )
 

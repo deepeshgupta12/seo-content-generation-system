@@ -5,6 +5,7 @@ from typing import Any
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.services.dataforseo_client import DataForSEOClient
+from seo_content_engine.services.keyword_processing import KeywordProcessing
 from seo_content_engine.services.keyword_seed_generator import KeywordSeedGenerator
 
 
@@ -20,28 +21,19 @@ class KeywordIntelligenceService:
                     keyword_value = item.get("keyword") or item.get("keyword_data", {}).get("keyword")
                     if not keyword_value:
                         continue
-
-                    extracted_items.append(
-                        {
-                            "keyword": keyword_value,
-                            "search_volume": item.get("search_volume"),
-                            "keyword_info": item.get("keyword_info"),
-                            "keyword_properties": item.get("keyword_properties"),
-                            "avg_backlinks_info": item.get("avg_backlinks_info"),
-                            "search_intent_info": item.get("search_intent_info"),
-                        }
-                    )
+                    extracted_items.append(item)
 
         return extracted_items
 
     @staticmethod
-    def _dedupe_keywords(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _dedupe_raw_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         deduped: list[dict[str, Any]] = []
         seen = set()
 
         for item in items:
-            key = " ".join(item["keyword"].lower().split())
-            if key in seen:
+            keyword = item.get("keyword") or item.get("keyword_data", {}).get("keyword") or ""
+            key = " ".join(keyword.lower().split())
+            if not key or key in seen:
                 continue
             seen.add(key)
             deduped.append(item)
@@ -49,11 +41,39 @@ class KeywordIntelligenceService:
         return deduped
 
     @staticmethod
+    def _normalize_group(
+        grouped_items: list[dict[str, Any]],
+        source: str,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        by_seed: list[dict[str, Any]] = []
+        all_items: list[dict[str, Any]] = []
+
+        for group in grouped_items:
+            seed_keyword = group["seed_keyword"]
+            raw_items = KeywordIntelligenceService._dedupe_raw_items(group["raw_items"])
+            normalized_items = [
+                KeywordProcessing.normalize_raw_item(item, source=source, seed_keyword=seed_keyword)
+                for item in raw_items
+            ]
+
+            by_seed.append(
+                {
+                    "seed_keyword": seed_keyword,
+                    "items_count": len(normalized_items),
+                    "items": normalized_items,
+                }
+            )
+            all_items.extend(normalized_items)
+
+        return by_seed, all_items
+
+    @staticmethod
     def build_keyword_intelligence(
         normalized: dict[str, Any],
         location_name: str | None = None,
         language_name: str | None = None,
         limit: int | None = None,
+        include_historical: bool = True,
         client: DataForSEOClient | None = None,
     ) -> dict[str, Any]:
         entity = normalized["entity"]
@@ -65,11 +85,10 @@ class KeywordIntelligenceService:
 
         seeds = KeywordSeedGenerator.generate(normalized)
         client = client or DataForSEOClient()
+        warnings: list[str] = []
 
-        suggestions_by_seed: list[dict[str, Any]] = []
-        related_by_seed: list[dict[str, Any]] = []
-        all_suggestions: list[dict[str, Any]] = []
-        all_related: list[dict[str, Any]] = []
+        suggestions_raw_groups: list[dict[str, Any]] = []
+        related_raw_groups: list[dict[str, Any]] = []
 
         for seed in seeds:
             suggestions_raw = client.get_keyword_suggestions(
@@ -78,8 +97,12 @@ class KeywordIntelligenceService:
                 language_name=resolved_language,
                 limit=resolved_limit,
             )
-            suggestions_items = KeywordIntelligenceService._extract_items(suggestions_raw)
-            suggestions_items = KeywordIntelligenceService._dedupe_keywords(suggestions_items)
+            suggestions_raw_groups.append(
+                {
+                    "seed_keyword": seed,
+                    "raw_items": KeywordIntelligenceService._extract_items(suggestions_raw),
+                }
+            )
 
             related_raw = client.get_related_keywords(
                 keyword=seed,
@@ -88,32 +111,62 @@ class KeywordIntelligenceService:
                 limit=resolved_limit,
                 depth=settings.dataforseo_related_depth,
             )
-            related_items = KeywordIntelligenceService._extract_items(related_raw)
-            related_items = KeywordIntelligenceService._dedupe_keywords(related_items)
-
-            suggestions_by_seed.append(
+            related_raw_groups.append(
                 {
                     "seed_keyword": seed,
-                    "items_count": len(suggestions_items),
-                    "items": suggestions_items,
-                }
-            )
-            related_by_seed.append(
-                {
-                    "seed_keyword": seed,
-                    "items_count": len(related_items),
-                    "items": related_items,
+                    "raw_items": KeywordIntelligenceService._extract_items(related_raw),
                 }
             )
 
-            all_suggestions.extend(suggestions_items)
-            all_related.extend(related_items)
+        suggestions_by_seed, all_suggestions = KeywordIntelligenceService._normalize_group(
+            suggestions_raw_groups,
+            source="suggestions",
+        )
+        related_by_seed, all_related = KeywordIntelligenceService._normalize_group(
+            related_raw_groups,
+            source="related",
+        )
 
-        deduped_suggestions = KeywordIntelligenceService._dedupe_keywords(all_suggestions)
-        deduped_related = KeywordIntelligenceService._dedupe_keywords(all_related)
+        all_records = all_suggestions + all_related
+
+        unique_for_historical = []
+        seen_keywords = set()
+        for record in all_records:
+            key = record["normalized_keyword"]
+            if not key or key in seen_keywords:
+                continue
+            seen_keywords.add(key)
+            unique_for_historical.append(record["keyword"])
+
+        historical_enriched = False
+        historical_map: dict[str, dict[str, Any]] = {}
+
+        if include_historical:
+            try:
+                historical_keywords = unique_for_historical[: settings.dataforseo_historical_keywords_limit]
+                historical_raw = client.get_historical_search_volume(
+                    keywords=historical_keywords,
+                    location_name=resolved_location,
+                    language_name=resolved_language,
+                )
+                historical_map = KeywordProcessing.extract_historical_map(historical_raw)
+                all_records = KeywordProcessing.apply_historical_enrichment(all_records, historical_map)
+                historical_enriched = True
+            except Exception as exc:
+                warnings.append(f"historical_enrichment_failed: {exc}")
+
+        evaluated_records = [
+            KeywordProcessing.evaluate_record(record, entity=entity)
+            for record in all_records
+        ]
+        consolidated_records = KeywordProcessing.consolidate_records(evaluated_records)
+        clusters = KeywordProcessing.build_clusters(consolidated_records)
+
+        included_records = [record for record in consolidated_records if record["include"]]
+        excluded_records = [record for record in consolidated_records if not record["include"]]
 
         return {
-            "version": "v1",
+            "version": "v1.1",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": page_type,
             "listing_type": entity["listing_type"],
@@ -123,17 +176,33 @@ class KeywordIntelligenceService:
                 "language_name": resolved_language,
                 "limit": resolved_limit,
                 "related_depth": settings.dataforseo_related_depth,
+                "historical_keywords_limit": settings.dataforseo_historical_keywords_limit,
+                "historical_enriched": historical_enriched,
             },
+            "warnings": warnings,
             "seed_keywords": seeds,
             "seed_count": len(seeds),
-            "suggestions": {
-                "total_unique_keywords": len(deduped_suggestions),
-                "by_seed": suggestions_by_seed,
-                "all_unique_items": deduped_suggestions,
+            "raw_retrieval": {
+                "suggestions": {
+                    "total_unique_keywords": len({item["normalized_keyword"] for item in all_suggestions}),
+                    "by_seed": suggestions_by_seed,
+                },
+                "related_keywords": {
+                    "total_unique_keywords": len({item["normalized_keyword"] for item in all_related}),
+                    "by_seed": related_by_seed,
+                },
             },
-            "related_keywords": {
-                "total_unique_keywords": len(deduped_related),
-                "by_seed": related_by_seed,
-                "all_unique_items": deduped_related,
+            "historical_enrichment": {
+                "applied": historical_enriched,
+                "historical_keywords_count": len(historical_map),
             },
+            "normalized_keywords": {
+                "total_records_before_consolidation": len(evaluated_records),
+                "total_unique_records_after_consolidation": len(consolidated_records),
+                "included_count": len(included_records),
+                "excluded_count": len(excluded_records),
+                "included_keywords": included_records,
+                "excluded_keywords": excluded_records,
+            },
+            "keyword_clusters": clusters,
         }

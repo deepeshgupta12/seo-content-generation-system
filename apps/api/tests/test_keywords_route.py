@@ -8,9 +8,15 @@ client = TestClient(app)
 
 class DummyKeywordService:
     @staticmethod
-    def build_keyword_intelligence(normalized, location_name=None, language_name=None, limit=None):
+    def build_keyword_intelligence(
+        normalized,
+        location_name=None,
+        language_name=None,
+        limit=None,
+        include_historical=True,
+    ):
         return {
-            "version": "v1",
+            "version": "v1.1",
             "generated_at": "2026-03-08T00:00:00+00:00",
             "page_type": normalized["entity"]["page_type"],
             "listing_type": normalized["entity"]["listing_type"],
@@ -20,18 +26,41 @@ class DummyKeywordService:
                 "language_name": language_name or "English",
                 "limit": limit or 50,
                 "related_depth": 2,
+                "historical_keywords_limit": 50,
+                "historical_enriched": include_historical,
             },
+            "warnings": [],
             "seed_keywords": ["resale properties in Andheri West Mumbai"],
             "seed_count": 1,
-            "suggestions": {
-                "total_unique_keywords": 1,
-                "by_seed": [],
-                "all_unique_items": [{"keyword": "resale properties in andheri west mumbai", "search_volume": 100}],
+            "raw_retrieval": {
+                "suggestions": {"total_unique_keywords": 1, "by_seed": []},
+                "related_keywords": {"total_unique_keywords": 1, "by_seed": []},
             },
-            "related_keywords": {
-                "total_unique_keywords": 1,
-                "by_seed": [],
-                "all_unique_items": [{"keyword": "flats for sale in andheri west mumbai", "search_volume": 90}],
+            "historical_enrichment": {
+                "applied": include_historical,
+                "historical_keywords_count": 1,
+            },
+            "normalized_keywords": {
+                "total_records_before_consolidation": 2,
+                "total_unique_records_after_consolidation": 1,
+                "included_count": 1,
+                "excluded_count": 0,
+                "included_keywords": [],
+                "excluded_keywords": [],
+            },
+            "keyword_clusters": {
+                "primary_keyword": {
+                    "keyword": "flats for sale in andheri west mumbai",
+                    "score": 92,
+                },
+                "secondary_keywords": [],
+                "bhk_keywords": [],
+                "price_keywords": [],
+                "ready_to_move_keywords": [],
+                "long_tail_keywords": [],
+                "faq_keyword_candidates": [],
+                "metadata_keywords": ["flats for sale in andheri west mumbai"],
+                "total_included_keywords": 1,
             },
         }
 
@@ -55,6 +84,7 @@ def test_keywords_intelligence_route(monkeypatch) -> None:
             "main_datacenter_json_path": str(main_json),
             "property_rates_json_path": str(rates_json),
             "listing_type": "resale",
+            "include_historical": True,
             "write_artifact": False,
         },
     )
@@ -63,4 +93,6 @@ def test_keywords_intelligence_route(monkeypatch) -> None:
     payload = response.json()
     assert payload["success"] is True
     assert payload["keyword_intelligence"]["entity"]["entity_name"] == "Andheri West"
-    assert payload["keyword_intelligence"]["seed_count"] == 1
+    assert payload["keyword_intelligence"]["keyword_clusters"]["primary_keyword"]["keyword"] == (
+        "flats for sale in andheri west mumbai"
+    )

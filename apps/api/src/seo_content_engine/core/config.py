@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     dataforseo_default_limit: int = 50
     dataforseo_related_depth: int = 2
     dataforseo_timeout_seconds: float = 45.0
+    dataforseo_historical_keywords_limit: int = 50
+
+    keyword_secondary_max_count: int = 10
+    keyword_long_tail_max_count: int = 12
+    keyword_bhk_max_count: int = 10
+    keyword_price_max_count: int = 10
+    keyword_ready_to_move_max_count: int = 8
+    keyword_faq_max_count: int = 12
+    keyword_metadata_max_count: int = 8
 
     model_config = SettingsConfigDict(
         env_file=".env",
