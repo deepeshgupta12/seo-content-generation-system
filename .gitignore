@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+.env
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Local artifacts
+data/artifacts/*.json
+data/artifacts/*.md
+data/artifacts/*.html
+!data/artifacts/.gitkeep
