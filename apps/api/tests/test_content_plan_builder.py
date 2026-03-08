@@ -56,7 +56,7 @@ def test_content_plan_builder_for_locality() -> None:
 
     content_plan = ContentPlanBuilder.build(normalized=normalized, keyword_intelligence=keyword_intelligence)
 
-    assert content_plan["version"] == "v1.3"
+    assert content_plan["version"] == "v1.4"
     assert content_plan["metadata_plan"]["recommended_h1"] == "Resale Properties in Andheri West, Mumbai"
     assert content_plan["keyword_strategy"]["primary_keyword"]["keyword"] == "flats for sale in andheri west mumbai"
     assert len(content_plan["section_plan"]) > 0

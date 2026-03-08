@@ -23,10 +23,17 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
             }
         ],
         "content_plan": {
+            "metadata_plan": {
+                "canonical_pricing_metric": {
+                    "metric_name": "asking_price",
+                    "label": "asking price",
+                    "value": 40238,
+                }
+            },
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
-            }
+            },
         },
     }
 
