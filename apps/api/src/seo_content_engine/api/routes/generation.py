@@ -13,13 +13,11 @@ router = APIRouter(prefix="/v1/generate", tags=["generation"])
 @router.post("/blueprint", response_model=BlueprintGenerateResponse)
 def generate_blueprint(payload: BlueprintGenerateRequest) -> BlueprintGenerateResponse:
     try:
-        main_data = SourceLoader.load_json(payload.main_datacenter_json_path)
-        rates_data = SourceLoader.load_json(payload.property_rates_json_path)
-
-        normalized = EntityNormalizer.normalize(
-            main_data=main_data,
-            rates_data=rates_data,
+        normalized = EntityNormalizer.normalize_from_paths(
+            main_datacenter_json_path=payload.main_datacenter_json_path,
+            property_rates_json_path=payload.property_rates_json_path,
             listing_type=payload.listing_type,
+            source_loader=SourceLoader,
         )
         blueprint = BlueprintBuilder.build(normalized)
 

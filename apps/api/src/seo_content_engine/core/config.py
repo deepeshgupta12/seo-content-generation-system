@@ -9,6 +9,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     artifacts_dir: str = "data/artifacts"
 
+    dataforseo_base_url: str = "https://api.dataforseo.com/v3"
+    dataforseo_login: str = ""
+    dataforseo_password: str = ""
+    dataforseo_default_location_name: str = "India"
+    dataforseo_default_language_name: str = "English"
+    dataforseo_default_limit: int = 50
+    dataforseo_related_depth: int = 2
+    dataforseo_timeout_seconds: float = 45.0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -7,3 +7,10 @@ class BlueprintGenerateResponse(BaseModel):
     message: str
     blueprint: dict[str, Any]
     artifact_path: str | None = None
+
+
+class KeywordIntelligenceResponse(BaseModel):
+    success: bool
+    message: str
+    keyword_intelligence: dict[str, Any]
+    artifact_path: str | None = None

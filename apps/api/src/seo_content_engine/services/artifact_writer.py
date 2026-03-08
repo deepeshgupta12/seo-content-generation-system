@@ -9,16 +9,31 @@ from seo_content_engine.utils.formatters import slugify
 
 class ArtifactWriter:
     @staticmethod
-    def write_blueprint(blueprint: dict) -> str:
+    def _ensure_artifacts_dir() -> Path:
         artifacts_dir = Path(settings.artifacts_dir)
         artifacts_dir.mkdir(parents=True, exist_ok=True)
+        return artifacts_dir
 
-        entity = blueprint["entity"]["entity_name"]
-        page_type = blueprint["page_type"]
-        file_name = f"{slugify(entity)}-{page_type}-blueprint.json"
-        output_path = artifacts_dir / file_name
+    @staticmethod
+    def write_json_artifact(payload: dict, file_stem: str) -> str:
+        artifacts_dir = ArtifactWriter._ensure_artifacts_dir()
+        output_path = artifacts_dir / f"{slugify(file_stem)}.json"
 
         with output_path.open("w", encoding="utf-8") as file:
-            json.dump(blueprint, file, ensure_ascii=False, indent=2)
+            json.dump(payload, file, ensure_ascii=False, indent=2)
 
         return str(output_path)
+
+    @staticmethod
+    def write_blueprint(blueprint: dict) -> str:
+        entity = blueprint["entity"]["entity_name"]
+        page_type = blueprint["page_type"]
+        file_stem = f"{entity}-{page_type}-blueprint"
+        return ArtifactWriter.write_json_artifact(blueprint, file_stem)
+
+    @staticmethod
+    def write_keyword_intelligence(keyword_intelligence: dict) -> str:
+        entity = keyword_intelligence["entity"]["entity_name"]
+        page_type = keyword_intelligence["page_type"]
+        file_stem = f"{entity}-{page_type}-keyword-intelligence"
+        return ArtifactWriter.write_json_artifact(keyword_intelligence, file_stem)
