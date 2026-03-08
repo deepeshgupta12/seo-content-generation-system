@@ -21,3 +21,10 @@ class ContentPlanGenerateResponse(BaseModel):
     message: str
     content_plan: dict[str, Any]
     artifact_path: str | None = None
+
+
+class DraftGenerateResponse(BaseModel):
+    success: bool
+    message: str
+    draft: dict[str, Any]
+    artifact_paths: dict[str, str] | None = None

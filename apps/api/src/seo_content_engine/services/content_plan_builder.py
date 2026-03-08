@@ -12,6 +12,20 @@ class ContentPlanBuilder:
         return [record["keyword"] for record in records[:limit]]
 
     @staticmethod
+    def _dedupe_metadata_keywords(keywords: list[str]) -> list[str]:
+        deduped: list[str] = []
+        seen_signatures: set[tuple[str, ...]] = set()
+
+        for keyword in keywords:
+            signature = tuple(sorted(set(keyword.lower().split())))
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            deduped.append(keyword)
+
+        return deduped
+
+    @staticmethod
     def _build_metadata_plan(entity: dict, keyword_clusters: dict) -> dict:
         entity_name = entity["entity_name"]
         city_name = entity["city_name"]
@@ -19,7 +33,7 @@ class ContentPlanBuilder:
         primary_keyword = keyword_clusters.get("primary_keyword")
         primary_keyword_text = primary_keyword["keyword"] if primary_keyword else f"resale properties in {entity_name} {city_name}"
 
-        metadata_keywords = keyword_clusters.get("metadata_keywords", [])
+        metadata_keywords = ContentPlanBuilder._dedupe_metadata_keywords(keyword_clusters.get("metadata_keywords", []))
         title_candidates = [
             f"Resale Properties in {entity_name}, {city_name} | Square Yards",
             f"{entity_name}, {city_name} Resale Properties for Sale | Square Yards",
@@ -68,12 +82,32 @@ class ContentPlanBuilder:
         ]
 
         top_projects = normalized.get("top_projects", {})
-        if top_projects:
+        if top_projects.get("byTransactions", {}).get("projects"):
             tables.append(
                 {
                     "id": "top_projects_table",
-                    "title": "Selected Top Project Signals",
-                    "source_data_path": "top_projects",
+                    "title": "Top Projects by Transactions",
+                    "source_data_path": "top_projects.byTransactions.projects",
+                    "render_type": "deterministic",
+                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions"],
+                }
+            )
+        elif top_projects.get("byListingRates", {}).get("projects"):
+            tables.append(
+                {
+                    "id": "top_projects_table",
+                    "title": "Top Projects by Listing Rates",
+                    "source_data_path": "top_projects.byListingRates.projects",
+                    "render_type": "deterministic",
+                    "columns": ["projectName", "currentRate", "changePercentage"],
+                }
+            )
+        elif top_projects.get("byValue", {}).get("projects"):
+            tables.append(
+                {
+                    "id": "top_projects_table",
+                    "title": "Top Projects by Value",
+                    "source_data_path": "top_projects.byValue.projects",
                     "render_type": "deterministic",
                     "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions"],
                 }
@@ -262,7 +296,7 @@ class ContentPlanBuilder:
         keyword_clusters = keyword_intelligence["keyword_clusters"]
 
         return {
-            "version": "v1.2",
+            "version": "v1.3",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],
@@ -276,6 +310,8 @@ class ContentPlanBuilder:
                 "ready_to_move_keywords": keyword_clusters.get("ready_to_move_keywords", []),
                 "faq_keyword_candidates": keyword_clusters.get("faq_keyword_candidates", []),
                 "metadata_keywords": keyword_clusters.get("metadata_keywords", []),
+                "exact_match_keywords": keyword_clusters.get("exact_match_keywords", []),
+                "loose_match_keywords": keyword_clusters.get("loose_match_keywords", []),
             },
             "section_plan": ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters),
             "table_plan": ContentPlanBuilder._build_table_plan(page_type, normalized),

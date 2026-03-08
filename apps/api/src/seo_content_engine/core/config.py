@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     keyword_faq_max_count: int = 12
     keyword_metadata_max_count: int = 8
 
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4.1-mini"
+    openai_timeout_seconds: float = 90.0
+    openai_temperature: float = 0.2
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

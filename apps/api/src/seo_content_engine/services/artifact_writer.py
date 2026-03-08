@@ -25,6 +25,16 @@ class ArtifactWriter:
         return str(output_path)
 
     @staticmethod
+    def write_markdown_artifact(markdown_text: str, file_stem: str) -> str:
+        artifacts_dir = ArtifactWriter._ensure_artifacts_dir()
+        output_path = artifacts_dir / f"{slugify(file_stem)}.md"
+
+        with output_path.open("w", encoding="utf-8") as file:
+            file.write(markdown_text)
+
+        return str(output_path)
+
+    @staticmethod
     def write_blueprint(blueprint: dict) -> str:
         entity = blueprint["entity"]["entity_name"]
         page_type = blueprint["page_type"]
@@ -44,3 +54,17 @@ class ArtifactWriter:
         page_type = content_plan["page_type"]
         file_stem = f"{entity}-{page_type}-content-plan"
         return ArtifactWriter.write_json_artifact(content_plan, file_stem)
+
+    @staticmethod
+    def write_draft_bundle(draft: dict) -> dict[str, str]:
+        entity = draft["entity"]["entity_name"]
+        page_type = draft["page_type"]
+        file_stem = f"{entity}-{page_type}-draft"
+
+        json_path = ArtifactWriter.write_json_artifact(draft, file_stem)
+        markdown_path = ArtifactWriter.write_markdown_artifact(draft["markdown_draft"], file_stem)
+
+        return {
+            "json_path": json_path,
+            "markdown_path": markdown_path,
+        }

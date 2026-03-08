@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import re
 from typing import Any
 
@@ -192,6 +191,11 @@ class KeywordProcessing:
         return enriched_records
 
     @staticmethod
+    def _token_signature(text: str) -> tuple[str, ...]:
+        tokens = re.findall(r"[a-z0-9\.]+", KeywordProcessing.normalize_text(text))
+        return tuple(sorted(set(tokens)))
+
+    @staticmethod
     def evaluate_record(record: dict[str, Any], entity: dict[str, Any]) -> dict[str, Any]:
         keyword_text = record["normalized_keyword"]
         core_keyword_text = record["normalized_core_keyword"]
@@ -201,8 +205,13 @@ class KeywordProcessing:
         entity_name = KeywordProcessing.normalize_text(entity.get("entity_name"))
         city_name = KeywordProcessing.normalize_text(entity.get("city_name"))
 
+        exact_location_phrase = f"{entity_name} {city_name}".strip()
+        reversed_location_phrase = f"{city_name} {entity_name}".strip()
+
         entity_match = entity_name in combined_text if entity_name else False
         city_match = city_name in combined_text if city_name else False
+        exact_location_match = exact_location_phrase in combined_text if exact_location_phrase else False
+        reversed_location_match = reversed_location_phrase in combined_text if reversed_location_phrase else False
 
         has_sale_signal = KeywordProcessing._contains_any(combined_text, KeywordProcessing.SALE_SIGNAL_TERMS)
         has_rent_noise = KeywordProcessing._contains_any(combined_text, KeywordProcessing.HARD_EXCLUDE_TERMS)
@@ -235,6 +244,11 @@ class KeywordProcessing:
 
         if city_match:
             score += 10
+
+        if exact_location_match:
+            score += 18
+        elif reversed_location_match:
+            score += 8
 
         main_intent = (record.get("main_intent") or "").lower()
         if main_intent == "transactional":
@@ -280,6 +294,15 @@ class KeywordProcessing:
         if "rent_noise" in filter_reasons:
             score -= 100
 
+        if exact_location_match:
+            location_tier = "exact_location_match"
+        elif entity_match and city_match:
+            location_tier = "loose_location_match"
+        elif entity_match:
+            location_tier = "entity_only_match"
+        else:
+            location_tier = "weak_match"
+
         include = not filter_reasons
 
         evaluated = dict(record)
@@ -287,6 +310,9 @@ class KeywordProcessing:
             {
                 "entity_match": entity_match,
                 "city_match": city_match,
+                "exact_location_match": exact_location_match,
+                "reversed_location_match": reversed_location_match,
+                "location_tier": location_tier,
                 "has_sale_signal": has_sale_signal,
                 "has_rent_noise": has_rent_noise,
                 "has_soft_demote": has_soft_demote,
@@ -297,6 +323,7 @@ class KeywordProcessing:
                 "filter_reasons": filter_reasons,
                 "include": include,
                 "score": score,
+                "semantic_signature": KeywordProcessing._token_signature(record["keyword"]),
             }
         )
         return evaluated
@@ -329,6 +356,7 @@ class KeywordProcessing:
         ordered.sort(
             key=lambda item: (
                 item["include"],
+                item["exact_location_match"],
                 item["score"],
                 item.get("search_volume") or 0,
                 item["keyword"],
@@ -342,49 +370,84 @@ class KeywordProcessing:
         return records[:limit]
 
     @staticmethod
+    def _dedupe_semantic_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        grouped: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+
+        for record in records:
+            grouped.setdefault(record["semantic_signature"], []).append(record)
+
+        canonical_records: list[dict[str, Any]] = []
+
+        for group in grouped.values():
+            group.sort(
+                key=lambda item: (
+                    item["exact_location_match"],
+                    item["location_tier"] == "exact_location_match",
+                    item["score"],
+                    item.get("search_volume") or 0,
+                    -len(item["keyword"]),
+                ),
+                reverse=True,
+            )
+            canonical_records.append(group[0])
+
+        canonical_records.sort(
+            key=lambda item: (
+                item["exact_location_match"],
+                item["score"],
+                item.get("search_volume") or 0,
+                item["keyword"],
+            ),
+            reverse=True,
+        )
+        return canonical_records
+
+    @staticmethod
     def build_clusters(records: list[dict[str, Any]]) -> dict[str, Any]:
         included = [record for record in records if record["include"]]
+        canonical_included = KeywordProcessing._dedupe_semantic_records(included)
 
         general_candidates = [
             record
-            for record in included
+            for record in canonical_included
             if not record["has_bhk_signal"] and not record["has_price_signal"] and not record["has_ready_signal"]
         ]
-        primary_keyword = general_candidates[0] if general_candidates else (included[0] if included else None)
+        primary_keyword = general_candidates[0] if general_candidates else (canonical_included[0] if canonical_included else None)
 
         secondary_keywords = [
             record
-            for record in included
-            if primary_keyword is None or record["normalized_keyword"] != primary_keyword["normalized_keyword"]
+            for record in canonical_included
+            if primary_keyword is None or record["semantic_signature"] != primary_keyword["semantic_signature"]
         ][: settings.keyword_secondary_max_count]
 
         bhk_keywords = KeywordProcessing._top_keywords(
-            [record for record in included if record["has_bhk_signal"]],
+            KeywordProcessing._dedupe_semantic_records([record for record in included if record["has_bhk_signal"]]),
             settings.keyword_bhk_max_count,
         )
 
         price_keywords = KeywordProcessing._top_keywords(
-            [record for record in included if record["has_price_signal"]],
+            KeywordProcessing._dedupe_semantic_records([record for record in included if record["has_price_signal"]]),
             settings.keyword_price_max_count,
         )
 
         ready_to_move_keywords = KeywordProcessing._top_keywords(
-            [record for record in included if record["has_ready_signal"]],
+            KeywordProcessing._dedupe_semantic_records([record for record in included if record["has_ready_signal"]]),
             settings.keyword_ready_to_move_max_count,
         )
 
         long_tail_keywords = KeywordProcessing._top_keywords(
-            [record for record in included if (record.get("words_count") or 0) >= 6],
+            KeywordProcessing._dedupe_semantic_records([record for record in included if (record.get("words_count") or 0) >= 6]),
             settings.keyword_long_tail_max_count,
         )
 
         faq_keyword_candidates = KeywordProcessing._top_keywords(
-            [
-                record
-                for record in included
-                if record["faq_support_signal"]
-                or (record.get("main_intent") or "").lower() == "informational"
-            ],
+            KeywordProcessing._dedupe_semantic_records(
+                [
+                    record
+                    for record in included
+                    if record["faq_support_signal"] or (record.get("main_intent") or "").lower() == "informational"
+                ]
+            ),
             settings.keyword_faq_max_count,
         )
 
@@ -398,6 +461,9 @@ class KeywordProcessing:
             if record["keyword"] not in metadata_keywords:
                 metadata_keywords.append(record["keyword"])
 
+        exact_match_keywords = [record for record in canonical_included if record["location_tier"] == "exact_location_match"]
+        loose_match_keywords = [record for record in canonical_included if record["location_tier"] != "exact_location_match"]
+
         return {
             "primary_keyword": primary_keyword,
             "secondary_keywords": secondary_keywords,
@@ -407,5 +473,7 @@ class KeywordProcessing:
             "long_tail_keywords": long_tail_keywords,
             "faq_keyword_candidates": faq_keyword_candidates,
             "metadata_keywords": metadata_keywords,
+            "exact_match_keywords": exact_match_keywords,
+            "loose_match_keywords": loose_match_keywords,
             "total_included_keywords": len(included),
         }
