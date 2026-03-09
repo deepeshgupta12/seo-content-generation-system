@@ -104,6 +104,7 @@ class DraftGenerationService:
             quarter = latest.get("quarterName")
             location_rate = latest.get("locationRate")
             micromarket_rate = latest.get("micromarketRate")
+            city_rate = latest.get("cityRate")
 
             trend_parts: list[str] = []
             if quarter:
@@ -112,6 +113,8 @@ class DraftGenerationService:
                 trend_parts.append(f"the locality rate is ₹{location_rate:,}")
             if micromarket_rate is not None:
                 trend_parts.append(f"the micromarket rate is ₹{micromarket_rate:,}")
+            if city_rate is not None:
+                trend_parts.append(f"the city rate is ₹{city_rate:,}")
 
             if trend_parts:
                 lines.append(", ".join(trend_parts) + ".")
@@ -227,6 +230,7 @@ class DraftGenerationService:
         property_types = pricing_summary.get("property_types", []) or []
         property_status = pricing_summary.get("property_status", []) or []
         location_rates = pricing_summary.get("location_rates", []) or []
+        micromarket_rates = pricing_summary.get("micromarket_rates", []) or []
         sale_property_type_distribution = distributions.get("sale_property_type_distribution", []) or []
 
         lines: list[str] = []
@@ -276,6 +280,18 @@ class DraftGenerationService:
                 location_parts.append(f"change percentage is {first_location['changePercentage']}")
             if location_parts:
                 lines.append("Location-rate inputs show " + ", ".join(location_parts) + ".")
+
+        if micromarket_rates:
+            first_micromarket = micromarket_rates[0]
+            micromarket_parts: list[str] = []
+            if first_micromarket.get("name"):
+                micromarket_parts.append(f"micromarket name is {first_micromarket['name']}")
+            if first_micromarket.get("avgRate") is not None:
+                micromarket_parts.append(f"average rate is ₹{first_micromarket['avgRate']:,}")
+            if first_micromarket.get("changePercentage") is not None:
+                micromarket_parts.append(f"change percentage is {first_micromarket['changePercentage']}")
+            if micromarket_parts:
+                lines.append("Micromarket-rate inputs show " + ", ".join(micromarket_parts) + ".")
 
         if not lines:
             return "Property-type and status signals are shown only when grounded source inputs are available."
@@ -529,6 +545,6 @@ class DraftGenerationService:
         sanitized["validation_history"] = validation_history
         sanitized["pre_block_draft"] = pre_block_draft
         sanitized["debug_summary"] = final_debug_summary
-        sanitized["publish_ready"] = not sanitized["needs_review"]
+        sanitized["publish_ready"] = final_debug_summary.get("approval_status") != "fail"
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
         return sanitized

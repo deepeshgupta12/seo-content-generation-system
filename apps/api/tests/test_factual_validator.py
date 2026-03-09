@@ -23,6 +23,7 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
             }
         ],
         "content_plan": {
+            "generated_at": "2026-03-09T10:00:00+00:00",
             "metadata_plan": {
                 "canonical_pricing_metric": {
                     "metric_name": "asking_price",
@@ -33,6 +34,15 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
+            },
+            "source_meta": {
+                "raw_source_meta": {
+                    "last_modified_date": "2026-03-02",
+                }
+            },
+            "keyword_strategy": {
+                "primary_keyword": {"keyword": "flats for sale in andheri west mumbai"},
+                "exact_match_keywords": [],
             },
         },
     }
@@ -75,3 +85,101 @@ def test_factual_validator_flags_forbidden_property_type_claim() -> None:
 
     assert validation["passed"] is False
     assert "forbidden_claims_detected" in validation["issues"]
+
+
+def test_factual_validator_warns_for_stale_source_data() -> None:
+    draft = {
+        "metadata": {
+            "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
+            "meta_description": "Explore resale properties in Andheri West, Mumbai on Square Yards.",
+            "h1": "Resale Properties in Andheri West, Mumbai",
+            "intro_snippet": "Browse resale listings in Andheri West, Mumbai.",
+        },
+        "sections": [
+            {
+                "id": "hero_intro",
+                "title": "Resale Property Overview",
+                "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
+            }
+        ],
+        "faqs": [],
+        "content_plan": {
+            "generated_at": "2026-03-20T10:00:00+00:00",
+            "metadata_plan": {
+                "canonical_pricing_metric": {
+                    "metric_name": "asking_price",
+                    "label": "asking price",
+                    "value": 40238,
+                }
+            },
+            "data_context": {
+                "pricing_summary": {"asking_price": 40238},
+                "listing_summary": {"sale_count": 2039},
+            },
+            "source_meta": {
+                "raw_source_meta": {
+                    "last_modified_date": "2026-01-01",
+                }
+            },
+            "keyword_strategy": {
+                "primary_keyword": {"keyword": "flats for sale in andheri west mumbai"},
+                "exact_match_keywords": [],
+            },
+        },
+    }
+
+    report = FactualValidator.validate_draft(draft)
+
+    assert report["passed"] is True
+    assert report["quality_report"]["approval_status"] == "warning"
+    assert "stale_source_data_detected" in report["quality_report"]["warning_reasons"]
+
+
+def test_factual_validator_warns_for_keyword_stuffing() -> None:
+    stuffed = "flats for sale in andheri west mumbai " * 5
+
+    draft = {
+        "metadata": {
+            "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
+            "meta_description": stuffed.strip(),
+            "h1": "Resale Properties in Andheri West, Mumbai",
+            "intro_snippet": "Browse resale listings in Andheri West, Mumbai.",
+        },
+        "sections": [
+            {
+                "id": "hero_intro",
+                "title": "Resale Property Overview",
+                "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
+            }
+        ],
+        "faqs": [],
+        "content_plan": {
+            "generated_at": "2026-03-09T10:00:00+00:00",
+            "metadata_plan": {
+                "canonical_pricing_metric": {
+                    "metric_name": "asking_price",
+                    "label": "asking price",
+                    "value": 40238,
+                }
+            },
+            "data_context": {
+                "pricing_summary": {"asking_price": 40238},
+                "listing_summary": {"sale_count": 2039},
+            },
+            "source_meta": {
+                "raw_source_meta": {
+                    "last_modified_date": "2026-03-02",
+                }
+            },
+            "keyword_strategy": {
+                "primary_keyword": {"keyword": "flats for sale in andheri west mumbai"},
+                "exact_match_keywords": [{"keyword": "flats for sale in andheri west mumbai"}],
+            },
+        },
+    }
+
+    report = FactualValidator.validate_draft(draft)
+
+    assert report["passed"] is True
+    assert report["quality_report"]["approval_status"] == "warning"
+    assert "primary_keyword_stuffing_detected" in report["quality_report"]["warning_reasons"]

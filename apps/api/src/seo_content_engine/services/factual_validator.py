@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any
 
 
@@ -47,6 +48,11 @@ class FactualValidator:
             "avg price per sq ft",
         ],
     }
+
+    STALE_DATA_THRESHOLD_DAYS = 45
+    PRIMARY_KEYWORD_MAX_OCCURRENCES = 3
+    PRIMARY_KEYWORD_MAX_DENSITY = 0.04
+    MIN_SECTION_WORD_COUNT = 8
 
     @staticmethod
     def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
@@ -157,6 +163,41 @@ class FactualValidator:
         return sanitized.strip()
 
     @staticmethod
+    def _normalize_text(text: str) -> str:
+        lowered = text.lower()
+        lowered = re.sub(r"\s+", " ", lowered)
+        lowered = re.sub(r"[^\w\s]", "", lowered)
+        return lowered.strip()
+
+    @staticmethod
+    def _word_count(text: str) -> int:
+        return len(re.findall(r"\b\w+\b", text))
+
+    @staticmethod
+    def _parse_iso_date(value: str | None) -> datetime | None:
+        if not value or not isinstance(value, str):
+            return None
+
+        raw = value.strip()
+        if not raw:
+            return None
+
+        try:
+            if raw.endswith("Z"):
+                raw = raw.replace("Z", "+00:00")
+            return datetime.fromisoformat(raw)
+        except ValueError:
+            pass
+
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(raw, fmt)
+            except ValueError:
+                continue
+
+        return None
+
+    @staticmethod
     def validate_text(text: str, allowed_numbers: set[str], canonical_metric_name: str | None = None) -> dict[str, Any]:
         forbidden_claims = FactualValidator._find_forbidden_claims(text)
         unreconciled_numbers = FactualValidator._find_unreconciled_numbers(text, allowed_numbers)
@@ -180,8 +221,217 @@ class FactualValidator:
             "forbidden_claims": forbidden_claims,
             "unreconciled_numbers": unreconciled_numbers,
             "metric_issues": metric_issues,
+            "word_count": FactualValidator._word_count(text),
             "passed": len(issues) == 0,
             "issues": issues,
+        }
+
+    @staticmethod
+    def _build_repetition_check(draft: dict) -> dict[str, Any]:
+        sections = draft.get("sections", [])
+        normalized_bodies: dict[str, str] = {}
+        repeated_section_ids: list[str] = []
+
+        for section in sections:
+            section_id = section.get("id", "")
+            normalized_body = FactualValidator._normalize_text(section.get("body", ""))
+            if not normalized_body:
+                continue
+
+            if normalized_body in normalized_bodies.values():
+                repeated_section_ids.append(section_id)
+            normalized_bodies[section_id] = normalized_body
+
+        repeated_sentences: list[str] = []
+        sentence_counter: dict[str, int] = {}
+
+        for section in sections:
+            body = section.get("body", "")
+            parts = re.split(r"[.!?]\s+|\n+", body)
+            for part in parts:
+                normalized = FactualValidator._normalize_text(part)
+                if len(normalized.split()) < 6:
+                    continue
+                sentence_counter[normalized] = sentence_counter.get(normalized, 0) + 1
+
+        for sentence, count in sentence_counter.items():
+            if count > 1:
+                repeated_sentences.append(sentence)
+
+        warnings: list[str] = []
+        if repeated_section_ids:
+            warnings.append("repeated_section_body_detected")
+        if repeated_sentences:
+            warnings.append("repeated_sentence_pattern_detected")
+
+        return {
+            "passed": len(warnings) == 0,
+            "warnings": warnings,
+            "repeated_section_ids": repeated_section_ids,
+            "repeated_sentences": repeated_sentences[:10],
+        }
+
+    @staticmethod
+    def _count_phrase_occurrences(text: str, phrase: str) -> int:
+        if not phrase:
+            return 0
+        pattern = re.escape(phrase.lower())
+        return len(re.findall(pattern, text.lower()))
+
+    @staticmethod
+    def _build_keyword_stuffing_check(draft: dict) -> dict[str, Any]:
+        keyword_strategy = draft["content_plan"].get("keyword_strategy", {})
+        full_text = "\n".join(
+            [
+                draft.get("metadata", {}).get("title", ""),
+                draft.get("metadata", {}).get("meta_description", ""),
+                draft.get("metadata", {}).get("h1", ""),
+                draft.get("metadata", {}).get("intro_snippet", ""),
+                *[section.get("body", "") for section in draft.get("sections", [])],
+                *[faq.get("answer", "") for faq in draft.get("faqs", [])],
+            ]
+        )
+
+        total_words = max(FactualValidator._word_count(full_text), 1)
+        primary_keyword_record = keyword_strategy.get("primary_keyword") or {}
+        primary_keyword = primary_keyword_record.get("keyword", "") if isinstance(primary_keyword_record, dict) else ""
+
+        exact_matches = keyword_strategy.get("exact_match_keywords", []) or []
+        exact_keywords = [record.get("keyword") for record in exact_matches if isinstance(record, dict) and record.get("keyword")]
+
+        warnings: list[str] = []
+        exact_counts: dict[str, int] = {}
+
+        primary_count = FactualValidator._count_phrase_occurrences(full_text, primary_keyword) if primary_keyword else 0
+        primary_density = primary_count / total_words if primary_keyword else 0.0
+
+        if primary_keyword and (
+            primary_count > FactualValidator.PRIMARY_KEYWORD_MAX_OCCURRENCES
+            or primary_density > FactualValidator.PRIMARY_KEYWORD_MAX_DENSITY
+        ):
+            warnings.append("primary_keyword_stuffing_detected")
+
+        for keyword in exact_keywords:
+            count = FactualValidator._count_phrase_occurrences(full_text, keyword)
+            exact_counts[keyword] = count
+            if count > FactualValidator.PRIMARY_KEYWORD_MAX_OCCURRENCES + 1:
+                warnings.append("exact_match_keyword_overused")
+
+        return {
+            "passed": len(warnings) == 0,
+            "warnings": sorted(set(warnings)),
+            "primary_keyword": primary_keyword,
+            "primary_keyword_count": primary_count,
+            "primary_keyword_density": round(primary_density, 4),
+            "exact_keyword_counts": exact_counts,
+            "total_words": total_words,
+        }
+
+    @staticmethod
+    def _build_stale_data_check(content_plan: dict) -> dict[str, Any]:
+        raw_source_meta = content_plan.get("source_meta", {}).get("raw_source_meta", {}) or {}
+        generated_at = content_plan.get("generated_at")
+        last_modified_date = raw_source_meta.get("last_modified_date")
+
+        generated_dt = FactualValidator._parse_iso_date(generated_at)
+        modified_dt = FactualValidator._parse_iso_date(last_modified_date)
+
+        if not generated_dt or not modified_dt:
+            return {
+                "passed": True,
+                "warnings": [],
+                "last_modified_date": last_modified_date,
+                "days_since_last_modified": None,
+            }
+
+        delta_days = (generated_dt.date() - modified_dt.date()).days
+        warnings: list[str] = []
+        if delta_days > FactualValidator.STALE_DATA_THRESHOLD_DAYS:
+            warnings.append("stale_source_data_detected")
+
+        return {
+            "passed": len(warnings) == 0,
+            "warnings": warnings,
+            "last_modified_date": last_modified_date,
+            "days_since_last_modified": delta_days,
+        }
+
+    @staticmethod
+    def _score_section(section: dict, validation: dict, repetition_check: dict) -> dict[str, Any]:
+        score = 100
+        warnings: list[str] = []
+
+        issues = validation.get("issues", [])
+        if issues:
+            score -= 40
+            warnings.extend(issues)
+
+        body = section.get("body", "")
+        word_count = FactualValidator._word_count(body)
+        if word_count < FactualValidator.MIN_SECTION_WORD_COUNT:
+            score -= 10
+            warnings.append("section_too_short")
+
+        if section.get("id") in repetition_check.get("repeated_section_ids", []):
+            score -= 20
+            warnings.append("repeated_section_body_detected")
+
+        score = max(0, min(100, score))
+
+        if score >= 85:
+            confidence = "high"
+        elif score >= 70:
+            confidence = "medium"
+        else:
+            confidence = "low"
+
+        return {
+            "id": section.get("id"),
+            "title": section.get("title"),
+            "score": score,
+            "confidence": confidence,
+            "warnings": sorted(set(warnings)),
+            "word_count": word_count,
+        }
+
+    @staticmethod
+    def _build_quality_report(draft: dict, validation_report: dict) -> dict[str, Any]:
+        repetition_check = FactualValidator._build_repetition_check(draft)
+        keyword_stuffing_check = FactualValidator._build_keyword_stuffing_check(draft)
+        stale_data_check = FactualValidator._build_stale_data_check(draft["content_plan"])
+
+        section_quality_scores = [
+            FactualValidator._score_section(item, item_validation["validation"], repetition_check)
+            for item, item_validation in zip(draft.get("sections", []), validation_report["section_checks"])
+        ]
+
+        overall_quality_score = (
+            round(sum(item["score"] for item in section_quality_scores) / len(section_quality_scores))
+            if section_quality_scores
+            else 100
+        )
+
+        warning_reasons: list[str] = []
+        warning_reasons.extend(repetition_check.get("warnings", []))
+        warning_reasons.extend(keyword_stuffing_check.get("warnings", []))
+        warning_reasons.extend(stale_data_check.get("warnings", []))
+        warning_reasons = sorted(set(warning_reasons))
+
+        if not validation_report["passed"]:
+            approval_status = "fail"
+        elif warning_reasons:
+            approval_status = "warning"
+        else:
+            approval_status = "pass"
+
+        return {
+            "approval_status": approval_status,
+            "warning_reasons": warning_reasons,
+            "repetition_check": repetition_check,
+            "keyword_stuffing_check": keyword_stuffing_check,
+            "stale_data_check": stale_data_check,
+            "section_quality_scores": section_quality_scores,
+            "overall_quality_score": overall_quality_score,
         }
 
     @staticmethod
@@ -246,13 +496,16 @@ class FactualValidator:
         passed = passed and all(item["validation"]["passed"] for item in section_checks)
         passed = passed and all(item["validation"]["passed"] for item in faq_checks)
 
-        return {
+        report = {
             "passed": passed,
             "metadata_checks": metadata_checks,
             "section_checks": section_checks,
             "faq_checks": faq_checks,
             "canonical_metric_name": canonical_metric_name,
         }
+
+        report["quality_report"] = FactualValidator._build_quality_report(draft, report)
+        return report
 
     @staticmethod
     def summarize_report(validation_report: dict) -> dict[str, Any]:
@@ -272,6 +525,10 @@ class FactualValidator:
             if item["validation"]["issues"]
         ]
 
+        quality_report = validation_report.get("quality_report", {})
+        approval_status = quality_report.get("approval_status", "fail" if not validation_report["passed"] else "pass")
+        warning_reasons = quality_report.get("warning_reasons", [])
+
         blocking_reasons: list[str] = []
         if failing_metadata_fields:
             blocking_reasons.append("metadata_validation_failed")
@@ -281,11 +538,14 @@ class FactualValidator:
             blocking_reasons.append("faq_validation_failed")
 
         return {
-            "blocked": not validation_report["passed"],
+            "blocked": approval_status == "fail",
+            "approval_status": approval_status,
             "blocking_reasons": blocking_reasons,
+            "warning_reasons": warning_reasons,
             "failing_metadata_fields": failing_metadata_fields,
             "failing_section_ids": failing_section_ids,
             "failing_faq_questions": failing_faq_questions,
+            "overall_quality_score": quality_report.get("overall_quality_score"),
         }
 
     @staticmethod
@@ -318,6 +578,7 @@ class FactualValidator:
 
         sanitized["faqs"] = sanitized_faqs
         sanitized["validation_report"] = validation_report
+        sanitized["quality_report"] = validation_report.get("quality_report", {})
         sanitized["debug_summary"] = FactualValidator.summarize_report(validation_report)
-        sanitized["needs_review"] = not validation_report["passed"]
+        sanitized["needs_review"] = sanitized["debug_summary"]["approval_status"] == "fail"
         return sanitized

@@ -140,7 +140,7 @@ def test_draft_generation_service() -> None:
         "cms_faq": [{"question": "Sample question", "answer": "Sample answer"}],
         "featured_projects": [{"name": "Project A", "url": "projects-in-andheri-west-mumbai/project-a"}],
         "projects_by_status": {},
-        "raw_source_meta": {"main_message": "locality Found", "rates_message": "Property Rates Data Found"},
+        "raw_source_meta": {"main_message": "locality Found", "rates_message": "Property Rates Data Found", "last_modified_date": "2026-03-02"},
     }
 
     keyword_intelligence = {
@@ -177,6 +177,7 @@ def test_draft_generation_service() -> None:
     assert len(draft["tables"]) > 0
     assert len(draft["faqs"]) > 0
     assert "validation_report" in draft
+    assert "quality_report" in draft
     assert "repair_passes_used" in draft
     assert "validation_history" in draft
     assert "pre_block_draft" in draft
@@ -189,4 +190,5 @@ def test_draft_generation_service() -> None:
     assert "4.23" in review_section["body"]
     assert "demand percent" in demand_section["body"].lower()
     assert "apartment" in property_type_section["body"].lower()
+    assert draft["quality_report"]["approval_status"] in {"pass", "warning"}
     assert "https://www.squareyards.com/" in draft["markdown_draft"]
