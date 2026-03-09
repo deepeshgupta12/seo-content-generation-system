@@ -1,7 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { createReviewSession } from "../api/review";
-import type { ReviewSession } from "../types/review";
+import {
+  createReviewSession,
+  getReviewSession,
+  regenerateDraft,
+  regenerateSection,
+  restoreVersion,
+  updateMetadata,
+  updateSection,
+} from "../api/review";
+import type {
+  ReviewFaq,
+  ReviewSectionReview,
+  ReviewSession,
+  ReviewTable,
+  ReviewVersionHistoryItem,
+} from "../types/review";
 
 const DEFAULT_MAIN_PATH =
   "/Users/deepeshgupta/Projects/seo-content-generation-system/data/samples/raw/andheri-west-locality.json";
@@ -9,15 +23,160 @@ const DEFAULT_MAIN_PATH =
 const DEFAULT_RATES_PATH =
   "/Users/deepeshgupta/Projects/seo-content-generation-system/data/samples/raw/andheri-west-property-rates.json";
 
+type ValidationTabKey = "summary" | "metadata" | "sections" | "faqs" | "raw";
+
+function stringifyValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => stringifyValue(item)) : [];
+}
+
+function ValidationBadge({ passed }: { passed: boolean | undefined }) {
+  return (
+    <span className={`badge ${passed ? "badge--success" : "badge--warning"}`}>
+      {passed ? "passed" : "needs review"}
+    </span>
+  );
+}
+
+function TableSnapshot({ table }: { table: ReviewTable }) {
+  const columns = table.columns ?? [];
+  const rows = table.rows ?? [];
+
+  return (
+    <div className="stack-card">
+      <div className="stack-card__header">
+        <div>
+          <div className="stack-card__title">{table.title ?? "Untitled table"}</div>
+          <div className="stack-card__meta">ID: {table.id ?? "—"}</div>
+        </div>
+        <div className="stack-card__badges">
+          <span className="badge">rows: {rows.length}</span>
+          <span className="badge">columns: {columns.length}</span>
+        </div>
+      </div>
+
+      {columns.length === 0 ? (
+        <div className="empty-state">No table columns available.</div>
+      ) : rows.length === 0 ? (
+        <div className="empty-state">No table rows available.</div>
+      ) : (
+        <div className="table-shell">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`${table.id ?? "table"}-${rowIndex}`}>
+                  {columns.map((column) => (
+                    <td key={`${table.id ?? "table"}-${rowIndex}-${column}`}>
+                      {stringifyValue(row[column])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FaqSnapshot({ faq }: { faq: ReviewFaq }) {
+  return (
+    <div className="stack-card">
+      <div className="stack-card__header">
+        <div>
+          <div className="stack-card__title">{faq.question ?? "Untitled FAQ"}</div>
+        </div>
+        <div className="stack-card__badges">
+          <ValidationBadge passed={faq.validation_passed} />
+        </div>
+      </div>
+
+      <div className="stack-card__body">{faq.answer ?? "—"}</div>
+
+      <div className="stack-card__footer">
+        <strong>Issues:</strong>{" "}
+        {faq.validation_issues?.length ? faq.validation_issues.join(", ") : "none"}
+      </div>
+    </div>
+  );
+}
+
 export function ReviewWorkbenchPage() {
   const [mainPath, setMainPath] = useState(DEFAULT_MAIN_PATH);
   const [ratesPath, setRatesPath] = useState(DEFAULT_RATES_PATH);
   const [includeHistorical, setIncludeHistorical] = useState(true);
   const [persistSession, setPersistSession] = useState(true);
 
+  const [sessionIdInput, setSessionIdInput] = useState("");
+
   const [session, setSession] = useState<ReviewSession | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isRegeneratingDraft, setIsRegeneratingDraft] = useState(false);
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+  const [activeSectionActionId, setActiveSectionActionId] = useState<string | null>(null);
+  const [activeRestoreVersionId, setActiveRestoreVersionId] = useState<string | null>(null);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [showRawPayload, setShowRawPayload] = useState(false);
+  const [activeValidationTab, setActiveValidationTab] =
+    useState<ValidationTabKey>("summary");
+
+  const [metadataForm, setMetadataForm] = useState({
+    title: "",
+    meta_description: "",
+    h1: "",
+    intro_snippet: "",
+  });
+
+  const [sectionDrafts, setSectionDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!session?.draft?.metadata) return;
+
+    setMetadataForm({
+      title: session.draft.metadata.title ?? "",
+      meta_description: session.draft.metadata.meta_description ?? "",
+      h1: session.draft.metadata.h1 ?? "",
+      intro_snippet: session.draft.metadata.intro_snippet ?? "",
+    });
+  }, [session?.draft?.metadata]);
+
+  useEffect(() => {
+    const nextDrafts: Record<string, string> = {};
+    for (const section of session?.section_review ?? []) {
+      if (section.id) {
+        nextDrafts[section.id] = section.body ?? "";
+      }
+    }
+    setSectionDrafts(nextDrafts);
+  }, [session?.section_review]);
 
   const headerSummary = useMemo(() => {
     if (!session) return null;
@@ -26,15 +185,58 @@ export function ReviewWorkbenchPage() {
       entityName: session.entity?.entity_name ?? "—",
       cityName: session.entity?.city_name ?? "—",
       pageType: session.entity?.page_type ?? "—",
+      listingType: session.entity?.listing_type ?? "—",
       approvalStatus: session.quality_report?.approval_status ?? "—",
       qualityScore: session.quality_report?.overall_quality_score ?? "—",
+      latestVersionId: session.latest_version_id ?? "—",
+      warningCount: session.quality_report?.warning_reasons?.length ?? 0,
+      sectionCount: session.section_review?.length ?? 0,
+      versionCount: session.version_history?.length ?? 0,
+      faqCount: session.draft?.faqs?.length ?? 0,
+      tableCount: session.draft?.tables?.length ?? 0,
     };
   }, [session]);
 
+  const metadata = session?.draft?.metadata;
+  const qualityReport = session?.quality_report;
+  const draftQualityReport = session?.draft?.quality_report;
+  const debugSummary = session?.draft?.debug_summary;
+
+  const listingSummary = getRecord(session?.source_preview?.listing_summary);
+  const pricingSummary = getRecord(session?.source_preview?.pricing_summary);
+
+  const primaryKeyword = getRecord(session?.keyword_preview?.primary_keyword);
+  const secondaryKeywords = getArray(session?.keyword_preview?.secondary_keywords);
+  const priceKeywords = getArray(session?.keyword_preview?.price_keywords);
+  const bhkKeywords = getArray(session?.keyword_preview?.bhk_keywords);
+
+  const warningReasons = qualityReport?.warning_reasons ?? [];
+  const sectionReview = session?.section_review ?? [];
+  const versionHistory = session?.version_history ?? [];
+  const tables = session?.draft?.tables ?? [];
+  const faqs = session?.draft?.faqs ?? [];
+
+  const validationSummary = getRecord(session?.validation_report);
+  const metadataChecks = getRecord(session?.validation_report?.metadata_checks);
+  const sectionChecks = getArray(session?.validation_report?.section_checks);
+  const faqChecks = getArray(session?.validation_report?.faq_checks);
+
+  function resetBanners() {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  }
+
+  function applyUpdatedSession(nextSession: ReviewSession, message: string) {
+    setSession(nextSession);
+    setSessionIdInput(nextSession.session_id ?? "");
+    setSuccessMessage(message);
+    setErrorMessage(null);
+  }
+
   async function handleCreateSession(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitting(true);
-    setErrorMessage(null);
+    setIsCreating(true);
+    resetBanners();
 
     try {
       const response = await createReviewSession({
@@ -45,14 +247,319 @@ export function ReviewWorkbenchPage() {
         persist_session: persistSession,
       });
 
-      setSession(response.review_session);
+      applyUpdatedSession(response.review_session, response.message);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to create review session";
       setErrorMessage(message);
     } finally {
-      setIsSubmitting(false);
+      setIsCreating(false);
     }
+  }
+
+  async function handleFetchSession(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!sessionIdInput.trim()) {
+      setErrorMessage("Enter a review session id to fetch an existing session.");
+      return;
+    }
+
+    setIsFetching(true);
+    resetBanners();
+
+    try {
+      const response = await getReviewSession(sessionIdInput.trim());
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch review session";
+      setErrorMessage(message);
+    } finally {
+      setIsFetching(false);
+    }
+  }
+
+  async function handleRegenerateDraft() {
+    if (!session?.session_id) return;
+
+    setIsRegeneratingDraft(true);
+    resetBanners();
+
+    try {
+      const response = await regenerateDraft({
+        session_id: session.session_id,
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to regenerate draft";
+      setErrorMessage(message);
+    } finally {
+      setIsRegeneratingDraft(false);
+    }
+  }
+
+  async function handleRegenerateSection(sectionId: string) {
+    if (!session?.session_id) return;
+
+    setActiveSectionActionId(`regen:${sectionId}`);
+    resetBanners();
+
+    try {
+      const response = await regenerateSection({
+        session_id: session.session_id,
+        section_id: sectionId,
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `Failed to regenerate section ${sectionId}`;
+      setErrorMessage(message);
+    } finally {
+      setActiveSectionActionId(null);
+    }
+  }
+
+  async function handleSaveSection(sectionId: string) {
+    if (!session?.session_id) return;
+
+    const body = sectionDrafts[sectionId] ?? "";
+    if (!body.trim()) {
+      setErrorMessage("Section body cannot be empty.");
+      return;
+    }
+
+    setActiveSectionActionId(`save:${sectionId}`);
+    resetBanners();
+
+    try {
+      const response = await updateSection({
+        session_id: session.session_id,
+        section_id: sectionId,
+        body,
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `Failed to save section ${sectionId}`;
+      setErrorMessage(message);
+    } finally {
+      setActiveSectionActionId(null);
+    }
+  }
+
+  async function handleSaveMetadata(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session?.session_id) return;
+
+    setIsSavingMetadata(true);
+    resetBanners();
+
+    try {
+      const response = await updateMetadata({
+        session_id: session.session_id,
+        title: metadataForm.title,
+        meta_description: metadataForm.meta_description,
+        h1: metadataForm.h1,
+        intro_snippet: metadataForm.intro_snippet,
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update metadata";
+      setErrorMessage(message);
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  }
+
+  async function handleRestoreVersion(versionId: string) {
+    if (!session?.session_id) return;
+
+    setActiveRestoreVersionId(versionId);
+    resetBanners();
+
+    try {
+      const response = await restoreVersion({
+        session_id: session.session_id,
+        version_id: versionId,
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `Failed to restore version ${versionId}`;
+      setErrorMessage(message);
+    } finally {
+      setActiveRestoreVersionId(null);
+    }
+  }
+
+  function renderValidationPanel() {
+    if (!session) {
+      return <div className="empty-state">No validation report available yet.</div>;
+    }
+
+    if (activeValidationTab === "summary") {
+      return (
+        <div className="details-grid">
+          <div className="detail-card">
+            <div className="detail-card__label">Draft Passed</div>
+            <div className="detail-card__value">
+              {stringifyValue(validationSummary?.passed)}
+            </div>
+          </div>
+
+          <div className="detail-card">
+            <div className="detail-card__label">Approval Status</div>
+            <div className="detail-card__value">
+              {qualityReport?.approval_status ?? "—"}
+            </div>
+          </div>
+
+          <div className="detail-card">
+            <div className="detail-card__label">Canonical Metric</div>
+            <div className="detail-card__value">
+              {stringifyValue(validationSummary?.canonical_metric_name)}
+            </div>
+          </div>
+
+          <div className="detail-card">
+            <div className="detail-card__label">Warnings</div>
+            <div className="detail-card__value">
+              {warningReasons.length ? warningReasons.join(", ") : "—"}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeValidationTab === "metadata") {
+      return (
+        <div className="stack-list">
+          {metadataChecks ? (
+            Object.entries(metadataChecks).map(([fieldName, fieldValue]) => {
+              const fieldRecord = getRecord(fieldValue);
+              const issues = getStringArray(fieldRecord?.issues);
+
+              return (
+                <div className="stack-card" key={fieldName}>
+                  <div className="stack-card__header">
+                    <div>
+                      <div className="stack-card__title">{fieldName}</div>
+                    </div>
+
+                    <div className="stack-card__badges">
+                      <ValidationBadge passed={Boolean(fieldRecord?.passed)} />
+                    </div>
+                  </div>
+
+                  <div className="stack-card__body">
+                    {stringifyValue(fieldRecord?.sanitized_text ?? fieldRecord?.original_text)}
+                  </div>
+
+                  <div className="stack-card__footer">
+                    <strong>Issues:</strong> {issues.length ? issues.join(", ") : "none"}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-state">No metadata checks available.</div>
+          )}
+        </div>
+      );
+    }
+
+    if (activeValidationTab === "sections") {
+      return (
+        <div className="stack-list">
+          {sectionChecks.length ? (
+            sectionChecks.map((item, index) => {
+              const record = getRecord(item);
+              const validation = getRecord(record?.validation);
+              const issues = getStringArray(validation?.issues);
+
+              return (
+                <div className="stack-card" key={`${record?.id ?? "section"}-${index}`}>
+                  <div className="stack-card__header">
+                    <div>
+                      <div className="stack-card__title">
+                        {stringifyValue(record?.title)}
+                      </div>
+                      <div className="stack-card__meta">
+                        ID: {stringifyValue(record?.id)}
+                      </div>
+                    </div>
+
+                    <div className="stack-card__badges">
+                      <ValidationBadge passed={Boolean(validation?.passed)} />
+                    </div>
+                  </div>
+
+                  <div className="stack-card__body">
+                    {stringifyValue(validation?.sanitized_text ?? validation?.original_text)}
+                  </div>
+
+                  <div className="stack-card__footer">
+                    <strong>Issues:</strong> {issues.length ? issues.join(", ") : "none"}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-state">No section checks available.</div>
+          )}
+        </div>
+      );
+    }
+
+    if (activeValidationTab === "faqs") {
+      return (
+        <div className="stack-list">
+          {faqChecks.length ? (
+            faqChecks.map((item, index) => {
+              const record = getRecord(item);
+              const validation = getRecord(record?.validation);
+              const issues = getStringArray(validation?.issues);
+
+              return (
+                <div className="stack-card" key={`faq-${index}`}>
+                  <div className="stack-card__header">
+                    <div>
+                      <div className="stack-card__title">
+                        {stringifyValue(record?.question)}
+                      </div>
+                    </div>
+
+                    <div className="stack-card__badges">
+                      <ValidationBadge passed={Boolean(validation?.passed)} />
+                    </div>
+                  </div>
+
+                  <div className="stack-card__body">
+                    {stringifyValue(validation?.sanitized_text ?? validation?.original_text)}
+                  </div>
+
+                  <div className="stack-card__footer">
+                    <strong>Issues:</strong> {issues.length ? issues.join(", ") : "none"}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-state">No FAQ checks available.</div>
+          )}
+        </div>
+      );
+    }
+
+    return <pre className="json-viewer">{JSON.stringify(session.validation_report, null, 2)}</pre>;
   }
 
   return (
@@ -61,9 +568,22 @@ export function ReviewWorkbenchPage() {
         <div>
           <h1 className="page-title">Review Workbench</h1>
           <p className="page-subtitle">
-            Create and inspect backend review sessions before building edit and mutation flows.
+            Create, fetch, inspect, edit, regenerate, and restore backend review sessions.
           </p>
         </div>
+
+        {session ? (
+          <div className="page-actions">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleRegenerateDraft}
+              disabled={isRegeneratingDraft}
+            >
+              {isRegeneratingDraft ? "Regenerating..." : "Regenerate full draft"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <section className="panel">
@@ -109,13 +629,38 @@ export function ReviewWorkbenchPage() {
           </label>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create review session"}
+            <button className="primary-button" type="submit" disabled={isCreating}>
+              {isCreating ? "Creating..." : "Create review session"}
             </button>
           </div>
         </form>
 
         {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
+        {successMessage ? <div className="success-banner">{successMessage}</div> : null}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Fetch existing review session</h2>
+        </div>
+
+        <form className="inline-form" onSubmit={handleFetchSession}>
+          <label className="field field--inline-grow">
+            <span className="field-label">Review session id</span>
+            <input
+              className="field-input"
+              placeholder="review-xxxxxxxxxxxxxxxx"
+              value={sessionIdInput}
+              onChange={(event) => setSessionIdInput(event.target.value)}
+            />
+          </label>
+
+          <div className="form-actions">
+            <button className="primary-button" type="submit" disabled={isFetching}>
+              {isFetching ? "Fetching..." : "Fetch session"}
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="panel">
@@ -124,9 +669,7 @@ export function ReviewWorkbenchPage() {
         </div>
 
         {!session ? (
-          <div className="empty-state">
-            No session loaded yet.
-          </div>
+          <div className="empty-state">No session loaded yet.</div>
         ) : (
           <div className="session-grid">
             <div className="summary-card">
@@ -147,6 +690,11 @@ export function ReviewWorkbenchPage() {
             </div>
 
             <div className="summary-card">
+              <div className="summary-card__label">Listing Type</div>
+              <div className="summary-card__value">{headerSummary?.listingType}</div>
+            </div>
+
+            <div className="summary-card">
               <div className="summary-card__label">Approval Status</div>
               <div className="summary-card__value">{headerSummary?.approvalStatus}</div>
             </div>
@@ -157,20 +705,546 @@ export function ReviewWorkbenchPage() {
             </div>
 
             <div className="summary-card">
+              <div className="summary-card__label">Warning Count</div>
+              <div className="summary-card__value">{String(headerSummary?.warningCount)}</div>
+            </div>
+
+            <div className="summary-card">
+              <div className="summary-card__label">Sections</div>
+              <div className="summary-card__value">{String(headerSummary?.sectionCount)}</div>
+            </div>
+
+            <div className="summary-card">
+              <div className="summary-card__label">FAQs</div>
+              <div className="summary-card__value">{String(headerSummary?.faqCount)}</div>
+            </div>
+
+            <div className="summary-card">
+              <div className="summary-card__label">Tables</div>
+              <div className="summary-card__value">{String(headerSummary?.tableCount)}</div>
+            </div>
+
+            <div className="summary-card">
+              <div className="summary-card__label">Versions</div>
+              <div className="summary-card__value">{String(headerSummary?.versionCount)}</div>
+            </div>
+
+            <div className="summary-card">
               <div className="summary-card__label">Latest Version</div>
-              <div className="summary-card__value">{session.latest_version_id ?? "—"}</div>
+              <div className="summary-card__value">{headerSummary?.latestVersionId}</div>
             </div>
           </div>
         )}
       </section>
 
       {session ? (
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Raw review session payload</h2>
-          </div>
-          <pre className="json-viewer">{JSON.stringify(session, null, 2)}</pre>
-        </section>
+        <>
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Combined generated content snapshot</h2>
+            </div>
+
+            <div className="stack-list">
+              <div className="stack-card">
+                <div className="stack-card__header">
+                  <div>
+                    <div className="stack-card__title">{metadata?.h1 ?? "Draft heading"}</div>
+                    <div className="stack-card__meta">Title: {metadata?.title ?? "—"}</div>
+                  </div>
+
+                  <div className="stack-card__badges">
+                    <span className="badge">
+                      status: {qualityReport?.approval_status ?? "—"}
+                    </span>
+                    <span className="badge">
+                      publish ready: {stringifyValue(session.draft?.publish_ready)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="stack-card__body">
+                  {metadata?.intro_snippet ?? "—"}
+                </div>
+              </div>
+
+              {(session.draft?.sections ?? []).map((section) => (
+                <div className="stack-card" key={section.id ?? section.title}>
+                  <div className="stack-card__header">
+                    <div>
+                      <div className="stack-card__title">
+                        {section.title ?? "Untitled section"}
+                      </div>
+                      <div className="stack-card__meta">ID: {section.id ?? "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="stack-card__body">{section.body ?? "—"}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Edit metadata</h2>
+            </div>
+
+            <form className="form-grid" onSubmit={handleSaveMetadata}>
+              <label className="field">
+                <span className="field-label">Title</span>
+                <input
+                  className="field-input"
+                  value={metadataForm.title}
+                  onChange={(event) =>
+                    setMetadataForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Meta Description</span>
+                <textarea
+                  className="field-textarea"
+                  rows={4}
+                  value={metadataForm.meta_description}
+                  onChange={(event) =>
+                    setMetadataForm((current) => ({
+                      ...current,
+                      meta_description: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">H1</span>
+                <input
+                  className="field-input"
+                  value={metadataForm.h1}
+                  onChange={(event) =>
+                    setMetadataForm((current) => ({
+                      ...current,
+                      h1: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Intro Snippet</span>
+                <textarea
+                  className="field-textarea"
+                  rows={4}
+                  value={metadataForm.intro_snippet}
+                  onChange={(event) =>
+                    setMetadataForm((current) => ({
+                      ...current,
+                      intro_snippet: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <div className="form-actions">
+                <button className="primary-button" type="submit" disabled={isSavingMetadata}>
+                  {isSavingMetadata ? "Saving..." : "Save metadata"}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Quality and publishability</h2>
+            </div>
+
+            <div className="details-grid">
+              <div className="detail-card">
+                <div className="detail-card__label">Approval Status</div>
+                <div className="detail-card__value">{qualityReport?.approval_status ?? "—"}</div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Overall Quality Score</div>
+                <div className="detail-card__value">
+                  {stringifyValue(
+                    qualityReport?.overall_quality_score ?? draftQualityReport?.overall_quality_score,
+                  )}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Publish Ready</div>
+                <div className="detail-card__value">
+                  {stringifyValue(session.draft?.publish_ready)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Blocked</div>
+                <div className="detail-card__value">
+                  {stringifyValue(debugSummary?.blocked)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Blocking Reasons</div>
+                <div className="detail-card__value">
+                  {debugSummary?.blocking_reasons?.length
+                    ? debugSummary.blocking_reasons.join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Warnings</div>
+                <div className="detail-card__value">
+                  {warningReasons.length ? warningReasons.join(", ") : "—"}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Validation report</h2>
+            </div>
+
+            <div className="tab-row">
+              <button
+                type="button"
+                className={activeValidationTab === "summary" ? "tab-button tab-button--active" : "tab-button"}
+                onClick={() => setActiveValidationTab("summary")}
+              >
+                Summary
+              </button>
+              <button
+                type="button"
+                className={activeValidationTab === "metadata" ? "tab-button tab-button--active" : "tab-button"}
+                onClick={() => setActiveValidationTab("metadata")}
+              >
+                Metadata
+              </button>
+              <button
+                type="button"
+                className={activeValidationTab === "sections" ? "tab-button tab-button--active" : "tab-button"}
+                onClick={() => setActiveValidationTab("sections")}
+              >
+                Sections
+              </button>
+              <button
+                type="button"
+                className={activeValidationTab === "faqs" ? "tab-button tab-button--active" : "tab-button"}
+                onClick={() => setActiveValidationTab("faqs")}
+              >
+                FAQs
+              </button>
+              <button
+                type="button"
+                className={activeValidationTab === "raw" ? "tab-button tab-button--active" : "tab-button"}
+                onClick={() => setActiveValidationTab("raw")}
+              >
+                Raw
+              </button>
+            </div>
+
+            <div className="tab-panel">{renderValidationPanel()}</div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Source data preview</h2>
+            </div>
+
+            <div className="details-grid">
+              <div className="detail-card">
+                <div className="detail-card__label">Sale Count</div>
+                <div className="detail-card__value">
+                  {stringifyValue(listingSummary?.sale_count)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Total Listings</div>
+                <div className="detail-card__value">
+                  {stringifyValue(listingSummary?.total_listings)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Total Projects</div>
+                <div className="detail-card__value">
+                  {stringifyValue(listingSummary?.total_projects)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Asking Price</div>
+                <div className="detail-card__value">
+                  {stringifyValue(pricingSummary?.asking_price)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Registration Rate</div>
+                <div className="detail-card__value">
+                  {stringifyValue(pricingSummary?.registration_rate)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Last Modified Date</div>
+                <div className="detail-card__value">
+                  {stringifyValue(
+                    getRecord(session.source_preview?.raw_source_meta)?.last_modified_date,
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Keyword preview</h2>
+            </div>
+
+            <div className="details-grid">
+              <div className="detail-card">
+                <div className="detail-card__label">Primary Keyword</div>
+                <div className="detail-card__value">
+                  {stringifyValue(primaryKeyword?.keyword)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Secondary Keywords</div>
+                <div className="detail-card__value">
+                  {secondaryKeywords.length
+                    ? secondaryKeywords
+                        .map((item) => stringifyValue(getRecord(item)?.keyword))
+                        .join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Price Keywords</div>
+                <div className="detail-card__value">
+                  {priceKeywords.length
+                    ? priceKeywords
+                        .map((item) => stringifyValue(getRecord(item)?.keyword))
+                        .join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">BHK Keywords</div>
+                <div className="detail-card__value">
+                  {bhkKeywords.length
+                    ? bhkKeywords
+                        .map((item) => stringifyValue(getRecord(item)?.keyword))
+                        .join(", ")
+                    : "—"}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Section edit and review</h2>
+            </div>
+
+            {sectionReview.length === 0 ? (
+              <div className="empty-state">No section review items available.</div>
+            ) : (
+              <div className="stack-list">
+                {sectionReview.map((section: ReviewSectionReview) => {
+                  const sectionId = section.id ?? "";
+                  const quality = getRecord(section.quality);
+
+                  return (
+                    <div className="stack-card" key={section.id ?? section.title}>
+                      <div className="stack-card__header">
+                        <div>
+                          <div className="stack-card__title">
+                            {section.title ?? "Untitled section"}
+                          </div>
+                          <div className="stack-card__meta">ID: {section.id ?? "—"}</div>
+                        </div>
+
+                        <div className="stack-card__badges">
+                          <ValidationBadge passed={section.validation_passed} />
+                          <span className="badge">
+                            score: {stringifyValue(quality?.score)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <label className="field">
+                        <span className="field-label">Section body</span>
+                        <textarea
+                          className="field-textarea field-textarea--section"
+                          rows={8}
+                          value={sectionDrafts[sectionId] ?? section.body ?? ""}
+                          onChange={(event) =>
+                            setSectionDrafts((current) => ({
+                              ...current,
+                              [sectionId]: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+
+                      <div className="form-actions">
+                        <button
+                          className="primary-button"
+                          type="button"
+                          onClick={() => handleSaveSection(sectionId)}
+                          disabled={activeSectionActionId !== null}
+                        >
+                          {activeSectionActionId === `save:${sectionId}`
+                            ? "Saving..."
+                            : "Save section"}
+                        </button>
+
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() => handleRegenerateSection(sectionId)}
+                          disabled={activeSectionActionId !== null}
+                        >
+                          {activeSectionActionId === `regen:${sectionId}`
+                            ? "Regenerating..."
+                            : "Regenerate section"}
+                        </button>
+                      </div>
+
+                      <div className="stack-card__footer">
+                        <strong>Issues:</strong>{" "}
+                        {section.validation_issues?.length
+                          ? section.validation_issues.join(", ")
+                          : "none"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Tables snapshot</h2>
+            </div>
+
+            {tables.length === 0 ? (
+              <div className="empty-state">No tables available in the draft.</div>
+            ) : (
+              <div className="stack-list">
+                {tables.map((table, index) => (
+                  <TableSnapshot key={`${table.id ?? "table"}-${index}`} table={table} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>FAQs snapshot</h2>
+            </div>
+
+            {faqs.length === 0 ? (
+              <div className="empty-state">No FAQs available in the draft.</div>
+            ) : (
+              <div className="stack-list">
+                {faqs.map((faq, index) => (
+                  <FaqSnapshot key={`faq-${index}`} faq={faq} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Version history snapshot</h2>
+            </div>
+
+            {versionHistory.length === 0 ? (
+              <div className="empty-state">No version history available.</div>
+            ) : (
+              <div className="stack-list">
+                {versionHistory.map((version: ReviewVersionHistoryItem) => (
+                  <div className="stack-card" key={version.version_id ?? version.created_at}>
+                    <div className="stack-card__header">
+                      <div>
+                        <div className="stack-card__title">
+                          {version.version_id ?? "Unknown version"}
+                        </div>
+                        <div className="stack-card__meta">
+                          action: {version.action_type ?? "—"} | number:{" "}
+                          {stringifyValue(version.version_number)}
+                        </div>
+                      </div>
+
+                      <div className="stack-card__badges">
+                        <span className="badge">
+                          status: {version.approval_status ?? "—"}
+                        </span>
+                        <span className="badge">
+                          score: {stringifyValue(version.overall_quality_score)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="stack-card__footer">
+                      created at: {version.created_at ?? "—"} | publish ready:{" "}
+                      {stringifyValue(version.publish_ready)}
+                    </div>
+
+                    <div className="form-actions form-actions--top-gap">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => handleRestoreVersion(version.version_id ?? "")}
+                        disabled={!version.version_id || activeRestoreVersionId !== null}
+                      >
+                        {activeRestoreVersionId === version.version_id
+                          ? "Restoring..."
+                          : "Restore version"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-header panel-header--row">
+              <h2>Raw review session payload</h2>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowRawPayload((current) => !current)}
+              >
+                {showRawPayload ? "Hide payload" : "Show payload"}
+              </button>
+            </div>
+
+            {showRawPayload ? (
+              <pre className="json-viewer">{JSON.stringify(session, null, 2)}</pre>
+            ) : (
+              <div className="empty-state">
+                Raw payload is hidden. Click “Show payload” to inspect it.
+              </div>
+            )}
+          </section>
+        </>
       ) : null}
     </div>
   );
