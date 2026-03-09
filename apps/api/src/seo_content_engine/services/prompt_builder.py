@@ -50,6 +50,12 @@ class PromptBuilder:
             "When discussing price, use only the canonical page pricing metric: asking price. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
             "If such metrics exist in broader source data, treat them as non-narrative context and do not write them in the section body. "
+            "For review or rating sections, only summarize explicit review counts, average rating, tag signals, and AI summaries if provided. "
+            "Do not infer sentiment, satisfaction, desirability, or quality beyond the input. "
+            "For demand and supply sections, only summarize explicit counts, percentages, unit-type splits, listing ranges, and availability values from the input. "
+            "Do not say demand is strong, weak, healthy, rising, falling, or favorable unless that exact interpretation is explicitly provided. "
+            "For property-type sections, only summarize explicit property-type names, counts, rates, status buckets, and grounded distributions from the input. "
+            "Do not rank, recommend, or interpret which property type is better. "
             "Use neutral, factual, concise language. "
             "Return only valid JSON."
         )
@@ -80,6 +86,9 @@ class PromptBuilder:
                     "use_only_section_generation_context_for_narrative": True,
                     "price_trends_and_rates_prose_must_use_only_asking_price": True,
                     "exclude_non_canonical_pricing_metrics_from_prose": True,
+                    "review_sections_must_use_explicit_review_inputs_only": True,
+                    "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
+                    "property_type_sections_must_use_explicit_property_type_inputs_only": True,
                 },
                 "output_schema": {
                     "sections": [
@@ -99,10 +108,15 @@ class PromptBuilder:
     def faq_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate FAQ answers for Square Yards resale listing pages. "
-            "Use only the provided FAQ plan and data context. "
+            "Use only the provided FAQ plan and grounded data context. "
             "Answer directly, avoid fluff, and do not invent numbers or claims. "
             "When referencing price, prefer the canonical page pricing metric: asking price. "
+            "For review-related FAQs, use only explicit rating, review-count, review-tag, or AI-summary inputs if present. "
+            "Do not infer quality, trust, or desirability. "
+            "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, or listing ranges if present. "
             "Do not add market interpretation beyond explicit data. "
+            "For property-type FAQs, use only explicit property-type, status, or rate inputs if present. "
+            "Do not recommend one property type over another. "
             "Return only valid JSON."
         )
 
@@ -113,6 +127,12 @@ class PromptBuilder:
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "requirements": {
                 "strict_grounding": True,
+                "faq_rules": {
+                    "review_faqs_must_use_explicit_review_inputs_only": True,
+                    "demand_supply_faqs_must_use_explicit_inputs_only": True,
+                    "property_type_faqs_must_use_explicit_inputs_only": True,
+                    "exclude_non_canonical_pricing_metrics_from_price_answers": True,
+                },
                 "output_schema": {
                     "faqs": [
                         {
@@ -134,6 +154,9 @@ class PromptBuilder:
             "Only rewrite the body. Remove unsupported claims, forbidden adjectives, and invalid numbers. "
             "If price is mentioned, use only the canonical asking price metric. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
+            "For review-related sections, only use explicit rating, review-count, review-tag, or AI-summary inputs if present. "
+            "For demand-supply sections, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
+            "For property-type sections, only use explicit property-type, status, rate, and distribution inputs if present. "
             "Do not introduce any fact that is not present in the provided grounded data. "
             "Return only valid JSON."
         )
@@ -154,6 +177,9 @@ class PromptBuilder:
                 "avoid_forbidden_claims": True,
                 "avoid_non_canonical_pricing_terms": True,
                 "price_trends_and_rates_prose_must_use_only_asking_price": True,
+                "review_sections_must_use_explicit_review_inputs_only": True,
+                "demand_supply_sections_must_use_explicit_inputs_only": True,
+                "property_type_sections_must_use_explicit_inputs_only": True,
             },
             "output_schema": {
                 "id": "string",
@@ -171,6 +197,9 @@ class PromptBuilder:
             "Be surgical. Keep the same question. Only rewrite the answer. "
             "Remove unsupported claims, forbidden adjectives, and invalid numbers. "
             "If price is mentioned, use only the canonical asking price metric. "
+            "For review-related FAQs, only use explicit rating, review-count, review-tag, or AI-summary inputs if present. "
+            "For demand-supply FAQs, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
+            "For property-type FAQs, only use explicit property-type, status, or rate inputs if present. "
             "Do not introduce any fact that is not present in the grounded data. "
             "Return only valid JSON."
         )
@@ -187,6 +216,9 @@ class PromptBuilder:
                 "rewrite_answer_only": True,
                 "avoid_forbidden_claims": True,
                 "avoid_non_canonical_pricing_terms": True,
+                "review_faqs_must_use_explicit_review_inputs_only": True,
+                "demand_supply_faqs_must_use_explicit_inputs_only": True,
+                "property_type_faqs_must_use_explicit_inputs_only": True,
             },
             "output_schema": {
                 "question": "string",

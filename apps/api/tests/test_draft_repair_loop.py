@@ -41,6 +41,27 @@ class RepairingDummyOpenAIClient:
                     "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
                 }
 
+            if '"id": "review_and_rating_signals"' in user_prompt:
+                return {
+                    "id": "review_and_rating_signals",
+                    "title": "Review and Rating Signals",
+                    "body": "The page includes an average rating of 4.23 based on 97 reviews.",
+                }
+
+            if '"id": "demand_and_supply_signals"' in user_prompt:
+                return {
+                    "id": "demand_and_supply_signals",
+                    "title": "Demand and Supply Signals",
+                    "body": "The sale-side inputs include a 2 BHK demand percent of 30 and supply percent of 32.",
+                }
+
+            if '"id": "property_type_signals"' in user_prompt:
+                return {
+                    "id": "property_type_signals",
+                    "title": "Property Type Signals",
+                    "body": "Apartment appears in the grounded property-type inputs.",
+                }
+
             return {
                 "id": "hero_intro",
                 "title": "Resale Property Overview in Andheri West, Mumbai",
@@ -75,6 +96,21 @@ class RepairingDummyOpenAIClient:
                         "title": "Price Trends and Rates",
                         "body": "The registration rate is ₹26,616 and the average price is ₹40,238.",
                     },
+                    {
+                        "id": "review_and_rating_signals",
+                        "title": "Review and Rating Signals",
+                        "body": "This locality has excellent reviews and premium feedback.",
+                    },
+                    {
+                        "id": "demand_and_supply_signals",
+                        "title": "Demand and Supply Signals",
+                        "body": "Demand is very strong for 2 BHK here.",
+                    },
+                    {
+                        "id": "property_type_signals",
+                        "title": "Property Type Signals",
+                        "body": "Apartment is the best property type here.",
+                    },
                 ]
             }
 
@@ -100,11 +136,13 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
             "sale_count": 2039,
             "total_listings": 6109,
             "total_projects": 1762,
+            "sale_available": 2039,
         },
         "pricing_summary": {
             "asking_price": 40238,
             "registration_rate": 26616,
             "price_trend": [{"quarterName": "Dec 2025", "locationRate": 40238, "micromarketRate": 21180}],
+            "property_types": [{"propertyType": "apartment", "avgPrice": 40238, "changePercent": 4.61}],
             "property_status": [{"status": "Ready To Move", "units": 957, "avgPrice": 31639}],
         },
         "distributions": {
@@ -120,6 +158,14 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
             "sale_quick_links": [{"label": "New Projects in Andheri West", "url": "projects-in-andheri-west-mumbai"}],
         },
         "top_projects": {"byTransactions": {"projects": []}},
+        "review_summary": {
+            "overview": {"avg_rating": 4.23, "rating_count": 97, "review_count": 97},
+            "positive_tags": ["metro connectivity"],
+            "negative_tags": ["traffic"],
+        },
+        "ai_summary": {"locality_summary": "Established locality with mixed residential inventory."},
+        "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 577, "demandPercent": 30, "supplyPercent": 32}]}},
+        "listing_ranges": {"sale_listing_range": {"doc_count": 1933, "min_price": 2320000, "max_price": 4900000000}},
         "raw_source_meta": {"main_message": "locality Found", "rates_message": "Property Rates Data Found"},
     }
 
@@ -152,7 +198,7 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
         openai_client=client,
     )
 
-    assert draft["version"] == "v2.3"
+    assert draft["version"] == "v2.4"
     assert client.metadata_repair_called >= 1
     assert client.section_repair_called >= 1
     assert client.faq_repair_called >= 1
@@ -161,4 +207,11 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
     assert "debug_summary" in draft
 
     price_section = next(section for section in draft["sections"] if section["id"] == "price_trends_and_rates")
+    review_section = next(section for section in draft["sections"] if section["id"] == "review_and_rating_signals")
+    demand_section = next(section for section in draft["sections"] if section["id"] == "demand_and_supply_signals")
+    property_type_section = next(section for section in draft["sections"] if section["id"] == "property_type_signals")
+
     assert "registration rate" not in price_section["body"].lower()
+    assert "excellent" not in review_section["body"].lower()
+    assert "strong demand" not in demand_section["body"].lower()
+    assert "best property type" not in property_type_section["body"].lower()

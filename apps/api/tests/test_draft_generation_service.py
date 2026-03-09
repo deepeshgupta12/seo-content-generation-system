@@ -30,7 +30,19 @@ class DummyOpenAIClient:
                     {
                         "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
                         "answer": "The asking price signal is ₹40,238.",
-                    }
+                    },
+                    {
+                        "question": "What review signals are available for this resale page?",
+                        "answer": "The page includes an average rating of 4.23 based on 97 reviews.",
+                    },
+                    {
+                        "question": "What demand and supply inputs are available on this page?",
+                        "answer": "The sale-side inputs include a 2 BHK demand percent of 30 and supply percent of 32.",
+                    },
+                    {
+                        "question": "Which property-type signals are available on this resale page?",
+                        "answer": "Apartment property-type inputs are available in the grounded source data.",
+                    },
                 ]
             }
 
@@ -56,6 +68,16 @@ class DummyOpenAIClient:
                         "id": "review_and_rating_signals",
                         "title": "Review and Rating Signals",
                         "body": "The page includes a 4.23 average rating based on 97 reviews.",
+                    },
+                    {
+                        "id": "demand_and_supply_signals",
+                        "title": "Demand and Supply Signals",
+                        "body": "The sale-side inputs include a 2 BHK demand percent of 30 and supply percent of 32.",
+                    },
+                    {
+                        "id": "property_type_signals",
+                        "title": "Property Type Signals",
+                        "body": "Apartment appears in the grounded property-type inputs.",
                     },
                 ]
             }
@@ -149,7 +171,7 @@ def test_draft_generation_service() -> None:
         openai_client=DummyOpenAIClient(),
     )
 
-    assert draft["version"] == "v2.3"
+    assert draft["version"] == "v2.4"
     assert draft["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
     assert len(draft["sections"]) > 0
     assert len(draft["tables"]) > 0
@@ -159,4 +181,12 @@ def test_draft_generation_service() -> None:
     assert "validation_history" in draft
     assert "pre_block_draft" in draft
     assert "debug_summary" in draft
+
+    review_section = next(section for section in draft["sections"] if section["id"] == "review_and_rating_signals")
+    demand_section = next(section for section in draft["sections"] if section["id"] == "demand_and_supply_signals")
+    property_type_section = next(section for section in draft["sections"] if section["id"] == "property_type_signals")
+
+    assert "4.23" in review_section["body"]
+    assert "demand percent" in demand_section["body"].lower()
+    assert "apartment" in property_type_section["body"].lower()
     assert "https://www.squareyards.com/" in draft["markdown_draft"]

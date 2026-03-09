@@ -117,22 +117,230 @@ class DraftGenerationService:
                 lines.append(", ".join(trend_parts) + ".")
 
         if not lines:
-            return f"This section uses the asking price signal and available price-trend entries for {entity_name}, {city_name}."
+            return (
+                f"This section uses the asking price signal and available price-trend entries "
+                f"for {entity_name}, {city_name}."
+            )
 
         return " ".join(lines)
 
     @staticmethod
+    def _build_review_signals_safe_body(content_plan: dict) -> str:
+        review_summary = content_plan["data_context"].get("review_summary", {})
+        ai_summary = content_plan["data_context"].get("ai_summary", {})
+        overview = review_summary.get("overview", {})
+
+        avg_rating = overview.get("avg_rating")
+        review_count = overview.get("review_count")
+        rating_count = overview.get("rating_count")
+        positive_tags = review_summary.get("positive_tags", [])
+        negative_tags = review_summary.get("negative_tags", [])
+        locality_summary = ai_summary.get("locality_summary")
+
+        lines: list[str] = []
+
+        summary_parts: list[str] = []
+        if avg_rating is not None:
+            summary_parts.append(f"the average rating is {avg_rating}")
+        if review_count is not None:
+            summary_parts.append(f"review count is {review_count}")
+        if rating_count is not None and rating_count != review_count:
+            summary_parts.append(f"rating count is {rating_count}")
+
+        if summary_parts:
+            lines.append("Available review signals show " + ", ".join(summary_parts) + ".")
+
+        if positive_tags:
+            lines.append(f"Positive review tags include {', '.join(positive_tags[:3])}.")
+        if negative_tags:
+            lines.append(f"Negative review tags include {', '.join(negative_tags[:3])}.")
+        if locality_summary:
+            lines.append(f"AI summary available for this page: {locality_summary}")
+
+        if not lines:
+            return "Review and rating signals are available on this page when present in the source data."
+
+        return " ".join(lines)
+
+    @staticmethod
+    def _build_demand_supply_safe_body(content_plan: dict) -> str:
+        listing_summary = content_plan["data_context"].get("listing_summary", {})
+        demand_supply = content_plan["data_context"].get("demand_supply", {})
+        listing_ranges = content_plan["data_context"].get("listing_ranges", {})
+
+        sale_summary = demand_supply.get("sale", {})
+        unit_types = sale_summary.get("unitType", [])
+        sale_available = listing_summary.get("sale_available")
+        sale_count = listing_summary.get("sale_count")
+        sale_range = listing_ranges.get("sale_listing_range", {})
+
+        lines: list[str] = []
+
+        count_parts: list[str] = []
+        if sale_available is not None:
+            count_parts.append(f"sale available count is {sale_available}")
+        if sale_count is not None and sale_count != sale_available:
+            count_parts.append(f"sale count is {sale_count}")
+        if count_parts:
+            lines.append("Available sale-side signals show " + ", ".join(count_parts) + ".")
+
+        if unit_types:
+            primary = unit_types[0]
+            unit_name = primary.get("name")
+            listing = primary.get("listing")
+            demand_percent = primary.get("demandPercent")
+            supply_percent = primary.get("supplyPercent")
+
+            unit_parts: list[str] = []
+            if unit_name:
+                unit_parts.append(f"for {unit_name}")
+            if listing is not None:
+                unit_parts.append(f"listing count is {listing}")
+            if demand_percent is not None:
+                unit_parts.append(f"demand percent is {demand_percent}")
+            if supply_percent is not None:
+                unit_parts.append(f"supply percent is {supply_percent}")
+
+            if unit_parts:
+                lines.append("Unit-type demand and supply inputs indicate " + ", ".join(unit_parts) + ".")
+
+        range_parts: list[str] = []
+        if sale_range.get("doc_count") is not None:
+            range_parts.append(f"listing range document count is {sale_range['doc_count']}")
+        if sale_range.get("min_price") is not None:
+            range_parts.append(f"minimum listed price is ₹{sale_range['min_price']:,}")
+        if sale_range.get("max_price") is not None:
+            range_parts.append(f"maximum listed price is ₹{sale_range['max_price']:,}")
+        if range_parts:
+            lines.append("Listing-range inputs show " + ", ".join(range_parts) + ".")
+
+        if not lines:
+            return "Demand and supply signals are shown only when grounded sale-side inputs are available."
+
+        return " ".join(lines)
+
+    @staticmethod
+    def _build_property_type_safe_body(content_plan: dict) -> str:
+        pricing_summary = content_plan["data_context"].get("pricing_summary", {})
+        distributions = content_plan["data_context"].get("distributions", {})
+
+        property_types = pricing_summary.get("property_types", [])
+        property_status = pricing_summary.get("property_status", [])
+        sale_property_type_distribution = distributions.get("sale_property_type_distribution", [])
+
+        lines: list[str] = []
+
+        if property_types:
+            first = property_types[0]
+            parts: list[str] = []
+            if first.get("propertyType"):
+                parts.append(f"property type is {first['propertyType']}")
+            if first.get("avgPrice") is not None:
+                parts.append(f"average listed value in this input is ₹{first['avgPrice']:,}")
+            if first.get("changePercent") is not None:
+                parts.append(f"change percent is {first['changePercent']}")
+            if parts:
+                lines.append("Property-type rate inputs show " + ", ".join(parts) + ".")
+
+        if sale_property_type_distribution:
+            first_dist = sale_property_type_distribution[0]
+            dist_parts: list[str] = []
+            if first_dist.get("key"):
+                dist_parts.append(f"{first_dist['key']} appears in the sale property-type mix")
+            if first_dist.get("doc_count") is not None:
+                dist_parts.append(f"document count is {first_dist['doc_count']}")
+            if dist_parts:
+                lines.append(", ".join(dist_parts) + ".")
+
+        if property_status:
+            first_status = property_status[0]
+            status_parts: list[str] = []
+            if first_status.get("status"):
+                status_parts.append(f"status bucket is {first_status['status']}")
+            if first_status.get("units") is not None:
+                status_parts.append(f"units are {first_status['units']}")
+            if first_status.get("avgPrice") is not None:
+                status_parts.append(f"average price is ₹{first_status['avgPrice']:,}")
+            if status_parts:
+                lines.append("Status inputs indicate " + ", ".join(status_parts) + ".")
+
+        if not lines:
+            return "Property-type and status signals are shown only when grounded source inputs are available."
+
+        return " ".join(lines)
+
+    @staticmethod
+    def _build_safe_section_body(content_plan: dict, section_id: str) -> str | None:
+        if section_id == "price_trends_and_rates":
+            return DraftGenerationService._build_price_trends_safe_body(content_plan)
+
+        if "review" in section_id or "rating" in section_id:
+            return DraftGenerationService._build_review_signals_safe_body(content_plan)
+
+        if "demand" in section_id or "supply" in section_id:
+            return DraftGenerationService._build_demand_supply_safe_body(content_plan)
+
+        if "property_type" in section_id or "property_types" in section_id:
+            return DraftGenerationService._build_property_type_safe_body(content_plan)
+
+        return None
+
+    @staticmethod
     def _fallback_section_if_needed(content_plan: dict, section: dict, validation: dict) -> dict:
         issues = validation.get("issues", [])
-        if section.get("id") != "price_trends_and_rates":
+        if not issues:
             return section
 
-        if "non_canonical_pricing_metric_detected" not in issues:
+        safe_body = DraftGenerationService._build_safe_section_body(content_plan, section.get("id", ""))
+        if safe_body is None:
             return section
 
         updated = dict(section)
-        updated["body"] = DraftGenerationService._build_price_trends_safe_body(content_plan)
+        updated["body"] = safe_body
         return updated
+
+    @staticmethod
+    def _ensure_planned_sections_present(content_plan: dict, sections: list[dict]) -> list[dict]:
+        section_map = {section.get("id"): dict(section) for section in sections if section.get("id")}
+        completed_sections: list[dict] = []
+
+        for planned in content_plan.get("section_plan", []):
+            if planned.get("render_type") not in {"generative", "hybrid"} or planned.get("id") == "faq_section":
+                continue
+
+            existing = section_map.get(planned["id"])
+            if existing:
+                completed_sections.append(existing)
+                continue
+
+            safe_body = DraftGenerationService._build_safe_section_body(content_plan, planned["id"])
+            if safe_body is None:
+                continue
+
+            completed_sections.append(
+                {
+                    "id": planned["id"],
+                    "title": planned["title"],
+                    "body": safe_body,
+                }
+            )
+
+        return completed_sections
+
+    @staticmethod
+    def _build_safe_faq_answer(content_plan: dict, question: str) -> str | None:
+        lowered = question.lower()
+
+        if "review" in lowered or "rating" in lowered:
+            return DraftGenerationService._build_review_signals_safe_body(content_plan)
+
+        if "demand" in lowered or "supply" in lowered or "listing range" in lowered:
+            return DraftGenerationService._build_demand_supply_safe_body(content_plan)
+
+        if "property type" in lowered or "property types" in lowered or "status" in lowered:
+            return DraftGenerationService._build_property_type_safe_body(content_plan)
+
+        return None
 
     @staticmethod
     def _repair_sections(
@@ -191,7 +399,19 @@ class DraftGenerationService:
             if isinstance(repaired, dict) and repaired.get("answer"):
                 repaired_faqs.append(repaired)
             else:
-                repaired_faqs.append(faq)
+                fallback_answer = DraftGenerationService._build_safe_faq_answer(
+                    content_plan,
+                    faq.get("question", ""),
+                )
+                if fallback_answer:
+                    repaired_faqs.append(
+                        {
+                            "question": faq.get("question"),
+                            "answer": fallback_answer,
+                        }
+                    )
+                else:
+                    repaired_faqs.append(faq)
 
         return repaired_faqs
 
@@ -207,7 +427,7 @@ class DraftGenerationService:
         internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
         return {
-            "version": "v2.3",
+            "version": "v2.4",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": content_plan["page_type"],
             "listing_type": content_plan["listing_type"],
@@ -246,6 +466,7 @@ class DraftGenerationService:
 
         metadata = DraftGenerationService._generate_metadata(content_plan, client)
         sections = DraftGenerationService._generate_sections(content_plan, client)
+        sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
 
         draft = DraftGenerationService._build_base_draft(
@@ -265,6 +486,7 @@ class DraftGenerationService:
         while not validation_report["passed"] and repair_passes < settings.draft_repair_max_passes:
             metadata = DraftGenerationService._repair_metadata(content_plan, draft["metadata"], validation_report, client)
             sections = DraftGenerationService._repair_sections(content_plan, draft["sections"], validation_report, client)
+            sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
 
             draft = DraftGenerationService._build_base_draft(
