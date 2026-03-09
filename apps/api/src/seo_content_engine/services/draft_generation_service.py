@@ -155,8 +155,14 @@ class DraftGenerationService:
             repaired = client.generate_json(system_prompt, user_prompt)
 
             if isinstance(repaired, dict) and repaired.get("body"):
-                repaired = DraftGenerationService._fallback_section_if_needed(content_plan, repaired, validation)
-                repaired_sections.append(repaired)
+                repaired_section = dict(section)
+                repaired_section["body"] = repaired["body"]
+                repaired_section = DraftGenerationService._fallback_section_if_needed(
+                    content_plan,
+                    repaired_section,
+                    validation,
+                )
+                repaired_sections.append(repaired_section)
             else:
                 fallback = DraftGenerationService._fallback_section_if_needed(content_plan, section, validation)
                 repaired_sections.append(fallback)

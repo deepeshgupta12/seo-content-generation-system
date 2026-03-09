@@ -26,10 +26,25 @@ class RepairingDummyOpenAIClient:
 
         if '"section"' in user_prompt and '"validator_feedback"' in user_prompt:
             self.section_repair_called += 1
+
+            if '"id": "price_trends_and_rates"' in user_prompt:
+                return {
+                    "id": "price_trends_and_rates",
+                    "title": "Price Trends and Rates",
+                    "body": "The asking price signal is ₹40,238.",
+                }
+
+            if '"id": "market_snapshot"' in user_prompt:
+                return {
+                    "id": "market_snapshot",
+                    "title": "Resale Market Snapshot",
+                    "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
+                }
+
             return {
-                "id": "market_snapshot",
-                "title": "Resale Market Snapshot",
-                "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
+                "id": "hero_intro",
+                "title": "Resale Property Overview in Andheri West, Mumbai",
+                "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
             }
 
         if '"faqs"' in user_prompt:
