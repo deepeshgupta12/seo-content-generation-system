@@ -55,6 +55,11 @@ class RepairingDummyOpenAIClient:
                         "title": "Resale Market Snapshot",
                         "body": "This locality has strong demand and the average price is ₹99,999.",
                     },
+                    {
+                        "id": "price_trends_and_rates",
+                        "title": "Price Trends and Rates",
+                        "body": "The registration rate is ₹26,616 and the average price is ₹40,238.",
+                    },
                 ]
             }
 
@@ -139,3 +144,6 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
     assert draft["repair_passes_used"] >= 1
     assert "pre_block_draft" in draft
     assert "debug_summary" in draft
+
+    price_section = next(section for section in draft["sections"] if section["id"] == "price_trends_and_rates")
+    assert "registration rate" not in price_section["body"].lower()

@@ -380,10 +380,14 @@ class ContentPlanBuilder:
             {
                 "id": "price_trends_and_rates",
                 "title": "Price Trends and Rates",
-                "objective": "Explain price trends using the asking price signal and deterministic market data.",
+                "objective": "Explain price trends using the asking price signal and grounded trend data without mentioning non-canonical pricing metrics in prose.",
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
-                "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.registration_rate", "pricing_summary.price_trend"],
+                "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
+                "narrative_rules": {
+                    "allowed_pricing_metrics": ["asking_price"],
+                    "disallowed_pricing_metrics": ["registration_rate", "sale_avg_price_per_sqft"],
+                },
             },
             {
                 "id": "bhk_and_inventory_mix",
@@ -469,6 +473,40 @@ class ContentPlanBuilder:
         return sections
 
     @staticmethod
+    def _resolve_dependency_value(normalized: dict, path: str) -> Any:
+        current: Any = normalized
+        for key in path.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                return None
+        return current
+
+    @staticmethod
+    def _build_section_generation_context(section_plan: list[dict], normalized: dict, entity: dict) -> dict[str, dict]:
+        context_map: dict[str, dict] = {}
+
+        for section in section_plan:
+            section_context: dict[str, Any] = {"entity": entity}
+
+            for dependency in section.get("data_dependencies", []):
+                value = ContentPlanBuilder._resolve_dependency_value(normalized, dependency)
+                if value is None:
+                    continue
+                section_context[dependency] = value
+
+            if section["id"] == "price_trends_and_rates":
+                section_context["narrative_guardrails"] = {
+                    "allowed_pricing_metrics": ["asking_price"],
+                    "disallowed_pricing_metrics": ["registration_rate", "sale_avg_price_per_sqft"],
+                    "instruction": "Use only asking_price and price_trend in prose. Do not mention registration_rate or any non-canonical pricing metric.",
+                }
+
+            context_map[section["id"]] = section_context
+
+        return context_map
+
+    @staticmethod
     def build(normalized: dict, keyword_intelligence: dict) -> dict:
         entity = dict(normalized["entity"])
         entity["canonical_asking_price"] = normalized["pricing_summary"].get("asking_price")
@@ -476,6 +514,8 @@ class ContentPlanBuilder:
         keyword_clusters = keyword_intelligence["keyword_clusters"]
         raw_source_meta = normalized["raw_source_meta"]
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
+
+        section_plan = ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized)
 
         return {
             "version": "v1.5",
@@ -495,7 +535,8 @@ class ContentPlanBuilder:
                 "exact_match_keywords": keyword_clusters.get("exact_match_keywords", []),
                 "loose_match_keywords": keyword_clusters.get("loose_match_keywords", []),
             },
-            "section_plan": ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized),
+            "section_plan": section_plan,
+            "section_generation_context": ContentPlanBuilder._build_section_generation_context(section_plan, normalized, entity),
             "table_plan": ContentPlanBuilder._build_table_plan(page_type, normalized),
             "comparison_plan": ContentPlanBuilder._build_comparison_plan(normalized),
             "faq_plan": ContentPlanBuilder._build_faq_plan(entity, keyword_clusters, normalized),

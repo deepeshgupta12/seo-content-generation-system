@@ -84,6 +84,57 @@ class DraftGenerationService:
         return repaired if isinstance(repaired, dict) else metadata
 
     @staticmethod
+    def _build_price_trends_safe_body(content_plan: dict) -> str:
+        entity = content_plan["entity"]
+        entity_name = entity["entity_name"]
+        city_name = entity["city_name"]
+
+        pricing_summary = content_plan["data_context"].get("pricing_summary", {})
+        asking_price = pricing_summary.get("asking_price")
+        price_trend = pricing_summary.get("price_trend", [])
+
+        lines: list[str] = []
+        if asking_price is not None:
+            lines.append(
+                f"The asking price signal for resale properties in {entity_name}, {city_name} is ₹{asking_price:,}."
+            )
+
+        if isinstance(price_trend, list) and price_trend:
+            latest = price_trend[0]
+            quarter = latest.get("quarterName")
+            location_rate = latest.get("locationRate")
+            micromarket_rate = latest.get("micromarketRate")
+
+            trend_parts: list[str] = []
+            if quarter:
+                trend_parts.append(f"The latest available trend entry is for {quarter}")
+            if location_rate is not None:
+                trend_parts.append(f"the locality rate is ₹{location_rate:,}")
+            if micromarket_rate is not None:
+                trend_parts.append(f"the micromarket rate is ₹{micromarket_rate:,}")
+
+            if trend_parts:
+                lines.append(", ".join(trend_parts) + ".")
+
+        if not lines:
+            return f"This section uses the asking price signal and available price-trend entries for {entity_name}, {city_name}."
+
+        return " ".join(lines)
+
+    @staticmethod
+    def _fallback_section_if_needed(content_plan: dict, section: dict, validation: dict) -> dict:
+        issues = validation.get("issues", [])
+        if section.get("id") != "price_trends_and_rates":
+            return section
+
+        if "non_canonical_pricing_metric_detected" not in issues:
+            return section
+
+        updated = dict(section)
+        updated["body"] = DraftGenerationService._build_price_trends_safe_body(content_plan)
+        return updated
+
+    @staticmethod
     def _repair_sections(
         content_plan: dict,
         sections: list[dict],
@@ -102,10 +153,13 @@ class DraftGenerationService:
 
             system_prompt, user_prompt = PromptBuilder.repair_section_prompt(content_plan, section, validation)
             repaired = client.generate_json(system_prompt, user_prompt)
+
             if isinstance(repaired, dict) and repaired.get("body"):
+                repaired = DraftGenerationService._fallback_section_if_needed(content_plan, repaired, validation)
                 repaired_sections.append(repaired)
             else:
-                repaired_sections.append(section)
+                fallback = DraftGenerationService._fallback_section_if_needed(content_plan, section, validation)
+                repaired_sections.append(fallback)
 
         return repaired_sections
 

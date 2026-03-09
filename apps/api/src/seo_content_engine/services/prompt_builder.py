@@ -43,11 +43,13 @@ class PromptBuilder:
     def sections_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate grounded section copy for Square Yards resale property pages. "
-            "Use only the provided data context and section plan. "
+            "Use only the provided section-level grounded context and section plan. "
             "Never invent numbers or unsupported claims. "
             "Do not mention connectivity, amenities, appreciation, investment potential, market strength, popularity, luxury positioning, or buyer suitability unless explicitly present in the input. "
             "Do not use adjectives like premium, excellent, prime, sought-after, fast-growing, high-demand. "
-            "When discussing price, prefer the canonical page pricing metric: asking price. "
+            "When discussing price, use only the canonical page pricing metric: asking price. "
+            "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
+            "If such metrics exist in broader source data, treat them as non-narrative context and do not write them in the section body. "
             "Use neutral, factual, concise language. "
             "Return only valid JSON."
         )
@@ -61,7 +63,7 @@ class PromptBuilder:
         user_payload = {
             "entity": content_plan["entity"],
             "sections": sections,
-            "data_context": content_plan["data_context"],
+            "section_generation_context": content_plan.get("section_generation_context", {}),
             "comparison_plan": content_plan.get("comparison_plan", []),
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "keyword_strategy": {
@@ -74,6 +76,11 @@ class PromptBuilder:
             },
             "requirements": {
                 "strict_grounding": True,
+                "section_rules": {
+                    "use_only_section_generation_context_for_narrative": True,
+                    "price_trends_and_rates_prose_must_use_only_asking_price": True,
+                    "exclude_non_canonical_pricing_metrics_from_prose": True,
+                },
                 "output_schema": {
                     "sections": [
                         {
@@ -126,16 +133,19 @@ class PromptBuilder:
             "Be surgical. Keep the same section id, section purpose, and grounded meaning. "
             "Only rewrite the body. Remove unsupported claims, forbidden adjectives, and invalid numbers. "
             "If price is mentioned, use only the canonical asking price metric. "
+            "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
             "Do not introduce any fact that is not present in the provided grounded data. "
             "Return only valid JSON."
         )
+
+        section_generation_context = content_plan.get("section_generation_context", {}).get(section.get("id"), {})
 
         user_payload = {
             "entity": content_plan["entity"],
             "section": section,
             "validator_feedback": validation,
             "suggested_safe_rewrite": validation.get("sanitized_text"),
-            "data_context": content_plan["data_context"],
+            "section_generation_context": section_generation_context,
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "repair_rules": {
                 "preserve_section_id": True,
@@ -143,6 +153,7 @@ class PromptBuilder:
                 "rewrite_body_only": True,
                 "avoid_forbidden_claims": True,
                 "avoid_non_canonical_pricing_terms": True,
+                "price_trends_and_rates_prose_must_use_only_asking_price": True,
             },
             "output_schema": {
                 "id": "string",
@@ -186,7 +197,12 @@ class PromptBuilder:
         return system_prompt, json.dumps(user_payload, ensure_ascii=False, indent=2)
 
     @staticmethod
-    def repair_metadata_prompt(content_plan: dict, metadata: dict, issues_by_field: dict, validation_map: dict) -> tuple[str, str]:
+    def repair_metadata_prompt(
+        content_plan: dict,
+        metadata: dict,
+        issues_by_field: dict,
+        validation_map: dict,
+    ) -> tuple[str, str]:
         system_prompt = (
             "You repair previously generated Square Yards metadata. "
             "Be surgical. Preserve the field structure and rewrite only the fields that need fixing. "

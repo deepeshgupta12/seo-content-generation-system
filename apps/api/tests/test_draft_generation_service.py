@@ -47,6 +47,11 @@ class DummyOpenAIClient:
                         "title": "Resale Market Snapshot",
                         "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
                     },
+                    {
+                        "id": "price_trends_and_rates",
+                        "title": "Price Trends and Rates",
+                        "body": "The asking price signal is ₹40,238.",
+                    },
                 ]
             }
 

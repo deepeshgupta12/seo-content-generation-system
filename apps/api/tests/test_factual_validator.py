@@ -42,3 +42,14 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
     assert report["passed"] is False
     assert "forbidden_claims_detected" in report["metadata_checks"]["meta_description"]["issues"]
     assert "unreconciled_numbers_detected" in report["metadata_checks"]["intro_snippet"]["issues"]
+
+
+def test_factual_validator_flags_non_canonical_pricing_metric() -> None:
+    validation = FactualValidator.validate_text(
+        text="The registration rate is ₹26,616 in this locality.",
+        allowed_numbers={"26616"},
+        canonical_metric_name="asking_price",
+    )
+
+    assert validation["passed"] is False
+    assert "non_canonical_pricing_metric_detected" in validation["issues"]
