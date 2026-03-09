@@ -49,10 +49,37 @@ class FactualValidator:
         ],
     }
 
-    STALE_DATA_THRESHOLD_DAYS = 45
+    WARNING_TAXONOMY = {
+        "repeated_section_body_detected": {"category": "repetition", "severity": "medium"},
+        "repeated_sentence_pattern_detected": {"category": "repetition", "severity": "medium"},
+        "duplicate_faq_answer_detected": {"category": "repetition", "severity": "medium"},
+        "high_cross_section_similarity_detected": {"category": "uniqueness", "severity": "medium"},
+        "repeated_section_opening_pattern_detected": {"category": "uniqueness", "severity": "low"},
+        "low_distinct_term_ratio_detected": {"category": "uniqueness", "severity": "medium"},
+        "primary_keyword_stuffing_detected": {"category": "keyword", "severity": "high"},
+        "exact_match_keyword_overused": {"category": "keyword", "severity": "medium"},
+        "stale_source_data_detected": {"category": "freshness", "severity": "medium"},
+        "severely_stale_source_data_detected": {"category": "freshness", "severity": "high"},
+        "section_too_short": {"category": "structure", "severity": "low"},
+    }
+
+    STALE_DATA_WARNING_DAYS = 45
+    STALE_DATA_FAIL_DAYS = 90
+
     PRIMARY_KEYWORD_MAX_OCCURRENCES = 3
     PRIMARY_KEYWORD_MAX_DENSITY = 0.04
+    EXACT_KEYWORD_MAX_OCCURRENCES = 4
+
     MIN_SECTION_WORD_COUNT = 8
+    MIN_SIGNIFICANT_SENTENCE_WORDS = 6
+    MIN_SIMILARITY_WORDS = 10
+    SECTION_SIMILARITY_THRESHOLD = 0.78
+    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.38
+    REPEATED_OPENING_WORDS = 6
+
+    PASS_SCORE_THRESHOLD = 85
+    WARNING_SCORE_THRESHOLD = 70
+    FAIL_SCORE_THRESHOLD = 50
 
     @staticmethod
     def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
@@ -170,8 +197,12 @@ class FactualValidator:
         return lowered.strip()
 
     @staticmethod
+    def _tokenize_words(text: str) -> list[str]:
+        return re.findall(r"\b\w+\b", text.lower())
+
+    @staticmethod
     def _word_count(text: str) -> int:
-        return len(re.findall(r"\b\w+\b", text))
+        return len(FactualValidator._tokenize_words(text))
 
     @staticmethod
     def _parse_iso_date(value: str | None) -> datetime | None:
@@ -198,38 +229,28 @@ class FactualValidator:
         return None
 
     @staticmethod
-    def validate_text(text: str, allowed_numbers: set[str], canonical_metric_name: str | None = None) -> dict[str, Any]:
-        forbidden_claims = FactualValidator._find_forbidden_claims(text)
-        unreconciled_numbers = FactualValidator._find_unreconciled_numbers(text, allowed_numbers)
-        metric_issues = (
-            FactualValidator._validate_metric_consistency(text, canonical_metric_name)
-            if canonical_metric_name
-            else []
-        )
-        sanitized_text = FactualValidator._sanitize_text(text)
+    def _count_phrase_occurrences(text: str, phrase: str) -> int:
+        if not phrase:
+            return 0
+        pattern = re.escape(phrase.lower())
+        return len(re.findall(pattern, text.lower()))
 
-        issues: list[str] = []
-        if forbidden_claims:
-            issues.append("forbidden_claims_detected")
-        if unreconciled_numbers:
-            issues.append("unreconciled_numbers_detected")
-        issues.extend(metric_issues)
+    @staticmethod
+    def _jaccard_similarity(text_a: str, text_b: str) -> float:
+        words_a = set(FactualValidator._tokenize_words(text_a))
+        words_b = set(FactualValidator._tokenize_words(text_b))
 
-        return {
-            "original_text": text,
-            "sanitized_text": sanitized_text,
-            "forbidden_claims": forbidden_claims,
-            "unreconciled_numbers": unreconciled_numbers,
-            "metric_issues": metric_issues,
-            "word_count": FactualValidator._word_count(text),
-            "passed": len(issues) == 0,
-            "issues": issues,
-        }
+        if not words_a or not words_b:
+            return 0.0
+
+        intersection = words_a.intersection(words_b)
+        union = words_a.union(words_b)
+        return len(intersection) / max(len(union), 1)
 
     @staticmethod
     def _build_repetition_check(draft: dict) -> dict[str, Any]:
         sections = draft.get("sections", [])
-        normalized_bodies: dict[str, str] = {}
+        normalized_body_map: dict[str, str] = {}
         repeated_section_ids: list[str] = []
 
         for section in sections:
@@ -238,9 +259,10 @@ class FactualValidator:
             if not normalized_body:
                 continue
 
-            if normalized_body in normalized_bodies.values():
+            if normalized_body in normalized_body_map.values():
                 repeated_section_ids.append(section_id)
-            normalized_bodies[section_id] = normalized_body
+
+            normalized_body_map[section_id] = normalized_body
 
         repeated_sentences: list[str] = []
         sentence_counter: dict[str, int] = {}
@@ -250,7 +272,7 @@ class FactualValidator:
             parts = re.split(r"[.!?]\s+|\n+", body)
             for part in parts:
                 normalized = FactualValidator._normalize_text(part)
-                if len(normalized.split()) < 6:
+                if len(normalized.split()) < FactualValidator.MIN_SIGNIFICANT_SENTENCE_WORDS:
                     continue
                 sentence_counter[normalized] = sentence_counter.get(normalized, 0) + 1
 
@@ -258,25 +280,110 @@ class FactualValidator:
             if count > 1:
                 repeated_sentences.append(sentence)
 
+        faq_answers = [FactualValidator._normalize_text(item.get("answer", "")) for item in draft.get("faqs", [])]
+        duplicate_faq_answer_detected = len([item for item in faq_answers if item]) != len(
+            {item for item in faq_answers if item}
+        )
+
         warnings: list[str] = []
         if repeated_section_ids:
             warnings.append("repeated_section_body_detected")
         if repeated_sentences:
             warnings.append("repeated_sentence_pattern_detected")
+        if duplicate_faq_answer_detected:
+            warnings.append("duplicate_faq_answer_detected")
 
         return {
             "passed": len(warnings) == 0,
             "warnings": warnings,
             "repeated_section_ids": repeated_section_ids,
             "repeated_sentences": repeated_sentences[:10],
+            "duplicate_faq_answer_detected": duplicate_faq_answer_detected,
         }
 
     @staticmethod
-    def _count_phrase_occurrences(text: str, phrase: str) -> int:
-        if not phrase:
-            return 0
-        pattern = re.escape(phrase.lower())
-        return len(re.findall(pattern, text.lower()))
+    def _build_page_uniqueness_check(draft: dict) -> dict[str, Any]:
+        sections = draft.get("sections", [])
+        high_similarity_pairs: list[dict[str, Any]] = []
+        high_similarity_section_ids: set[str] = set()
+
+        for left_index in range(len(sections)):
+            left = sections[left_index]
+            left_body = left.get("body", "")
+            if FactualValidator._word_count(left_body) < FactualValidator.MIN_SIMILARITY_WORDS:
+                continue
+
+            for right_index in range(left_index + 1, len(sections)):
+                right = sections[right_index]
+                right_body = right.get("body", "")
+                if FactualValidator._word_count(right_body) < FactualValidator.MIN_SIMILARITY_WORDS:
+                    continue
+
+                similarity = FactualValidator._jaccard_similarity(left_body, right_body)
+                if similarity >= FactualValidator.SECTION_SIMILARITY_THRESHOLD:
+                    high_similarity_pairs.append(
+                        {
+                            "left_section_id": left.get("id"),
+                            "right_section_id": right.get("id"),
+                            "similarity": round(similarity, 3),
+                        }
+                    )
+                    high_similarity_section_ids.add(left.get("id", ""))
+                    high_similarity_section_ids.add(right.get("id", ""))
+
+        opening_counter: dict[str, int] = {}
+        opening_section_ids: dict[str, list[str]] = {}
+
+        for section in sections:
+            words = FactualValidator._tokenize_words(section.get("body", ""))
+            if len(words) < FactualValidator.REPEATED_OPENING_WORDS:
+                continue
+            opening = " ".join(words[: FactualValidator.REPEATED_OPENING_WORDS])
+            opening_counter[opening] = opening_counter.get(opening, 0) + 1
+            opening_section_ids.setdefault(opening, []).append(section.get("id", ""))
+
+        repeated_openings = [
+            {"opening": opening, "count": count, "section_ids": opening_section_ids[opening]}
+            for opening, count in opening_counter.items()
+            if count > 1
+        ]
+
+        repeated_opening_section_ids = sorted(
+            {
+                section_id
+                for item in repeated_openings
+                for section_id in item["section_ids"]
+                if section_id
+            }
+        )
+
+        full_text = " ".join(
+            [
+                draft.get("metadata", {}).get("intro_snippet", ""),
+                *[section.get("body", "") for section in sections],
+                *[faq.get("answer", "") for faq in draft.get("faqs", [])],
+            ]
+        )
+        words = FactualValidator._tokenize_words(full_text)
+        distinct_term_ratio = (len(set(words)) / len(words)) if words else 1.0
+
+        warnings: list[str] = []
+        if high_similarity_pairs:
+            warnings.append("high_cross_section_similarity_detected")
+        if repeated_openings:
+            warnings.append("repeated_section_opening_pattern_detected")
+        if words and distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
+            warnings.append("low_distinct_term_ratio_detected")
+
+        return {
+            "passed": len(warnings) == 0,
+            "warnings": warnings,
+            "high_similarity_pairs": high_similarity_pairs[:10],
+            "high_similarity_section_ids": sorted([item for item in high_similarity_section_ids if item]),
+            "repeated_openings": repeated_openings[:10],
+            "repeated_opening_section_ids": repeated_opening_section_ids,
+            "distinct_term_ratio": round(distinct_term_ratio, 4),
+        }
 
     @staticmethod
     def _build_keyword_stuffing_check(draft: dict) -> dict[str, Any]:
@@ -314,7 +421,7 @@ class FactualValidator:
         for keyword in exact_keywords:
             count = FactualValidator._count_phrase_occurrences(full_text, keyword)
             exact_counts[keyword] = count
-            if count > FactualValidator.PRIMARY_KEYWORD_MAX_OCCURRENCES + 1:
+            if count > FactualValidator.EXACT_KEYWORD_MAX_OCCURRENCES:
                 warnings.append("exact_match_keyword_overused")
 
         return {
@@ -339,25 +446,42 @@ class FactualValidator:
         if not generated_dt or not modified_dt:
             return {
                 "passed": True,
+                "severity": "none",
                 "warnings": [],
+                "blocking": False,
                 "last_modified_date": last_modified_date,
                 "days_since_last_modified": None,
             }
 
         delta_days = (generated_dt.date() - modified_dt.date()).days
         warnings: list[str] = []
-        if delta_days > FactualValidator.STALE_DATA_THRESHOLD_DAYS:
+        severity = "none"
+        blocking = False
+
+        if delta_days > FactualValidator.STALE_DATA_FAIL_DAYS:
+            warnings.append("severely_stale_source_data_detected")
+            severity = "high"
+            blocking = True
+        elif delta_days > FactualValidator.STALE_DATA_WARNING_DAYS:
             warnings.append("stale_source_data_detected")
+            severity = "medium"
 
         return {
-            "passed": len(warnings) == 0,
+            "passed": not blocking,
+            "severity": severity,
             "warnings": warnings,
+            "blocking": blocking,
             "last_modified_date": last_modified_date,
             "days_since_last_modified": delta_days,
         }
 
     @staticmethod
-    def _score_section(section: dict, validation: dict, repetition_check: dict) -> dict[str, Any]:
+    def _score_section(
+        section: dict,
+        validation: dict,
+        repetition_check: dict,
+        uniqueness_check: dict,
+    ) -> dict[str, Any]:
         score = 100
         warnings: list[str] = []
 
@@ -373,8 +497,16 @@ class FactualValidator:
             warnings.append("section_too_short")
 
         if section.get("id") in repetition_check.get("repeated_section_ids", []):
-            score -= 20
+            score -= 12
             warnings.append("repeated_section_body_detected")
+
+        if section.get("id") in uniqueness_check.get("high_similarity_section_ids", []):
+            score -= 8
+            warnings.append("high_cross_section_similarity_detected")
+
+        if section.get("id") in uniqueness_check.get("repeated_opening_section_ids", []):
+            score -= 4
+            warnings.append("repeated_section_opening_pattern_detected")
 
         score = max(0, min(100, score))
 
@@ -395,43 +527,134 @@ class FactualValidator:
         }
 
     @staticmethod
+    def _build_warning_taxonomy(warning_reasons: list[str]) -> dict[str, Any]:
+        categorized: dict[str, list[str]] = {}
+        severity_counts = {"low": 0, "medium": 0, "high": 0}
+        entries: list[dict[str, str]] = []
+
+        for warning in warning_reasons:
+            taxonomy = FactualValidator.WARNING_TAXONOMY.get(
+                warning,
+                {"category": "other", "severity": "medium"},
+            )
+            category = taxonomy["category"]
+            severity = taxonomy["severity"]
+
+            categorized.setdefault(category, []).append(warning)
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+            entries.append(
+                {
+                    "warning": warning,
+                    "category": category,
+                    "severity": severity,
+                }
+            )
+
+        return {
+            "categorized_warnings": categorized,
+            "severity_counts": severity_counts,
+            "warning_entries": entries,
+        }
+
+    @staticmethod
     def _build_quality_report(draft: dict, validation_report: dict) -> dict[str, Any]:
         repetition_check = FactualValidator._build_repetition_check(draft)
+        uniqueness_check = FactualValidator._build_page_uniqueness_check(draft)
         keyword_stuffing_check = FactualValidator._build_keyword_stuffing_check(draft)
         stale_data_check = FactualValidator._build_stale_data_check(draft["content_plan"])
 
         section_quality_scores = [
-            FactualValidator._score_section(item, item_validation["validation"], repetition_check)
+            FactualValidator._score_section(
+                section=item,
+                validation=item_validation["validation"],
+                repetition_check=repetition_check,
+                uniqueness_check=uniqueness_check,
+            )
             for item, item_validation in zip(draft.get("sections", []), validation_report["section_checks"])
         ]
 
-        overall_quality_score = (
-            round(sum(item["score"] for item in section_quality_scores) / len(section_quality_scores))
+        base_score = (
+            sum(item["score"] for item in section_quality_scores) / len(section_quality_scores)
             if section_quality_scores
-            else 100
+            else 100.0
         )
 
         warning_reasons: list[str] = []
         warning_reasons.extend(repetition_check.get("warnings", []))
+        warning_reasons.extend(uniqueness_check.get("warnings", []))
         warning_reasons.extend(keyword_stuffing_check.get("warnings", []))
         warning_reasons.extend(stale_data_check.get("warnings", []))
         warning_reasons = sorted(set(warning_reasons))
 
-        if not validation_report["passed"]:
+        score_penalty = 0
+        penalty_map = {
+            "repeated_section_body_detected": 6,
+            "repeated_sentence_pattern_detected": 4,
+            "duplicate_faq_answer_detected": 5,
+            "high_cross_section_similarity_detected": 6,
+            "repeated_section_opening_pattern_detected": 2,
+            "low_distinct_term_ratio_detected": 5,
+            "primary_keyword_stuffing_detected": 15,
+            "exact_match_keyword_overused": 7,
+            "stale_source_data_detected": 10,
+            "severely_stale_source_data_detected": 25,
+        }
+        for warning in warning_reasons:
+            score_penalty += penalty_map.get(warning, 0)
+
+        overall_quality_score = round(max(0, min(100, base_score - score_penalty)))
+
+        warning_taxonomy = FactualValidator._build_warning_taxonomy(warning_reasons)
+        has_high_severity_warning = warning_taxonomy["severity_counts"].get("high", 0) > 0
+
+        if not validation_report["passed"] or stale_data_check.get("blocking") or has_high_severity_warning:
             approval_status = "fail"
-        elif warning_reasons:
+        elif overall_quality_score < FactualValidator.FAIL_SCORE_THRESHOLD:
+            approval_status = "fail"
+        elif warning_reasons or overall_quality_score < FactualValidator.PASS_SCORE_THRESHOLD:
             approval_status = "warning"
         else:
             approval_status = "pass"
 
         return {
             "approval_status": approval_status,
+            "overall_quality_score": overall_quality_score,
             "warning_reasons": warning_reasons,
+            "warning_taxonomy": warning_taxonomy,
             "repetition_check": repetition_check,
+            "page_uniqueness_check": uniqueness_check,
             "keyword_stuffing_check": keyword_stuffing_check,
             "stale_data_check": stale_data_check,
             "section_quality_scores": section_quality_scores,
-            "overall_quality_score": overall_quality_score,
+        }
+
+    @staticmethod
+    def validate_text(text: str, allowed_numbers: set[str], canonical_metric_name: str | None = None) -> dict[str, Any]:
+        forbidden_claims = FactualValidator._find_forbidden_claims(text)
+        unreconciled_numbers = FactualValidator._find_unreconciled_numbers(text, allowed_numbers)
+        metric_issues = (
+            FactualValidator._validate_metric_consistency(text, canonical_metric_name)
+            if canonical_metric_name
+            else []
+        )
+        sanitized_text = FactualValidator._sanitize_text(text)
+
+        issues: list[str] = []
+        if forbidden_claims:
+            issues.append("forbidden_claims_detected")
+        if unreconciled_numbers:
+            issues.append("unreconciled_numbers_detected")
+        issues.extend(metric_issues)
+
+        return {
+            "original_text": text,
+            "sanitized_text": sanitized_text,
+            "forbidden_claims": forbidden_claims,
+            "unreconciled_numbers": unreconciled_numbers,
+            "metric_issues": metric_issues,
+            "word_count": FactualValidator._word_count(text),
+            "passed": len(issues) == 0,
+            "issues": issues,
         }
 
     @staticmethod
@@ -526,7 +749,10 @@ class FactualValidator:
         ]
 
         quality_report = validation_report.get("quality_report", {})
-        approval_status = quality_report.get("approval_status", "fail" if not validation_report["passed"] else "pass")
+        approval_status = quality_report.get(
+            "approval_status",
+            "fail" if not validation_report["passed"] else "pass",
+        )
         warning_reasons = quality_report.get("warning_reasons", [])
 
         blocking_reasons: list[str] = []

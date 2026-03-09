@@ -44,15 +44,15 @@ class MarkdownRenderer:
 
         if quality_report:
             approval_status = quality_report.get("approval_status")
-            score = quality_report.get("overall_score")
-            warnings = quality_report.get("warnings", [])
+            score = quality_report.get("overall_quality_score", quality_report.get("overall_score"))
+            warnings = quality_report.get("warning_reasons", quality_report.get("warnings", []))
 
             lines.append("## Quality Summary")
             lines.append("")
             if approval_status is not None:
                 lines.append(f"**Approval Status:** {approval_status}")
             if score is not None:
-                lines.append(f"**Overall Score:** {score}")
+                lines.append(f"**Overall Quality Score:** {score}")
             if warnings:
                 lines.append("")
                 lines.append("**Warnings:**")
@@ -93,27 +93,27 @@ class MarkdownRenderer:
             lines.append("## Explore More")
             lines.append("")
 
-            for group_name, group_links in internal_links.items():
-                if not group_links:
-                    continue
+        for group_name, group_links in internal_links.items():
+            if not group_links:
+                continue
 
-                lines.append(f"### {group_name.replace('_', ' ').title()}")
-                lines.append("")
+            lines.append(f"### {group_name.replace('_', ' ').title()}")
+            lines.append("")
 
-                if isinstance(group_links, list):
-                    for item in group_links:
-                        if isinstance(item, list):
-                            for nested in item:
-                                label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
-                                url = OutputFormatter.resolve_url(nested.get("url"))
-                                if label and url:
-                                    lines.append(f"- {label}: {url}")
-                        elif isinstance(item, dict):
-                            label = item.get("label")
-                            url = OutputFormatter.resolve_url(item.get("url"))
+            if isinstance(group_links, list):
+                for item in group_links:
+                    if isinstance(item, list):
+                        for nested in item:
+                            label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
+                            url = OutputFormatter.resolve_url(nested.get("url"))
                             if label and url:
                                 lines.append(f"- {label}: {url}")
+                    elif isinstance(item, dict):
+                        label = item.get("label")
+                        url = OutputFormatter.resolve_url(item.get("url"))
+                        if label and url:
+                            lines.append(f"- {label}: {url}")
 
-                lines.append("")
+            lines.append("")
 
         return "\n".join(lines).strip() + "\n"

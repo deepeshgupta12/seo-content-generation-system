@@ -1,0 +1,202 @@
+{
+  "status": 1,
+  "message": "Property Rates Data Found",
+  "data": {
+    "id": "289",
+    "slug": "property-rates/chandigarh-sectors",
+    "type": "micromarket",
+    "propertyRatesData": {
+      "details": {
+        "id": "289",
+        "name": "Chandigarh Sectors",
+        "locationId": null,
+        "microMarketId": null,
+        "microMarketName": null,
+        "cityId": "309",
+        "cityName": "Chandigarh",
+        "diUrl": "/property-rates/chandigarh-sectors",
+        "type": "MICROMARKET"
+      },
+      "marketOverview": {
+        "askingPrice": 15269,
+        "registrationRate": 0,
+        "avgRentalRate": null
+      },
+      "priceTrend": [
+        {
+          "quarterName": "Dec 2025",
+          "micromarketRate": 15269,
+          "cityRate": 7766
+        },
+        {
+          "quarterName": "Sep 2025",
+          "micromarketRate": 14985,
+          "cityRate": 7346
+        },
+        {
+          "quarterName": "Jun 2025",
+          "micromarketRate": 13161,
+          "cityRate": 7083
+        },
+        {
+          "quarterName": "Mar 2025",
+          "micromarketRate": 11999,
+          "cityRate": 11591
+        }
+      ],
+      "locationRates": [
+        {
+          "name": "Sector 51",
+          "avgRate": 18543,
+          "changePercentage": 16.47
+        },
+        {
+          "name": "Sector 50",
+          "avgRate": 18253,
+          "changePercentage": 13.29
+        },
+        {
+          "name": "Sector 48",
+          "avgRate": 17388,
+          "changePercentage": 8.55
+        },
+        {
+          "name": "Sector 43",
+          "avgRate": 14326,
+          "changePercentage": 0
+        },
+        {
+          "name": "Sector 44",
+          "avgRate": 13986,
+          "changePercentage": 12.03
+        },
+        {
+          "name": "Sector 49",
+          "avgRate": 13878,
+          "changePercentage": -3.01
+        },
+        {
+          "name": "Sector 63",
+          "avgRate": 12478,
+          "changePercentage": 0.68
+        },
+        {
+          "name": "Sector 45",
+          "avgRate": 11307,
+          "changePercentage": -2.59
+        },
+        {
+          "name": "Manimajra",
+          "avgRate": 9845,
+          "changePercentage": -7.05
+        },
+        {
+          "name": "Sector 67",
+          "avgRate": 9029,
+          "changePercentage": 0
+        }
+      ],
+      "propertyTypes": [
+        {
+          "propertyType": "villa",
+          "avgPrice": 36631,
+          "changePercent": 8.4
+        },
+        {
+          "propertyType": "apartment",
+          "avgPrice": 15269,
+          "changePercent": 1.9
+        }
+      ],
+      "propertyStatus": [
+        {
+          "status": "Ready To Move",
+          "units": 1,
+          "avgPrice": 20047,
+          "changePercent": 0
+        },
+        {
+          "status": "Early Stage",
+          "units": 1,
+          "avgPrice": 9029,
+          "changePercent": 14.67
+        }
+      ],
+      "topProjects": {
+        "byListingRates": {
+          "projects": [
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 20047,
+              "location": "Chandigarh Sectors",
+              "locality": "Sector 50",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "bsnl society",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 14.67,
+              "changeValue": null,
+              "currentRate": 9029,
+              "location": "Chandigarh Sectors",
+              "locality": "Sector 67",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "turnstone the medallion aurum",
+              "priority": null,
+              "saleRentValue": null
+            }
+          ]
+        }
+      },
+      "govtRegistration": {
+        "transactionCount": 0,
+        "grossValue": "",
+        "dateRange": "",
+        "registeredRate": 0
+      }
+    },
+    "propertyRatesAiData": {
+      "marketSnapshotOverview": "The Chandigarh Sectors real estate market presents a dynamic landscape, with current asking prices averaging ₹15,269 per sq ft. Over the past year, the micromarket has seen consistent appreciation, notably rising from ₹11,999 per sq ft in March 2025. This growth is driven by strong performance in key areas like Sector 51 and Sector 50, which command premium rates and significant quarterly gains. The market caters to diverse preferences, offering both spacious villas at a premium and well-appointed apartments, with projects like bsnl society in Sector 50 setting high benchmarks.",
+      "insightsLong": "The Chandigarh Sectors micromarket exhibits robust growth and varied investment opportunities. Currently, the average asking price stands at ₹15,269 per sq ft, reflecting a strong upward trajectory observed over recent quarters. This represents a significant increase from ₹11,999 per sq ft in March 2025, showcasing sustained buyer confidence and demand within the region. Notably, areas such as Sector 51 and Sector 50 are leading this appreciation, with average rates reaching ₹18,543 per sq ft and ₹18,253 per sq ft respectively, accompanied by impressive quarterly growth of 16.47% and 13.29%. \n\nWhile the overall trend is positive, some pockets like Sector 49 and Manimajra have experienced slight price corrections, indicating localized market dynamics. The property landscape is diverse, featuring luxurious villas commanding ₹36,631 per sq ft with 8.4% growth, alongside apartments at ₹15,269 per sq ft, which have also seen a modest 1.9% increase. Furthermore, the market offers properties across various development stages; ready-to-move options are priced around ₹20,047 per sq ft, while early-stage projects, exemplified by 'turnstone the medallion aurum' in Sector 67, present opportunities at ₹9,029 per sq ft with significant appreciation potential. This blend of established and emerging segments provides a broad spectrum for both end-users and investors.",
+      "insightsShort": "Chandigarh Sectors is a thriving real estate market, with average asking prices at ₹15,269 per sq ft, experiencing strong quarterly growth. Premium locations like Sector 51 and Sector 50 lead the appreciation, while a diverse mix of villas and apartments caters to various buyer segments.",
+      "askingPriceTrendsDescription": "The Chandigarh Sectors micromarket has demonstrated a consistent upward trend in asking prices over the recent quarters. Starting at approximately ₹11,999 per sq ft in March 2025, the average rate climbed steadily to ₹13,161 per sq ft by June 2025, and further to ₹14,985 per sq ft in September 2025. By December 2025, the micromarket rate reached a notable ₹15,269 per sq ft, highlighting sustained appreciation. Comparatively, the overall city rates have also shown significant shifts during this period, indicating a broader positive sentiment.",
+      "byAreaDescription": "Property rates across Chandigarh Sectors exhibit considerable variation, reflecting the desirability and development status of individual areas. Sector 51 commands the highest average rate at ₹18,543 per sq ft, having seen a robust 16.47% increase. Closely following is Sector 50, with properties averaging ₹18,253 per sq ft and a strong 13.29% growth. Meanwhile, Sector 48 is priced at ₹17,388 per sq ft, showing an 8.55% appreciation. On the other hand, areas like Sector 49 and Manimajra offer more accessible entry points, averaging ₹13,878 per sq ft and ₹9,845 per sq ft respectively, though they have experienced slight price adjustments.",
+      "ratesByPropertyTypesDescription": "The Chandigarh Sectors real estate market offers distinct pricing across its property types, catering to varied buyer preferences. Villas represent the premium segment, commanding an average price of ₹36,631 per sq ft, coupled with a healthy 8.4% appreciation. Apartments, a more widely available option, are priced at an average of ₹15,269 per sq ft, having experienced a modest yet positive 1.9% increase. This diversity allows buyers to choose between high-end luxury and more conventional housing solutions.",
+      "ratesByProjectStatusDescription": "The Chandigarh Sectors market provides options across different development stages, each with distinct pricing. Ready To Move properties, though currently limited in units, average ₹20,047 per sq ft, appealing to those seeking immediate possession. Conversely, Early Stage projects present a more budget-friendly entry point at ₹9,029 per sq ft, exhibiting a significant 14.67% appreciation, suggesting strong future potential. This blend ensures diverse choices for buyers with varying timelines and investment strategies.",
+      "topProjectsAskingDescription": "Premium residential developments in Chandigarh Sectors are commanding significant asking prices, reflecting their desirable locations and modern amenities. Leading the segment is 'bsnl society' in Sector 50, with properties listed at ₹20,047 per sq ft. Another notable project, 'turnstone the medallion aurum' in Sector 67, offers homes at ₹9,029 per sq ft and has seen a substantial 14.67% increase, indicating growing investor interest in early-stage opportunities.",
+      "registrationOverviewDescription": "",
+      "topProjectsByTransactionsDescription": "",
+      "topProjectsByValueDescription": "",
+      "topDevelopersByTransactionsDescription": "",
+      "topDevelopersByValueDescription": "",
+      "investmentOpportunities": [
+        "Investing in rapidly appreciating sectors such as Sector 51 (16.47% growth) and Sector 50 (13.29% growth) for high capital gains.",
+        "Considering Early Stage projects like 'turnstone the medallion aurum' in Sector 67, which shows 14.67% growth, for long-term appreciation potential.",
+        "Exploring villa properties, despite their higher entry price of ₹36,631 per sq ft, given their strong 8.4% price appreciation.",
+        "Analyzing areas with recent negative growth like Sector 49 or Manimajra for potential undervalued assets or future recovery.",
+        "Focusing on the apartment segment at ₹15,269 per sq ft, which offers steady, albeit modest, 1.9% growth, suitable for stable returns."
+      ],
+      "marketChallenges": [
+        "Lack of readily available rental rate data makes it difficult to assess potential rental yield for investors.",
+        "Zero government registration data implies a lack of transparency in transaction volumes and actual realized prices, posing a challenge for accurate market analysis.",
+        "Negative price changes in certain areas like Sector 49 (-3.01%), Sector 45 (-2.59%), and Manimajra (-7.05%) suggest localized oversupply or reduced demand.",
+        "Limited inventory in the 'Ready To Move' category (only 1 unit listed) restricts immediate possession options for buyers.",
+        "The significant price difference between villas and apartments might limit options for middle-segment buyers seeking larger spaces at moderate costs."
+      ],
+      "marketStrengths": [
+        "Consistent micromarket price appreciation, rising from ₹11,999 per sq ft to ₹15,269 per sq ft within a year, indicates robust demand.",
+        "Strong performance in key sectors like Sector 51 and Sector 50, showing impressive quarterly growth of over 13-16%.",
+        "Diverse property offerings including high-value villas and accessible apartments, catering to a wide range of buyer preferences.",
+        "Significant growth potential observed in Early Stage projects (14.67% appreciation), attracting long-term investors.",
+        "Presence of premium projects like 'bsnl society' and 'turnstone the medallion aurum' enhancing the micromarket's appeal.",
+        "Overall positive sentiment in the city's real estate market, as reflected in the city-level price trends.",
+        "Availability of 'Ready To Move' options, albeit limited, provides immediate occupancy for discerning buyers."
+      ],
+      "recentTransactionsDescription": ""
+    }
+  }
+}

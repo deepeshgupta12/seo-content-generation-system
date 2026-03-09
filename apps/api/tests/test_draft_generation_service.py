@@ -201,4 +201,7 @@ def test_draft_generation_service() -> None:
     assert "demand percent" in demand_section["body"].lower()
     assert "apartment" in property_type_section["body"].lower()
     assert draft["quality_report"]["approval_status"] in {"pass", "warning"}
+    assert "overall_quality_score" in draft["quality_report"]
+    assert "warning_taxonomy" in draft["quality_report"]
+    assert "page_uniqueness_check" in draft["quality_report"]
     assert "https://www.squareyards.com/" in draft["markdown_draft"]

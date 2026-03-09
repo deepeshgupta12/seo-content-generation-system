@@ -1,0 +1,693 @@
+{
+  "status": 1,
+  "message": "Property Rates Data Found",
+  "data": {
+    "id": "3",
+    "slug": "property-rates-in-mumbai",
+    "type": "city",
+    "propertyRatesData": {
+      "details": {
+        "id": "3",
+        "name": "Mumbai",
+        "locationId": null,
+        "microMarketId": null,
+        "microMarketName": null,
+        "cityId": null,
+        "cityName": null,
+        "diUrl": "/property-rates-in-mumbai",
+        "type": "CITY"
+      },
+      "marketOverview": {
+        "askingPrice": 37586,
+        "registrationRate": 18130,
+        "avgRentalRate": null
+      },
+      "priceTrend": [
+        {
+          "quarterName": "Dec 2025",
+          "cityRate": 37586
+        },
+        {
+          "quarterName": "Sep 2025",
+          "cityRate": 35552
+        },
+        {
+          "quarterName": "Jun 2025",
+          "cityRate": 37868
+        },
+        {
+          "quarterName": "Mar 2025",
+          "cityRate": 34714
+        }
+      ],
+      "micromarketRates": [
+        {
+          "name": "mumbai central suburbs",
+          "avgRate": 31908,
+          "changePercentage": 6.12
+        },
+        {
+          "name": "mumbai harbour",
+          "avgRate": 34819,
+          "changePercentage": 0.73
+        },
+        {
+          "name": "mumbai south",
+          "avgRate": 46656,
+          "changePercentage": 0.96
+        },
+        {
+          "name": "mumbai western suburbs",
+          "avgRate": 34103,
+          "changePercentage": 2.97
+        }
+      ],
+      "propertyTypes": [
+        {
+          "propertyType": "shop",
+          "avgPrice": 59982,
+          "changePercent": 0.33
+        },
+        {
+          "propertyType": "office space",
+          "avgPrice": 40298,
+          "changePercent": -5.59
+        },
+        {
+          "propertyType": "villa",
+          "avgPrice": 34593,
+          "changePercent": 10.85
+        },
+        {
+          "propertyType": "apartment",
+          "avgPrice": 37586,
+          "changePercent": 5.72
+        },
+        {
+          "propertyType": "co-working space",
+          "avgPrice": 30250,
+          "changePercent": -0.32
+        }
+      ],
+      "propertyStatus": [
+        {
+          "status": "Ready To Move",
+          "units": 17297,
+          "avgPrice": 30948,
+          "changePercent": -0.57
+        },
+        {
+          "status": "Well Occupied",
+          "units": 5703,
+          "avgPrice": 30679,
+          "changePercent": 0.61
+        },
+        {
+          "status": "Advanced Stage",
+          "units": 43,
+          "avgPrice": 35443,
+          "changePercent": -1.19
+        },
+        {
+          "status": "Partially Ready To Move",
+          "units": 92,
+          "avgPrice": 35359,
+          "changePercent": 4.62
+        },
+        {
+          "status": "Mid Stage",
+          "units": 206,
+          "avgPrice": 30523,
+          "changePercent": -0.91
+        },
+        {
+          "status": "Under Construction",
+          "units": 2055,
+          "avgPrice": 32484,
+          "changePercent": 2.53
+        },
+        {
+          "status": "New Launch",
+          "units": 592,
+          "avgPrice": 30286,
+          "changePercent": 2.11
+        },
+        {
+          "status": "Near Possession",
+          "units": 33,
+          "avgPrice": 32993,
+          "changePercent": 5.87
+        },
+        {
+          "status": "Upcoming",
+          "units": 2,
+          "avgPrice": 43640,
+          "changePercent": 9.17
+        },
+        {
+          "status": "Early Stage",
+          "units": 20,
+          "avgPrice": 29082,
+          "changePercent": -0.08
+        },
+        {
+          "status": "Project On Hold",
+          "units": 15,
+          "avgPrice": 39231,
+          "changePercent": 5.91
+        }
+      ],
+      "topProjects": {
+        "byTransactions": {
+          "projects": [
+            {
+              "changePercentage": 2.0811036080835668,
+              "changeValue": 346.3100000000013,
+              "currentRate": 16987,
+              "location": "Mira Road East",
+              "locality": "Kashimira",
+              "noOfTransactions": 41,
+              "productUrl": "https://www.squareyards.com/property-rates/jp-north-kashimira-mira-road-east-mumbai",
+              "projectName": "JP North",
+              "priority": 1,
+              "saleRentValue": 255516000
+            },
+            {
+              "changePercentage": 6.832056671878885,
+              "changeValue": 2769.6699999999983,
+              "currentRate": 43309,
+              "location": "Parel",
+              "locality": "Best Colony",
+              "noOfTransactions": 20,
+              "productUrl": "https://www.squareyards.com/property-rates/peninsula-ashok-towers-best-colony-parel-mumbai",
+              "projectName": "Peninsula Ashok Towers",
+              "priority": 2,
+              "saleRentValue": 985500096
+            },
+            {
+              "changePercentage": 0.19137280639097118,
+              "changeValue": 27.05999999999949,
+              "currentRate": 14167,
+              "location": "Mira Road East",
+              "locality": "Kashimira",
+              "noOfTransactions": 20,
+              "productUrl": "https://www.squareyards.com/property-rates/seven-eleven-apna-ghar-kashimira-mira-road-east-mumbai",
+              "projectName": "Seven Eleven Apna Ghar",
+              "priority": 3,
+              "saleRentValue": 65691000
+            },
+            {
+              "changePercentage": 4.645638466479414,
+              "changeValue": 1222.2999999999993,
+              "currentRate": 27533,
+              "location": "Dahisar East",
+              "locality": "Maratha Colony",
+              "noOfTransactions": 17,
+              "productUrl": "https://www.squareyards.com/property-rates/chandak-nishchay-maratha-colony-dahisar-east-mumbai",
+              "projectName": "Chandak Nishchay",
+              "priority": 4,
+              "saleRentValue": 139065000
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 29760,
+              "location": "Malad East",
+              "locality": "Laxman Nagar",
+              "noOfTransactions": 16,
+              "productUrl": "https://www.squareyards.com/property-rates/omkar-alta-monte-laxman-nagar-malad-east-mumbai",
+              "projectName": "Omkar Alta Monte",
+              "priority": 5,
+              "saleRentValue": 538100000
+            },
+            {
+              "changePercentage": 4.514552624646263,
+              "changeValue": 1900.4700000000012,
+              "currentRate": 43997,
+              "location": "Parel",
+              "locality": "Shivaji Nagar",
+              "noOfTransactions": 15,
+              "productUrl": "https://www.squareyards.com/property-rates/landt-crescent-bay-shivaji-nagar-parel-mumbai",
+              "projectName": "L&T Crescent Bay",
+              "priority": 6,
+              "saleRentValue": 706794000
+            },
+            {
+              "changePercentage": 4.003447363032858,
+              "changeValue": 1401.9300000000003,
+              "currentRate": 36420,
+              "location": "Goregaon West",
+              "locality": "Motilal Nagar",
+              "noOfTransactions": 14,
+              "productUrl": "https://www.squareyards.com/property-rates/kalpataru-radiance-motilal-nagar-goregaon-west-mumbai",
+              "projectName": "Kalpataru Radiance",
+              "priority": 7,
+              "saleRentValue": 453124160
+            },
+            {
+              "changePercentage": 0.3659390084161438,
+              "changeValue": 111.58000000000175,
+              "currentRate": 30603,
+              "location": "Kanjurmarg East",
+              "locality": "Indira Nagar",
+              "noOfTransactions": 14,
+              "productUrl": "https://www.squareyards.com/property-rates/runwal-bliss-indira-nagar-kanjurmarg-east-mumbai",
+              "projectName": "Runwal Bliss",
+              "priority": 8,
+              "saleRentValue": 330150000
+            },
+            {
+              "changePercentage": 7.484691135926329,
+              "changeValue": 2302.41,
+              "currentRate": 33064,
+              "location": "Andheri East",
+              "locality": "Marol",
+              "noOfTransactions": 13,
+              "productUrl": "https://www.squareyards.com/property-rates/sheth-vasant-oasis-marol-andheri-east-mumbai",
+              "projectName": "Sheth Vasant Oasis",
+              "priority": 9,
+              "saleRentValue": 271290000
+            },
+            {
+              "changePercentage": 2.629915740027769,
+              "changeValue": 952.9000000000015,
+              "currentRate": 37186,
+              "location": "Powai",
+              "locality": "Chandivali",
+              "noOfTransactions": 12,
+              "productUrl": "https://www.squareyards.com/property-rates/lnt-realty-emerald-isle-chandivali-powai-mumbai",
+              "projectName": "LnT Realty Emerald Isle",
+              "priority": 10,
+              "saleRentValue": 282850000
+            }
+          ]
+        },
+        "byListingRates": {
+          "projects": [
+            {
+              "changePercentage": 64.26,
+              "changeValue": null,
+              "currentRate": 139278,
+              "location": "Mumbai South",
+              "locality": "Nepean Sea Road",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "kalpataru azuro",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 10.69,
+              "changeValue": null,
+              "currentRate": 129662,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Pali Hill",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "rustomjee parishram",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 28.22,
+              "changeValue": null,
+              "currentRate": 129296,
+              "location": "Mumbai South",
+              "locality": "Malabar Hill",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "lodha malabar",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 129.6,
+              "changeValue": null,
+              "currentRate": 126621,
+              "location": "Mumbai South",
+              "locality": "Papanas Wadi",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "hm central park",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 6.96,
+              "changeValue": null,
+              "currentRate": 124407,
+              "location": "Mumbai South",
+              "locality": "Worli",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "raheja artesia",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 110.41,
+              "changeValue": null,
+              "currentRate": 122331,
+              "location": "Mumbai South",
+              "locality": "Girgaon",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "232 dhuleva",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 29.16,
+              "changeValue": null,
+              "currentRate": 122191,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Pali Hill",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "rustomjee the panorama",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 132.59,
+              "changeValue": null,
+              "currentRate": 121704,
+              "location": "Mumbai South",
+              "locality": "Walkeshwar",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "queens view",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 15.62,
+              "changeValue": null,
+              "currentRate": 119997,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Pali Hill",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "Wadhwa Samarpan",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 15.62,
+              "changeValue": null,
+              "currentRate": 119997,
+              "location": "Mumbai Western Suburbs",
+              "locality": "Pali Hill",
+              "noOfTransactions": null,
+              "productUrl": null,
+              "projectName": "Prestige Daffodils CHS",
+              "priority": null,
+              "saleRentValue": null
+            }
+          ]
+        },
+        "byValue": {
+          "projects": [
+            {
+              "changePercentage": 6.832056671878885,
+              "changeValue": 2769.6699999999983,
+              "currentRate": 43309,
+              "location": "Parel",
+              "locality": "Best Colony",
+              "noOfTransactions": 20,
+              "productUrl": "https://www.squareyards.com/property-rates/peninsula-ashok-towers-best-colony-parel-mumbai",
+              "projectName": "Peninsula Ashok Towers",
+              "priority": 1,
+              "saleRentValue": 985500096
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 57664,
+              "location": "Cuffe Parade",
+              "locality": "NA",
+              "noOfTransactions": 6,
+              "productUrl": "https://www.squareyards.com/property-rates/maker-tower-cuffe-parade-mumbai",
+              "projectName": "Maker Tower",
+              "priority": 2,
+              "saleRentValue": 909386016
+            },
+            {
+              "changePercentage": 3.809935038512101,
+              "changeValue": 1500.8899999999994,
+              "currentRate": 40895,
+              "location": "Chembur",
+              "locality": "Union Park",
+              "noOfTransactions": 1,
+              "productUrl": "https://www.squareyards.com/property-rates/supreme-signature-union-park-chembur-mumbai",
+              "projectName": "Supreme Signature",
+              "priority": 3,
+              "saleRentValue": 900000000
+            },
+            {
+              "changePercentage": 19.402266444293154,
+              "changeValue": 7253.449999999997,
+              "currentRate": 44638,
+              "location": "Parel",
+              "locality": "Sai Dham Nagar",
+              "noOfTransactions": 10,
+              "productUrl": "https://www.squareyards.com/property-rates/indiabulls-sky-forest-sai-dham-nagar-parel-mumbai",
+              "projectName": "Indiabulls Sky Forest",
+              "priority": 4,
+              "saleRentValue": 737100000
+            },
+            {
+              "changePercentage": 4.514552624646263,
+              "changeValue": 1900.4700000000012,
+              "currentRate": 43997,
+              "location": "Parel",
+              "locality": "Shivaji Nagar",
+              "noOfTransactions": 15,
+              "productUrl": "https://www.squareyards.com/property-rates/landt-crescent-bay-shivaji-nagar-parel-mumbai",
+              "projectName": "L&T Crescent Bay",
+              "priority": 5,
+              "saleRentValue": 706794000
+            },
+            {
+              "changePercentage": 11.183092067666719,
+              "changeValue": 6238.639999999999,
+              "currentRate": 62025,
+              "location": "Lower Parel",
+              "locality": "Kamala Mill",
+              "noOfTransactions": 9,
+              "productUrl": "https://www.squareyards.com/property-rates/lodha-the-park-kamala-mill-lower-parel-mumbai",
+              "projectName": "Lodha The Park",
+              "priority": 6,
+              "saleRentValue": 558700000
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 29760,
+              "location": "Malad East",
+              "locality": "Laxman Nagar",
+              "noOfTransactions": 16,
+              "productUrl": "https://www.squareyards.com/property-rates/omkar-alta-monte-laxman-nagar-malad-east-mumbai",
+              "projectName": "Omkar Alta Monte",
+              "priority": 7,
+              "saleRentValue": 538100000
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 72903,
+              "location": "Tardeo",
+              "locality": "Janata Nagar",
+              "noOfTransactions": 2,
+              "productUrl": "https://www.squareyards.com/property-rates/shapoorji-pallonji-the-imperial-janata-nagar-tardeo-mumbai",
+              "projectName": "Shapoorji Pallonji The Imperial",
+              "priority": 8,
+              "saleRentValue": 525300000
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 73168,
+              "location": "Prabhadevi",
+              "locality": "Siddhi Vinayak Mandir Area",
+              "noOfTransactions": 5,
+              "productUrl": "https://www.squareyards.com/property-rates/rustomjee-crown-siddhi-vinayak-mandir-area-prabhadevi-mumbai",
+              "projectName": "Rustomjee Crown",
+              "priority": 9,
+              "saleRentValue": 520822724
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": 0,
+              "currentRate": 49272,
+              "location": "Bandra West",
+              "locality": "Santosh Nagar",
+              "noOfTransactions": 2,
+              "productUrl": "https://www.squareyards.com/property-rates/mj-81-aureate-santosh-nagar-bandra-west-mumbai",
+              "projectName": "MJ 81 Aureate",
+              "priority": 10,
+              "saleRentValue": 500000000
+            }
+          ]
+        }
+      },
+      "govtRegistration": {
+        "transactionCount": 113734,
+        "grossValue": "₹ 173,271 Cr",
+        "dateRange": "Mar 25 to Feb 26",
+        "registeredRate": 18150,
+        "description": ""
+      },
+      "topDevelopers": {
+        "byTransactions": {
+          "developers": [
+            {
+              "developerName": "Kalpataru",
+              "noOfTransactions": 88,
+              "priority": 2
+            },
+            {
+              "developerName": "Lodha",
+              "noOfTransactions": 78,
+              "priority": 3
+            },
+            {
+              "developerName": "Hiranandani",
+              "noOfTransactions": 77,
+              "priority": 4
+            },
+            {
+              "developerName": "HDIL",
+              "noOfTransactions": 76,
+              "priority": 5
+            },
+            {
+              "developerName": "Runwal",
+              "noOfTransactions": 75,
+              "priority": 6
+            },
+            {
+              "developerName": "MPCHFL",
+              "noOfTransactions": 54,
+              "priority": 7
+            },
+            {
+              "developerName": "Bhoomi Group",
+              "noOfTransactions": 49,
+              "priority": 8
+            },
+            {
+              "developerName": "JP Infra",
+              "noOfTransactions": 47,
+              "priority": 9
+            },
+            {
+              "developerName": "Kanakia Spaces",
+              "noOfTransactions": 44,
+              "priority": 10
+            }
+          ]
+        },
+        "byValue": {
+          "developers": [
+            {
+              "developerName": "Kalpataru",
+              "noOfTransactions": 88,
+              "priority": 2,
+              "saleRentValue": 2899672480
+            },
+            {
+              "developerName": "Lodha",
+              "noOfTransactions": 78,
+              "priority": 3,
+              "saleRentValue": 2838821000
+            },
+            {
+              "developerName": "K Raheja Corp",
+              "noOfTransactions": 13,
+              "priority": 4,
+              "saleRentValue": 2467350304
+            },
+            {
+              "developerName": "Hiranandani",
+              "noOfTransactions": 77,
+              "priority": 5,
+              "saleRentValue": 2341897500
+            },
+            {
+              "developerName": "Peninsula Land",
+              "noOfTransactions": 36,
+              "priority": 6,
+              "saleRentValue": 1723200096
+            },
+            {
+              "developerName": "Runwal",
+              "noOfTransactions": 75,
+              "priority": 7,
+              "saleRentValue": 1705977234
+            },
+            {
+              "developerName": "Rustomjee",
+              "noOfTransactions": 44,
+              "priority": 8,
+              "saleRentValue": 1580418604
+            },
+            {
+              "developerName": "Oberoi Realty",
+              "noOfTransactions": 29,
+              "priority": 9,
+              "saleRentValue": 1536133008
+            },
+            {
+              "developerName": "Raheja Universal",
+              "noOfTransactions": 42,
+              "priority": 10,
+              "saleRentValue": 1378197000
+            }
+          ]
+        }
+      }
+    },
+    "propertyRatesAiData": {
+      "marketSnapshotOverview": "The Mumbai real estate market shows strong activity, with asking prices currently averaging ₹37,586 per sq ft. Recent quarterly trends indicate a notable increase in property values, particularly in the last quarter of 2025. Mumbai South commands the highest rates among micromarkets, while apartments remain a popular property type, showing a healthy 5.72% price increase. The market saw a significant 113,734 registered transactions valued at ₹ 173,271 Cr between March 2025 and February 2026, with top developers like Kalpataru and Lodha driving much of this activity.",
+      "insightsLong": "Mumbai's property market continues to be a dynamic landscape, reflecting consistent buyer and investor interest. The current average asking price stands at ₹37,586 per sq ft, with the last quarter of 2025 witnessing a positive price movement to this figure from ₹35,552 per sq ft in September 2025. Micromarkets like Mumbai South lead the pricing chart at ₹46,656 per sq ft, indicating a premium demand in these areas, while Mumbai Central Suburbs also experienced a significant 6.12% growth. Apartments, the most prevalent property type, have seen a 5.72% increase, averaging ₹37,586 per sq ft, highlighting residential sector strength. Meanwhile, the villa segment registered an impressive 10.85% appreciation, suggesting growing interest in luxury individual homes. The market's health is further underscored by 113,734 property registrations totaling ₹ 173,271 Cr, with an average registered rate of ₹18,150 per sq ft. Developers such as Kalpataru and Lodha are at the forefront, contributing significantly to both transaction volumes and market value, showcasing their strong presence and buyer confidence in their projects. High-value projects like Peninsula Ashok Towers in Parel continue to attract substantial investment, reflecting Mumbai's status as a prime real estate destination.",
+      "insightsShort": "Mumbai's real estate market remains robust with an average asking price of ₹37,586 per sq ft, driven by strong quarterly growth and significant transaction volumes. Micromarkets like Mumbai South command premium rates, while apartments and villas show positive price appreciation. Leading developers like Kalpataru and Lodha are key players in this active market, which recorded over 1.13 Lakh registrations in the past year.",
+      "askingPriceTrendsDescription": "Mumbai's property market experienced a positive trend in asking prices towards the end of 2025. The average city rate rose to ₹37,586 per sq ft in December 2025, up from ₹35,552 per sq ft in September 2025. While there was a slight dip in June, the overall trajectory from March 2025, starting at ₹34,714 per sq ft, indicates a healthy appreciation in property values across the city.",
+      "byAreaDescription": "Property rates across Mumbai's micromarkets display varied performance, catering to diverse budgets and preferences. Mumbai South stands out with the highest average rate, commanding ₹46,656 per sq ft and showing a steady 0.96% increase. Mumbai Central Suburbs also demonstrate strong growth, with rates averaging ₹31,908 per sq ft and a significant 6.12% appreciation. Mumbai Western Suburbs offer properties at ₹34,103 per sq ft, reflecting a 2.97% rise, while Mumbai Harbour areas average ₹34,819 per sq ft with a modest 0.73% change. This diverse pricing across regions highlights the city's expansive real estate offerings.",
+      "ratesByPropertyTypesDescription": "Mumbai's real estate market offers a diverse range of property types to suit various needs. Shops lead the commercial segment with a high average price of ₹59,982 per sq ft, showing a slight 0.33% increase. Apartments, a popular residential choice, average ₹37,586 per sq ft and have seen a healthy 5.72% appreciation. Notably, villas recorded an impressive 10.85% price jump, reaching ₹34,593 per sq ft, indicating strong demand for independent homes. Office spaces, at ₹40,298 per sq ft, experienced a 5.59% decline, while co-working spaces hover at ₹30,250 per sq ft with a marginal dip.",
+      "ratesByProjectStatusDescription": "The Mumbai market provides a wide array of properties across different development stages, catering to immediate and future occupancy needs. Ready To Move units dominate the supply with 17,297 units, averaging ₹30,948 per sq ft, though experiencing a slight 0.57% decrease. Under Construction projects present 2,055 opportunities at ₹32,484 per sq ft, showing a positive 2.53% growth. New Launch properties, with 592 units, average ₹30,286 per sq ft and have appreciated by 2.11%, indicating fresh inventory demand. Projects Near Possession also saw a significant 5.87% rise, averaging ₹32,993 per sq ft.",
+      "topProjectsAskingDescription": "Premium residential developments in Mumbai are commanding significant asking prices, reflecting their luxury positioning and prime locations. Kalpataru Azuro in Nepean Sea Road, Mumbai South, leads the segment with an impressive asking rate of ₹1.39 Lakh per sq ft, demonstrating a substantial 64.26% increase. Rustomjee Parishram in Pali Hill, Mumbai Western Suburbs, follows with ₹1.3 Lakh per sq ft, showing a 10.69% rise. Lodha Malabar in Malabar Hill, Mumbai South, is also priced at ₹1.29 Lakh per sq ft with a 28.22% appreciation. These top-tier developments, including Raheja Artesia and 232 Dhuleva, represent the aspirational segment of the market.",
+      "registrationOverviewDescription": "Official registration data reveals robust transaction activity in Mumbai during the period of March 2025 to February 2026. The market recorded 113,734 transactions valued at a substantial ₹ 173,271 Cr, with an average registered rate of ₹18,150 per sq ft. Developer activity was led by Kalpataru with 88 transactions, while in terms of value, Kalpataru also topped the list with ₹289.97 Cr. Project-wise, JP North in Mira Road East attracted maximum buyer interest with 41 transactions, and Peninsula Ashok Towers in Parel generated the highest gross transaction value of ₹98.55 Cr, indicating strong market momentum.",
+      "topProjectsByTransactionsDescription": "Transaction volumes reveal strong buyer interest in specific Mumbai developments. JP North in Mira Road East emerged as a market leader with 41 registrations at ₹16,987 per sq ft, demonstrating significant demand. Peninsula Ashok Towers in Parel attracted 20 buyers at ₹43,309 per sq ft, showing a healthy 6.83% price change. Seven Eleven Apna Ghar, also in Mira Road East, recorded 20 transactions at ₹14,167 per sq ft. This concentration of activity in projects like Chandak Nishchay and Omkar Alta Monte reflects buyer confidence in established developments and trusted locations.",
+      "topProjectsByValueDescription": "Premium transaction values in Mumbai are concentrated in select developments. Peninsula Ashok Towers in Parel generated the highest transaction value of ₹98.55 Cr across 20 deals at ₹43,309 per sq ft, establishing it as a luxury market anchor. Maker Tower in Cuffe Parade recorded ₹90.94 Cr in gross sales from 6 transactions at ₹57,664 per sq ft. Supreme Signature in Chembur contributed ₹90 Cr from 1 transaction. These high-value projects, including Indiabulls Sky Forest and L&T Crescent Bay, account for a significant share of market turnover.",
+      "topDevelopersByTransactionsDescription": "The Mumbai development landscape is shaped by established builders driving transaction volumes. Kalpataru leads with 88 registrations, demonstrating strong market presence and brand pull. Lodha follows closely with 78 transactions, while Hiranandani secured 77 transactions. The top developer cohort, including HDIL, Runwal, and JP Infra, collectively represents the market's most active and trusted builders.",
+      "topDevelopersByValueDescription": "High-value transactions in Mumbai are dominated by premium developers. Kalpataru leads with ₹289.97 Cr across 88 deals, positioning it as a top market player. Lodha recorded ₹283.88 Cr from 78 transactions at strong pricing, while K Raheja Corp generated ₹246.74 Cr from 13 transactions. These value leaders, including Hiranandani, Peninsula Land, and Runwal, define the premium segment and set significant market benchmarks.",
+      "investmentOpportunities": [
+        "Invest in Mumbai Central Suburbs, which showed a strong 6.12% price appreciation, indicating growth potential.",
+        "Consider villa properties, which experienced a significant 10.85% price increase, suggesting high demand for luxury independent homes.",
+        "Explore projects in the 'Under Construction' stage, offering 2,055 units with a 2.53% price growth for potential capital appreciation.",
+        "Focus on projects by top developers like Kalpataru and Lodha, who lead in both transaction volume and value, indicating reliability and market acceptance.",
+        "High-value projects in Parel like Peninsula Ashok Towers and Indiabulls Sky Forest demonstrate strong buyer interest and high transaction values, suitable for luxury investments.",
+        "New Launch projects, showing a 2.11% price increase, could offer entry points into emerging developments."
+      ],
+      "marketChallenges": [
+        "Mumbai's high asking price of ₹37,586 per sq ft might pose affordability challenges for some buyers.",
+        "Office spaces experienced a 5.59% decline in average prices, suggesting a potential slowdown or oversupply in this commercial segment.",
+        "Ready To Move properties, despite high unit count, saw a slight 0.57% decrease in average price, indicating potential pressure on immediate occupancy segment.",
+        "The 'Advanced Stage' and 'Mid Stage' project categories show negative price changes of -1.19% and -0.91% respectively, which could signal cautiousness in these development phases.",
+        "Co-working spaces experienced a marginal decline of 0.32%, possibly reflecting market adjustments in the flexible workspace sector.",
+        "While overall transactions are high, some micromarkets like Mumbai Harbour show only a modest 0.73% price change, indicating slower growth compared to others."
+      ],
+      "marketStrengths": [
+        "The average asking price of ₹37,586 per sq ft and a registration rate of ₹18,130 per sq ft indicate a premium and active market.",
+        "Significant quarterly price growth, with December 2025 showing an increase to ₹37,586 per sq ft from ₹35,552 per sq ft in September 2025, reflects strong market momentum.",
+        "High transaction volume with 113,734 registrations and a gross value of ₹ 173,271 Cr between March 2025 and February 2026, showcasing robust buyer activity.",
+        "Strong performance of key residential segments like apartments (5.72% increase) and villas (10.85% increase).",
+        "Leading developers like Kalpataru and Lodha consistently drive high transaction volumes and values, signifying strong market confidence in established brands.",
+        "Micromarkets like Mumbai South and Mumbai Central Suburbs show healthy price appreciation, highlighting attractive investment pockets.",
+        "A diverse supply pipeline across various project statuses, from New Launch to Ready To Move, caters to a broad spectrum of buyer needs and investment horizons."
+      ],
+      "recentTransactionsDescription": "Mumbai's property market demonstrated robust transaction activity between March 2025 and February 2026. A total of 113,734 properties were registered, amounting to a substantial gross value of ₹ 173,271 Cr. The average registered rate for these transactions stood at ₹18,150 per sq ft, indicating a healthy and active real estate market."
+    }
+  }
+}
