@@ -258,11 +258,6 @@ textarea {
   cursor: not-allowed;
 }
 
-.primary-button--link {
-  display: inline-flex;
-  width: fit-content;
-}
-
 .error-banner,
 .success-banner {
   margin-top: 16px;

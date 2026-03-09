@@ -138,9 +138,9 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, review signals, FAQs, and current market signals on Square Yards.",
-            f"Find flats and resale properties in {location_label} with price trends, inventory mix, property-type insights, and nearby area coverage on Square Yards.",
-            f"Browse resale listings in {location_label} with asking price trends, supply signals, BHK mix, and grounded buying insights on Square Yards.",
+            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current market signals on Square Yards.",
+            f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
+            f"Browse resale listings in {location_label} with rates, property mix, supply signals, and buyer-oriented page insights on Square Yards.",
         ]
 
         canonical_pricing = {
@@ -389,22 +389,28 @@ class ContentPlanBuilder:
                 "data_dependencies": ["nearby_localities"],
             },
             {
-                "id": "reviews",
+                "id": "review_signals",
                 "question_template": f"What review and rating signals are available for {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                 "data_dependencies": ["review_summary", "ai_summary"],
             },
             {
                 "id": "demand_supply",
-                "question_template": f"What demand and supply inputs are available for resale inventory in {location_label}?",
+                "question_template": f"What demand and supply inputs are available for resale listings in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                 "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
             },
             {
-                "id": "property_type",
+                "id": "property_types",
                 "question_template": f"What property-type signals are available on the resale page for {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                 "data_dependencies": ["pricing_summary.property_types", "pricing_summary.property_status"],
+            },
+            {
+                "id": "featured_projects",
+                "question_template": f"Are there featured projects or internal links available from the resale page for {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                "data_dependencies": ["featured_projects", "links"],
             },
         ]
 
@@ -416,17 +422,6 @@ class ContentPlanBuilder:
                     "question_template": f"What RERA or buyer-protection details are available for {location_label} on this page?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                     "data_dependencies": ["rera_context"],
-                }
-            )
-
-        cms_faq = normalized.get("cms_faq", []) or []
-        if cms_faq:
-            faq_intents.append(
-                {
-                    "id": "cms_faq_support",
-                    "question_template": f"What additional buyer questions are covered for {location_label}?",
-                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
-                    "data_dependencies": ["cms_faq"],
                 }
             )
 
@@ -674,7 +669,7 @@ class ContentPlanBuilder:
         section_plan = ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized)
 
         return {
-            "version": "v1.6",
+            "version": "v1.7",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],

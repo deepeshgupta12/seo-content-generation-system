@@ -52,9 +52,9 @@ export type ReviewVersionRestoreRequest = {
 export type ReviewTable = {
   id?: string;
   title?: string;
+  summary?: string;
   columns?: string[];
   rows?: Array<Record<string, unknown>>;
-  summary?: string;
 };
 
 export type ReviewFaq = {

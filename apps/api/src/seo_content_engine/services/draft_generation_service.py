@@ -104,7 +104,8 @@ class DraftGenerationService:
         lines: list[str] = []
         if asking_price is not None:
             lines.append(
-                f"The asking price signal for resale properties in {entity_name}, {city_name} is ₹{asking_price:,}."
+                f"Resale price signals for {entity_name}, {city_name} currently anchor around an asking price of ₹{asking_price:,}. "
+                f"This gives buyers a grounded starting point for understanding how listings on the page are positioned."
             )
 
         if price_trend:
@@ -116,21 +117,26 @@ class DraftGenerationService:
 
             trend_parts: list[str] = []
             if quarter:
-                trend_parts.append(f"The latest available trend entry is for {quarter}")
+                trend_parts.append(f"the latest available tracked period is {quarter}")
             if location_rate is not None:
-                trend_parts.append(f"the locality rate is ₹{location_rate:,}")
+                trend_parts.append(f"the locality-level rate is ₹{location_rate:,}")
             if micromarket_rate is not None:
-                trend_parts.append(f"the micromarket rate is ₹{micromarket_rate:,}")
+                trend_parts.append(f"the micromarket-level rate is ₹{micromarket_rate:,}")
             if city_rate is not None:
-                trend_parts.append(f"the city rate is ₹{city_rate:,}")
+                trend_parts.append(f"the city-level rate is ₹{city_rate:,}")
 
             if trend_parts:
-                lines.append(", ".join(trend_parts) + ".")
+                lines.append(
+                    "Within the currently available trend inputs, "
+                    + ", ".join(trend_parts)
+                    + ". These figures help place the current page inventory in a broader local pricing context."
+                )
 
         if not lines:
             return (
-                f"This section uses the asking price signal and available price-trend entries "
-                f"for {entity_name}, {city_name}."
+                f"This section summarises the grounded asking price and trend inputs available for "
+                f"{entity_name}, {city_name}. Where trend records are present, they can be used to compare "
+                f"the current page-level price signal with the surrounding market context."
             )
 
         return " ".join(lines)
@@ -159,17 +165,32 @@ class DraftGenerationService:
             summary_parts.append(f"rating count is {rating_count}")
 
         if summary_parts:
-            lines.append("Available review signals show " + ", ".join(summary_parts) + ".")
+            lines.append(
+                "Grounded review inputs on this page show "
+                + ", ".join(summary_parts)
+                + ". These signals reflect what is currently available in the underlying page data."
+            )
 
         if positive_tags:
-            lines.append(f"Positive review tags include {', '.join(positive_tags[:3])}.")
+            lines.append(
+                f"Among the positive review tags currently surfaced, examples include {', '.join(positive_tags[:3])}. "
+                f"These are presented as observed tag signals rather than editorial interpretation."
+            )
         if negative_tags:
-            lines.append(f"Negative review tags include {', '.join(negative_tags[:3])}.")
+            lines.append(
+                f"The available negative tags include {', '.join(negative_tags[:3])}. "
+                f"This helps reviewers understand what kinds of recurring feedback labels are present in the source layer."
+            )
         if locality_summary:
-            lines.append(f"AI summary available for this page: {locality_summary}")
+            lines.append(
+                f"The page also includes an AI summary field that currently reads: {locality_summary}"
+            )
 
         if not lines:
-            return "Review and rating signals are available on this page when present in the source data."
+            return (
+                "Review and rating signals are only shown when they are present in the grounded page inputs. "
+                "Where available, this section summarises counts, ratings, tags, and AI summary fields without adding interpretation."
+            )
 
         return " ".join(lines)
 
@@ -193,7 +214,11 @@ class DraftGenerationService:
         if sale_count is not None and sale_count != sale_available:
             count_parts.append(f"sale count is {sale_count}")
         if count_parts:
-            lines.append("Available sale-side signals show " + ", ".join(count_parts) + ".")
+            lines.append(
+                "Current sale-side inventory inputs show "
+                + ", ".join(count_parts)
+                + ". This gives a direct view of the scale of resale supply currently represented on the page."
+            )
 
         if unit_types:
             primary = unit_types[0]
@@ -213,7 +238,11 @@ class DraftGenerationService:
                 unit_parts.append(f"supply percent is {supply_percent}")
 
             if unit_parts:
-                lines.append("Unit-type demand and supply inputs indicate " + ", ".join(unit_parts) + ".")
+                lines.append(
+                    "At the unit-type level, the available grounded inputs indicate "
+                    + ", ".join(unit_parts)
+                    + ". This is useful for understanding how the page inventory and demand-side signals align for a specific format."
+                )
 
         range_parts: list[str] = []
         if sale_range.get("doc_count") is not None:
@@ -223,10 +252,17 @@ class DraftGenerationService:
         if sale_range.get("max_price") is not None:
             range_parts.append(f"maximum listed price is ₹{sale_range['max_price']:,}")
         if range_parts:
-            lines.append("Listing-range inputs show " + ", ".join(range_parts) + ".")
+            lines.append(
+                "Listing-range inputs further show "
+                + ", ".join(range_parts)
+                + ". These values help frame the span of resale listings represented in the current dataset."
+            )
 
         if not lines:
-            return "Demand and supply signals are shown only when grounded sale-side inputs are available."
+            return (
+                "Demand and supply signals are shown only when grounded sale-side inputs are available. "
+                "Where present, this section uses explicit counts, percentages, and listing-range values from the source data."
+            )
 
         return " ".join(lines)
 
@@ -253,7 +289,10 @@ class DraftGenerationService:
             if first.get("changePercent") is not None:
                 parts.append(f"change percent is {first['changePercent']}")
             if parts:
-                lines.append("Property-type rate inputs show " + ", ".join(parts) + ".")
+                lines.append(
+                    "The available property-type rate inputs show " + ", ".join(parts) + ". "
+                    "This gives a grounded view of how at least one property-type bucket is represented in the current resale dataset."
+                )
 
         if sale_property_type_distribution:
             first_dist = sale_property_type_distribution[0]
@@ -263,7 +302,9 @@ class DraftGenerationService:
             if first_dist.get("doc_count") is not None:
                 dist_parts.append(f"document count is {first_dist['doc_count']}")
             if dist_parts:
-                lines.append(", ".join(dist_parts) + ".")
+                lines.append(
+                    "Within the sale property-type distribution, " + ", ".join(dist_parts) + "."
+                )
 
         if property_status:
             first_status = property_status[0]
@@ -275,7 +316,10 @@ class DraftGenerationService:
             if first_status.get("avgPrice") is not None:
                 status_parts.append(f"average price is ₹{first_status['avgPrice']:,}")
             if status_parts:
-                lines.append("Status inputs indicate " + ", ".join(status_parts) + ".")
+                lines.append(
+                    "Status-level inputs also indicate " + ", ".join(status_parts) + ". "
+                    "This is useful when the page includes readiness or stock-condition segmentation."
+                )
 
         if location_rates:
             first_location = location_rates[0]
@@ -287,7 +331,9 @@ class DraftGenerationService:
             if first_location.get("changePercentage") is not None:
                 location_parts.append(f"change percentage is {first_location['changePercentage']}")
             if location_parts:
-                lines.append("Location-rate inputs show " + ", ".join(location_parts) + ".")
+                lines.append(
+                    "At the more local rate level, the grounded input shows " + ", ".join(location_parts) + "."
+                )
 
         if micromarket_rates:
             first_micromarket = micromarket_rates[0]
@@ -299,10 +345,15 @@ class DraftGenerationService:
             if first_micromarket.get("changePercentage") is not None:
                 micromarket_parts.append(f"change percentage is {first_micromarket['changePercentage']}")
             if micromarket_parts:
-                lines.append("Micromarket-rate inputs show " + ", ".join(micromarket_parts) + ".")
+                lines.append(
+                    "Micromarket-rate inputs show " + ", ".join(micromarket_parts) + "."
+                )
 
         if not lines:
-            return "Property-type and status signals are shown only when grounded source inputs are available."
+            return (
+                "Property-type and status signals are shown only when grounded source inputs are available. "
+                "Where present, this section summarises property-type, status, and rate fields without recommending one type over another."
+            )
 
         return " ".join(lines)
 
@@ -378,7 +429,7 @@ class DraftGenerationService:
         if "property type" in lowered or "property types" in lowered or "status" in lowered:
             return DraftGenerationService._build_property_type_safe_body(content_plan)
 
-        if "price" in lowered or "rate" in lowered:
+        if "price" in lowered or "asking" in lowered or "rate" in lowered:
             return DraftGenerationService._build_price_trends_safe_body(content_plan)
 
         return None
@@ -457,6 +508,73 @@ class DraftGenerationService:
         return repaired_faqs
 
     @staticmethod
+    def _ensure_faq_coverage(content_plan: dict, faqs: list[dict]) -> list[dict]:
+        existing_questions = {item.get("question", "").strip().lower() for item in faqs if item.get("question")}
+        ensured = list(faqs)
+
+        for intent in content_plan.get("faq_plan", {}).get("faq_intents", []):
+            question = intent.get("question_template")
+            if not question:
+                continue
+            if question.strip().lower() in existing_questions:
+                continue
+
+            answer = DraftGenerationService._build_safe_faq_answer(content_plan, question)
+            if answer:
+                ensured.append(
+                    {
+                        "question": question,
+                        "answer": answer,
+                    }
+                )
+                existing_questions.add(question.strip().lower())
+
+        return ensured
+
+    @staticmethod
+    def _summarize_table(table: dict) -> str:
+        title = table.get("title", "This table")
+        rows = table.get("rows", []) or []
+        columns = table.get("columns", []) or []
+
+        if not rows:
+            return (
+                f"{title} currently does not contain structured rows in the grounded dataset. "
+                "When table rows are available, this section is intended to give a compact view of the most relevant structured inputs used in the draft."
+            )
+
+        row_count = len(rows)
+        column_count = len(columns)
+        first_row = rows[0] if rows else {}
+
+        highlights: list[str] = []
+        for column in columns[:3]:
+            value = first_row.get(column)
+            if value not in {None, "", "—"}:
+                highlights.append(f"{column} starts with {value}")
+
+        base = (
+            f"{title} presents {row_count} grounded row{'s' if row_count != 1 else ''} "
+            f"across {column_count} column{'s' if column_count != 1 else ''}. "
+            "It is included to make the source-backed numeric and categorical inputs easier to scan during review."
+        )
+
+        if highlights:
+            base += " In the first visible row, " + ", ".join(highlights) + "."
+
+        base += " Reviewers can use this table to cross-check whether the generated narrative stays aligned with the underlying structured inputs."
+        return base
+
+    @staticmethod
+    def _attach_table_summaries(tables: list[dict]) -> list[dict]:
+        enriched: list[dict] = []
+        for table in tables:
+            updated = dict(table)
+            updated["summary"] = DraftGenerationService._summarize_table(updated)
+            enriched.append(updated)
+        return enriched
+
+    @staticmethod
     def _build_base_draft(
         content_plan: dict,
         keyword_intelligence_version: str,
@@ -465,10 +583,11 @@ class DraftGenerationService:
         faqs: list[dict],
     ) -> dict:
         tables = TableRenderer.render_all(content_plan["table_plan"], content_plan["data_context"])
+        tables = DraftGenerationService._attach_table_summaries(tables)
         internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
         return {
-            "version": "v2.4",
+            "version": "v2.5",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": content_plan["page_type"],
             "listing_type": content_plan["listing_type"],
@@ -508,7 +627,9 @@ class DraftGenerationService:
         metadata = DraftGenerationService._generate_metadata(content_plan, client)
         sections = DraftGenerationService._generate_sections(content_plan, client)
         sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
+
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
+        faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
 
         draft = DraftGenerationService._build_base_draft(
             content_plan=content_plan,
@@ -529,6 +650,7 @@ class DraftGenerationService:
             sections = DraftGenerationService._repair_sections(content_plan, draft["sections"], validation_report, client)
             sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
+            faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
 
             draft = DraftGenerationService._build_base_draft(
                 content_plan=content_plan,

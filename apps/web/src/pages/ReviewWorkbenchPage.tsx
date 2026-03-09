@@ -133,7 +133,6 @@ export function ReviewWorkbenchPage() {
   const [persistSession, setPersistSession] = useState(true);
 
   const [sessionIdInput, setSessionIdInput] = useState("");
-
   const [session, setSession] = useState<ReviewSession | null>(null);
 
   const [isCreating, setIsCreating] = useState(false);
@@ -916,41 +915,16 @@ export function ReviewWorkbenchPage() {
             </div>
 
             <div className="tab-row">
-              <button
-                type="button"
-                className={activeValidationTab === "summary" ? "tab-button tab-button--active" : "tab-button"}
-                onClick={() => setActiveValidationTab("summary")}
-              >
-                Summary
-              </button>
-              <button
-                type="button"
-                className={activeValidationTab === "metadata" ? "tab-button tab-button--active" : "tab-button"}
-                onClick={() => setActiveValidationTab("metadata")}
-              >
-                Metadata
-              </button>
-              <button
-                type="button"
-                className={activeValidationTab === "sections" ? "tab-button tab-button--active" : "tab-button"}
-                onClick={() => setActiveValidationTab("sections")}
-              >
-                Sections
-              </button>
-              <button
-                type="button"
-                className={activeValidationTab === "faqs" ? "tab-button tab-button--active" : "tab-button"}
-                onClick={() => setActiveValidationTab("faqs")}
-              >
-                FAQs
-              </button>
-              <button
-                type="button"
-                className={activeValidationTab === "raw" ? "tab-button tab-button--active" : "tab-button"}
-                onClick={() => setActiveValidationTab("raw")}
-              >
-                Raw
-              </button>
+              {(["summary", "metadata", "sections", "faqs", "raw"] as ValidationTabKey[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={activeValidationTab === tab ? "tab-button tab-button--active" : "tab-button"}
+                  onClick={() => setActiveValidationTab(tab)}
+                >
+                  {tab === "raw" ? "Raw" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
             </div>
 
             <div className="tab-panel">{renderValidationPanel()}</div>

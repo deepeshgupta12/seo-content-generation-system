@@ -8,23 +8,19 @@ class MarkdownRenderer:
     def _render_table(table: dict) -> str:
         columns = table["columns"]
         rows = table["rows"]
-        summary = table.get("summary")
 
         if not rows:
-            block = f"### {table['title']}\n\nNo structured data available.\n"
-            if summary:
-                block += f"\n{summary}\n"
-            return block
+            return f"### {table['title']}\n\nNo structured data available.\n"
 
         header = "| " + " | ".join(columns) + " |"
         separator = "| " + " | ".join(["---"] * len(columns)) + " |"
 
         lines = [f"### {table['title']}", ""]
-        if summary:
-            lines.append(summary)
+        if table.get("summary"):
+            lines.append(table["summary"])
             lines.append("")
-        lines.extend([header, separator])
 
+        lines.extend([header, separator])
         for row in rows:
             values = [str(row.get(column, "—")) for column in columns]
             lines.append("| " + " | ".join(values) + " |")

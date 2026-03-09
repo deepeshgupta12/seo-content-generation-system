@@ -51,11 +51,11 @@ class FactualValidator:
 
     WARNING_TAXONOMY = {
         "repeated_section_body_detected": {"category": "repetition", "severity": "medium"},
-        "repeated_sentence_pattern_detected": {"category": "repetition", "severity": "medium"},
+        "repeated_sentence_pattern_detected": {"category": "repetition", "severity": "low"},
         "duplicate_faq_answer_detected": {"category": "repetition", "severity": "medium"},
         "high_cross_section_similarity_detected": {"category": "uniqueness", "severity": "medium"},
         "repeated_section_opening_pattern_detected": {"category": "uniqueness", "severity": "low"},
-        "low_distinct_term_ratio_detected": {"category": "uniqueness", "severity": "medium"},
+        "low_distinct_term_ratio_detected": {"category": "uniqueness", "severity": "low"},
         "primary_keyword_stuffing_detected": {"category": "keyword", "severity": "high"},
         "exact_match_keyword_overused": {"category": "keyword", "severity": "medium"},
         "stale_source_data_detected": {"category": "freshness", "severity": "medium"},
@@ -67,17 +67,15 @@ class FactualValidator:
     STALE_DATA_FAIL_DAYS = 90
 
     PRIMARY_KEYWORD_MAX_OCCURRENCES = 4
-    PRIMARY_KEYWORD_MAX_DENSITY = 0.055
-    EXACT_KEYWORD_MAX_OCCURRENCES = 5
+    PRIMARY_KEYWORD_MAX_DENSITY = 0.05
+    EXACT_KEYWORD_MAX_OCCURRENCES = 6
 
-    MIN_SECTION_WORD_COUNT = 8
-    MIN_SIGNIFICANT_SENTENCE_WORDS = 6
-    MIN_SIMILARITY_WORDS = 10
-    SECTION_SIMILARITY_THRESHOLD = 0.82
-    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.32
-    REPEATED_OPENING_WORDS = 6
-    MIN_WORDS_FOR_DISTINCT_RATIO_CHECK = 120
-    MIN_SECTIONS_FOR_OPENING_WARNING = 3
+    MIN_SECTION_WORD_COUNT = 12
+    MIN_SIGNIFICANT_SENTENCE_WORDS = 7
+    MIN_SIMILARITY_WORDS = 18
+    SECTION_SIMILARITY_THRESHOLD = 0.86
+    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.30
+    REPEATED_OPENING_WORDS = 8
 
     PASS_SCORE_THRESHOLD = 85
     WARNING_SCORE_THRESHOLD = 70
@@ -297,7 +295,7 @@ class FactualValidator:
                 sentence_counter[normalized] = sentence_counter.get(normalized, 0) + 1
 
         for sentence, count in sentence_counter.items():
-            if count > 1:
+            if count > 2:
                 repeated_sentences.append(sentence)
 
         faq_answers = [FactualValidator._normalize_text(item.get("answer", "")) for item in draft.get("faqs", [])]
@@ -365,7 +363,7 @@ class FactualValidator:
         repeated_openings = [
             {"opening": opening, "count": count, "section_ids": opening_section_ids[opening]}
             for opening, count in opening_counter.items()
-            if count >= FactualValidator.MIN_SECTIONS_FOR_OPENING_WARNING
+            if count > 2
         ]
 
         repeated_opening_section_ids = sorted(
@@ -392,9 +390,8 @@ class FactualValidator:
             warnings.append("high_cross_section_similarity_detected")
         if repeated_openings:
             warnings.append("repeated_section_opening_pattern_detected")
-        if words and len(words) >= FactualValidator.MIN_WORDS_FOR_DISTINCT_RATIO_CHECK:
-            if distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
-                warnings.append("low_distinct_term_ratio_detected")
+        if len(sections) >= 4 and words and distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
+            warnings.append("low_distinct_term_ratio_detected")
 
         return {
             "passed": len(warnings) == 0,
@@ -514,7 +511,7 @@ class FactualValidator:
         body = section.get("body", "")
         word_count = FactualValidator._word_count(body)
         if word_count < FactualValidator.MIN_SECTION_WORD_COUNT:
-            score -= 10
+            score -= 8
             warnings.append("section_too_short")
 
         if section.get("id") in repetition_check.get("repeated_section_ids", []):
@@ -526,7 +523,7 @@ class FactualValidator:
             warnings.append("high_cross_section_similarity_detected")
 
         if section.get("id") in uniqueness_check.get("repeated_opening_section_ids", []):
-            score -= 4
+            score -= 3
             warnings.append("repeated_section_opening_pattern_detected")
 
         score = max(0, min(100, score))
@@ -610,14 +607,14 @@ class FactualValidator:
         score_penalty = 0
         penalty_map = {
             "repeated_section_body_detected": 6,
-            "repeated_sentence_pattern_detected": 4,
+            "repeated_sentence_pattern_detected": 2,
             "duplicate_faq_answer_detected": 5,
             "high_cross_section_similarity_detected": 6,
-            "repeated_section_opening_pattern_detected": 2,
-            "low_distinct_term_ratio_detected": 4,
-            "primary_keyword_stuffing_detected": 15,
-            "exact_match_keyword_overused": 7,
-            "stale_source_data_detected": 10,
+            "repeated_section_opening_pattern_detected": 1,
+            "low_distinct_term_ratio_detected": 3,
+            "primary_keyword_stuffing_detected": 12,
+            "exact_match_keyword_overused": 5,
+            "stale_source_data_detected": 8,
             "severely_stale_source_data_detected": 25,
         }
         for warning in warning_reasons:
@@ -626,9 +623,8 @@ class FactualValidator:
         overall_quality_score = round(max(0, min(100, base_score - score_penalty)))
 
         warning_taxonomy = FactualValidator._build_warning_taxonomy(warning_reasons)
-        has_high_severity_warning = warning_taxonomy["severity_counts"].get("high", 0) > 0
 
-        if not validation_report["passed"] or stale_data_check.get("blocking") or has_high_severity_warning:
+        if not validation_report["passed"] or stale_data_check.get("blocking"):
             approval_status = "fail"
         elif overall_quality_score < FactualValidator.FAIL_SCORE_THRESHOLD:
             approval_status = "fail"

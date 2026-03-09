@@ -7,7 +7,7 @@ from seo_content_engine.core.config import settings
 
 class OutputFormatter:
     CURRENCY_HINTS = {"price", "rate", "value", "cost", "cpc", "bid"}
-    PERCENT_HINTS = {"changepercentage", "changepercent"}
+    PERCENT_HINTS = {"changepercentage", "changepercent", "percent"}
 
     @staticmethod
     def format_number(value: int | float | None, decimals: int = 0) -> str:

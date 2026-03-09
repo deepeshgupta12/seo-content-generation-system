@@ -128,45 +128,48 @@ class ReviewWorkbenchService:
         return payload
 
     @staticmethod
-    def _recompute_mutated_draft(session: dict, draft: dict) -> dict:
-        recomputed_draft = deepcopy(draft)
-
-        refreshed_content_plan = ContentPlanBuilder.build(
-            normalized=session["normalized"],
-            keyword_intelligence=session["keyword_intelligence"],
+    def _append_validation_history(draft: dict, pass_name: str, validation_report: dict) -> list[dict]:
+        history = list(draft.get("validation_history", []))
+        history.append(
+            {
+                "pass_name": pass_name,
+                "pass_index": len(history),
+                "passed": validation_report["passed"],
+                "debug_summary": FactualValidator.summarize_report(validation_report),
+                "validation_report": validation_report,
+            }
         )
-        recomputed_draft["content_plan"] = refreshed_content_plan
+        return history
 
-        validation_report = FactualValidator.validate_draft(recomputed_draft)
+    @staticmethod
+    def _recompute_mutated_draft(
+        draft: dict,
+        *,
+        pass_name: str,
+    ) -> dict:
+        recompute_input = deepcopy(draft)
+        validation_report = FactualValidator.validate_draft(recompute_input)
+        pre_block_draft = deepcopy(recompute_input)
         debug_summary = FactualValidator.summarize_report(validation_report)
 
-        sanitized = FactualValidator.apply_sanitization(recomputed_draft, validation_report)
+        sanitized = FactualValidator.apply_sanitization(recompute_input, validation_report)
+        sanitized["repair_passes_used"] = draft.get("repair_passes_used", 0)
+        sanitized["validation_history"] = ReviewWorkbenchService._append_validation_history(
+            draft,
+            pass_name,
+            validation_report,
+        )
+        sanitized["pre_block_draft"] = pre_block_draft
         sanitized["debug_summary"] = debug_summary
         sanitized["quality_report"] = validation_report.get("quality_report", {})
         sanitized["publish_ready"] = sanitized["quality_report"].get("approval_status") != "fail"
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
-
-        validation_history = list(draft.get("validation_history", []))
-        validation_history.append(
-            {
-                "pass_name": "mutation_recompute",
-                "pass_index": len(validation_history),
-                "passed": validation_report["passed"],
-                "debug_summary": debug_summary,
-                "validation_report": validation_report,
-            }
-        )
-
-        sanitized["validation_history"] = validation_history
-        sanitized["repair_passes_used"] = draft.get("repair_passes_used", 0)
-        sanitized["pre_block_draft"] = deepcopy(recomputed_draft)
         return sanitized
 
     @staticmethod
     def _apply_draft_to_session(session: dict, draft: dict, *, action_type: str) -> dict:
         updated = deepcopy(session)
         updated["draft"] = draft
-        updated["content_plan"] = draft.get("content_plan", updated.get("content_plan", {}))
         updated["validation_report"] = draft.get("validation_report", {})
         updated["quality_report"] = draft.get("quality_report", {})
         updated["section_review"] = ReviewWorkbenchService._build_section_review_payload(draft)
@@ -303,8 +306,12 @@ class ReviewWorkbenchService:
             keyword_intelligence=session["keyword_intelligence"],
         )
 
-        existing_sections = {section.get("id"): section for section in session["draft"].get("sections", [])}
-        regenerated_sections = {section.get("id"): section for section in regenerated_draft.get("sections", [])}
+        existing_sections = {
+            section.get("id"): section for section in session["draft"].get("sections", [])
+        }
+        regenerated_sections = {
+            section.get("id"): section for section in regenerated_draft.get("sections", [])
+        }
 
         if section_id not in existing_sections:
             raise ValueError(f"Section not found in current draft: {section_id}")
@@ -318,24 +325,16 @@ class ReviewWorkbenchService:
                 merged_sections.append(regenerated_sections[section_id])
             else:
                 merged_sections.append(section)
+
         merged_draft["sections"] = merged_sections
-
-        merged_draft["tables"] = regenerated_draft.get("tables", merged_draft.get("tables", []))
-        merged_draft["faqs"] = regenerated_draft.get("faqs", merged_draft.get("faqs", []))
-        merged_draft["internal_links"] = regenerated_draft.get(
-            "internal_links",
-            merged_draft.get("internal_links", {}),
+        merged_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            merged_draft,
+            pass_name="section_regenerate_recompute",
         )
-        merged_draft["keyword_intelligence_version"] = regenerated_draft.get(
-            "keyword_intelligence_version",
-            merged_draft.get("keyword_intelligence_version"),
-        )
-
-        recomputed_draft = ReviewWorkbenchService._recompute_mutated_draft(session, merged_draft)
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
             session,
-            recomputed_draft,
+            merged_draft,
             action_type=action_label,
         )
         ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
@@ -367,11 +366,14 @@ class ReviewWorkbenchService:
         if not found:
             raise ValueError(f"Section not found: {section_id}")
 
-        recomputed_draft = ReviewWorkbenchService._recompute_mutated_draft(session, updated_draft)
+        updated_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            updated_draft,
+            pass_name="section_edit_recompute",
+        )
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
             session,
-            recomputed_draft,
+            updated_draft,
             action_type=action_label,
         )
         ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
@@ -402,11 +404,14 @@ class ReviewWorkbenchService:
             "intro_snippet": intro_snippet,
         }
 
-        recomputed_draft = ReviewWorkbenchService._recompute_mutated_draft(session, updated_draft)
+        updated_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            updated_draft,
+            pass_name="metadata_edit_recompute",
+        )
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
             session,
-            recomputed_draft,
+            updated_draft,
             action_type=action_label,
         )
         ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
@@ -436,11 +441,14 @@ class ReviewWorkbenchService:
             raise ValueError(f"Version not found: {version_id}")
 
         restored_draft = deepcopy(matched_version["draft_snapshot"])
-        recomputed_draft = ReviewWorkbenchService._recompute_mutated_draft(session, restored_draft)
+        restored_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            restored_draft,
+            pass_name="restore_version_recompute",
+        )
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
             session,
-            recomputed_draft,
+            restored_draft,
             action_type=action_label,
         )
         ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
