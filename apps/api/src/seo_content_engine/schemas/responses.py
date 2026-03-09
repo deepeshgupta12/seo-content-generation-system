@@ -35,3 +35,9 @@ class DraftPublishResponse(BaseModel):
     success: bool
     message: str
     artifact_paths: dict[str, str]
+
+
+class ReviewSessionResponse(BaseModel):
+    success: bool
+    message: str
+    review_session: dict[str, Any]

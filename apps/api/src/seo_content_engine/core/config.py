@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
     artifacts_dir: str = "data/artifacts"
+    review_sessions_dir: str = "data/review_sessions"
 
     dataforseo_base_url: str = "https://api.dataforseo.com/v3"
     dataforseo_login: str = ""
