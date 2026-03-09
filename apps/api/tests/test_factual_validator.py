@@ -53,3 +53,25 @@ def test_factual_validator_flags_non_canonical_pricing_metric() -> None:
 
     assert validation["passed"] is False
     assert "non_canonical_pricing_metric_detected" in validation["issues"]
+
+
+def test_factual_validator_allows_negative_decimal_when_grounded() -> None:
+    validation = FactualValidator.validate_text(
+        text="The grounded change percent is -6.11.",
+        allowed_numbers={"-6.11"},
+        canonical_metric_name="asking_price",
+    )
+
+    assert validation["passed"] is True
+    assert validation["unreconciled_numbers"] == []
+
+
+def test_factual_validator_flags_forbidden_property_type_claim() -> None:
+    validation = FactualValidator.validate_text(
+        text="Apartment is the best property type here.",
+        allowed_numbers=set(),
+        canonical_metric_name="asking_price",
+    )
+
+    assert validation["passed"] is False
+    assert "forbidden_claims_detected" in validation["issues"]

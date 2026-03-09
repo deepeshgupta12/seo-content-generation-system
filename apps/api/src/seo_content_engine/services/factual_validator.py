@@ -69,12 +69,11 @@ class FactualValidator:
                 allowed.add(str(value))
                 return
             if isinstance(value, float):
-                rounded = round(value)
-                allowed.add(str(rounded))
                 allowed.add(f"{value:.2f}")
+                allowed.add(str(round(value)))
                 return
             if isinstance(value, str):
-                for match in re.findall(r"\b\d{4}\b", value):
+                for match in re.findall(r"-?\d{4}(?:\.\d+)?", value):
                     allowed.add(match)
 
         walk(content_plan.get("data_context", {}))
@@ -86,22 +85,33 @@ class FactualValidator:
         return [phrase for phrase in FactualValidator.FORBIDDEN_CLAIMS if phrase in lowered]
 
     @staticmethod
+    def _normalize_numeric_token(raw: str) -> str:
+        cleaned = raw.replace(",", "").strip()
+        if cleaned.startswith("+"):
+            cleaned = cleaned[1:]
+
+        if cleaned in {"-0", "-0.0", "-0.00"}:
+            return "0"
+
+        return cleaned
+
+    @staticmethod
     def _find_unreconciled_numbers(text: str, allowed_numbers: set[str]) -> list[str]:
         findings: list[str] = []
 
-        currency_matches = re.findall(r"₹\s?([\d,]+(?:\.\d+)?)", text)
-        plain_matches = re.findall(r"\b\d[\d,]*(?:\.\d+)?\b", text)
+        currency_matches = re.findall(r"₹\s?(-?[\d,]+(?:\.\d+)?)", text)
+        plain_matches = re.findall(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?", text)
 
         candidates = currency_matches + plain_matches
         seen: set[str] = set()
 
         for raw in candidates:
-            cleaned = raw.replace(",", "").strip()
+            cleaned = FactualValidator._normalize_numeric_token(raw)
             if not cleaned or cleaned in seen:
                 continue
             seen.add(cleaned)
 
-            if re.fullmatch(r"\d{1,2}", cleaned):
+            if re.fullmatch(r"-?\d{1,2}", cleaned):
                 continue
 
             if cleaned not in allowed_numbers:
@@ -182,23 +192,33 @@ class FactualValidator:
 
         metadata_checks = {
             "title": FactualValidator.validate_text(
-                draft["metadata"].get("title", ""), allowed_numbers, canonical_metric_name
+                draft["metadata"].get("title", ""),
+                allowed_numbers,
+                canonical_metric_name,
             ),
             "meta_description": FactualValidator.validate_text(
-                draft["metadata"].get("meta_description", ""), allowed_numbers, canonical_metric_name
+                draft["metadata"].get("meta_description", ""),
+                allowed_numbers,
+                canonical_metric_name,
             ),
             "h1": FactualValidator.validate_text(
-                draft["metadata"].get("h1", ""), allowed_numbers, canonical_metric_name
+                draft["metadata"].get("h1", ""),
+                allowed_numbers,
+                canonical_metric_name,
             ),
             "intro_snippet": FactualValidator.validate_text(
-                draft["metadata"].get("intro_snippet", ""), allowed_numbers, canonical_metric_name
+                draft["metadata"].get("intro_snippet", ""),
+                allowed_numbers,
+                canonical_metric_name,
             ),
         }
 
         section_checks = []
         for section in draft.get("sections", []):
             body_check = FactualValidator.validate_text(
-                section.get("body", ""), allowed_numbers, canonical_metric_name
+                section.get("body", ""),
+                allowed_numbers,
+                canonical_metric_name,
             )
             section_checks.append(
                 {
@@ -211,7 +231,9 @@ class FactualValidator:
         faq_checks = []
         for faq in draft.get("faqs", []):
             answer_check = FactualValidator.validate_text(
-                faq.get("answer", ""), allowed_numbers, canonical_metric_name
+                faq.get("answer", ""),
+                allowed_numbers,
+                canonical_metric_name,
             )
             faq_checks.append(
                 {
