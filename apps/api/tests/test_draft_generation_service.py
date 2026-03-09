@@ -52,6 +52,11 @@ class DummyOpenAIClient:
                         "title": "Price Trends and Rates",
                         "body": "The asking price signal is ₹40,238.",
                     },
+                    {
+                        "id": "review_and_rating_signals",
+                        "title": "Review and Rating Signals",
+                        "body": "The page includes a 4.23 average rating based on 97 reviews.",
+                    },
                 ]
             }
 
@@ -77,12 +82,15 @@ def test_draft_generation_service() -> None:
             "sale_count": 2039,
             "total_listings": 6109,
             "total_projects": 1762,
+            "sale_available": 2039,
         },
         "pricing_summary": {
             "asking_price": 40238,
             "registration_rate": 26616,
             "price_trend": [{"quarterName": "Dec 2025", "locationRate": 40238, "micromarketRate": 21180}],
-            "property_status": [{"status": "Ready To Move", "units": 957, "avgPrice": 31639}],
+            "location_rates": [{"name": "Yari Road", "avgRate": 32638, "changePercentage": 0}],
+            "property_types": [{"propertyType": "apartment", "avgPrice": 40238, "changePercent": 4.61}],
+            "property_status": [{"status": "Ready To Move", "units": 957, "avgPrice": 31639, "changePercent": -2.88}],
         },
         "distributions": {
             "sale_unit_type_distribution": [{"key": "3 BHK", "doc_count": 789}],
@@ -97,6 +105,19 @@ def test_draft_generation_service() -> None:
             "sale_quick_links": [{"label": "New Projects in Andheri West", "url": "projects-in-andheri-west-mumbai"}],
         },
         "top_projects": {"byTransactions": {"projects": []}},
+        "review_summary": {
+            "overview": {"avg_rating": 4.23, "rating_count": 97, "review_count": 97},
+            "star_distribution": [{"rating": 5, "count": 40}],
+            "positive_tags": ["metro connectivity"],
+            "negative_tags": ["traffic"],
+        },
+        "ai_summary": {"locality_summary": "Established locality with mixed residential inventory."},
+        "insight_rates": {"name": "Andheri West", "avg_rate": 40238},
+        "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 577, "demandPercent": 30, "supplyPercent": 32}]}},
+        "listing_ranges": {"sale_listing_range": {"doc_count": 1933, "min_price": 2320000, "max_price": 4900000000}},
+        "cms_faq": [{"question": "Sample question", "answer": "Sample answer"}],
+        "featured_projects": [{"name": "Project A", "url": "projects-in-andheri-west-mumbai/project-a"}],
+        "projects_by_status": {},
         "raw_source_meta": {"main_message": "locality Found", "rates_message": "Property Rates Data Found"},
     }
 
