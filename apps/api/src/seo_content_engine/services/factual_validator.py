@@ -20,6 +20,11 @@ class FactualValidator:
         "high demand",
         "premium",
         "excellent",
+        "best property type",
+        "better property type",
+        "recommended property type",
+        "ideal property type",
+        "top property type",
     ]
 
     PRICING_SYNONYMS = {

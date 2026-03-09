@@ -89,9 +89,9 @@ class DraftGenerationService:
         entity_name = entity["entity_name"]
         city_name = entity["city_name"]
 
-        pricing_summary = content_plan["data_context"].get("pricing_summary", {})
+        pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
         asking_price = pricing_summary.get("asking_price")
-        price_trend = pricing_summary.get("price_trend", [])
+        price_trend = pricing_summary.get("price_trend", []) or []
 
         lines: list[str] = []
         if asking_price is not None:
@@ -99,7 +99,7 @@ class DraftGenerationService:
                 f"The asking price signal for resale properties in {entity_name}, {city_name} is ₹{asking_price:,}."
             )
 
-        if isinstance(price_trend, list) and price_trend:
+        if price_trend:
             latest = price_trend[0]
             quarter = latest.get("quarterName")
             location_rate = latest.get("locationRate")
@@ -226,6 +226,7 @@ class DraftGenerationService:
 
         property_types = pricing_summary.get("property_types", []) or []
         property_status = pricing_summary.get("property_status", []) or []
+        location_rates = pricing_summary.get("location_rates", []) or []
         sale_property_type_distribution = distributions.get("sale_property_type_distribution", []) or []
 
         lines: list[str] = []
@@ -264,6 +265,18 @@ class DraftGenerationService:
             if status_parts:
                 lines.append("Status inputs indicate " + ", ".join(status_parts) + ".")
 
+        if location_rates:
+            first_location = location_rates[0]
+            location_parts: list[str] = []
+            if first_location.get("name"):
+                location_parts.append(f"location name is {first_location['name']}")
+            if first_location.get("avgRate") is not None:
+                location_parts.append(f"average rate is ₹{first_location['avgRate']:,}")
+            if first_location.get("changePercentage") is not None:
+                location_parts.append(f"change percentage is {first_location['changePercentage']}")
+            if location_parts:
+                lines.append("Location-rate inputs show " + ", ".join(location_parts) + ".")
+
         if not lines:
             return "Property-type and status signals are shown only when grounded source inputs are available."
 
@@ -280,7 +293,7 @@ class DraftGenerationService:
         if section_id == "demand_and_supply_signals":
             return DraftGenerationService._build_demand_supply_safe_body(content_plan)
 
-        if section_id == "property_type_signals":
+        if section_id in {"property_type_signals", "property_type_rate_snapshot"}:
             return DraftGenerationService._build_property_type_safe_body(content_plan)
 
         return None
