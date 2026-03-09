@@ -7,7 +7,7 @@ from seo_content_engine.core.config import settings
 
 class OutputFormatter:
     CURRENCY_HINTS = {"price", "rate", "value", "cost", "cpc", "bid"}
-    PERCENT_HINTS = {"changepercentage"}
+    PERCENT_HINTS = {"changepercentage", "changepercent"}
 
     @staticmethod
     def format_number(value: int | float | None, decimals: int = 0) -> str:
@@ -62,7 +62,7 @@ class OutputFormatter:
 
         hint = OutputFormatter._column_hint(column_name)
 
-        if column_name.lower() == "url" and isinstance(value, str):
+        if column_name.lower() in {"url", "producturl"} and isinstance(value, str):
             return OutputFormatter.resolve_url(value) or "—"
 
         if isinstance(value, (int, float)):

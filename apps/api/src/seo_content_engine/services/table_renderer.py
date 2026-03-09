@@ -17,6 +17,35 @@ class TableRenderer:
         return current
 
     @staticmethod
+    def _build_table_summary(table_plan: dict, formatted_rows: list[dict]) -> str | None:
+        title = table_plan.get("title", "This table")
+        row_count = len(formatted_rows)
+
+        if row_count == 0:
+            return f"{title} is not available in the current grounded dataset for this page."
+
+        first_row = formatted_rows[0]
+        key_parts: list[str] = []
+        for key, value in first_row.items():
+            if value not in {"—", None, ""}:
+                key_parts.append(f"{key} is {value}")
+            if len(key_parts) >= 3:
+                break
+
+        summary_lines = [
+            f"{title} presents {row_count} grounded row{'s' if row_count != 1 else ''} from the current source data.",
+        ]
+
+        if key_parts:
+            summary_lines.append("The first visible row indicates that " + ", ".join(key_parts) + ".")
+
+        summary_lines.append(
+            "This snapshot is intended to help reviewers inspect structured values quickly before publication."
+        )
+
+        return " ".join(summary_lines)
+
+    @staticmethod
     def render_table(table_plan: dict, data_context: dict) -> dict:
         rows_source = TableRenderer._resolve_path(data_context, table_plan["source_data_path"])
         columns = table_plan["columns"]
@@ -44,6 +73,7 @@ class TableRenderer:
             "title": table_plan["title"],
             "columns": columns,
             "rows": formatted_rows,
+            "summary": TableRenderer._build_table_summary(table_plan, formatted_rows),
         }
 
     @staticmethod

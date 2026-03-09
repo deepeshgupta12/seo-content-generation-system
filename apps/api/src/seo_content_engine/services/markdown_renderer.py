@@ -8,14 +8,23 @@ class MarkdownRenderer:
     def _render_table(table: dict) -> str:
         columns = table["columns"]
         rows = table["rows"]
+        summary = table.get("summary")
 
         if not rows:
-            return f"### {table['title']}\n\nNo structured data available.\n"
+            block = f"### {table['title']}\n\nNo structured data available.\n"
+            if summary:
+                block += f"\n{summary}\n"
+            return block
 
         header = "| " + " | ".join(columns) + " |"
         separator = "| " + " | ".join(["---"] * len(columns)) + " |"
 
-        lines = [f"### {table['title']}", "", header, separator]
+        lines = [f"### {table['title']}", ""]
+        if summary:
+            lines.append(summary)
+            lines.append("")
+        lines.extend([header, separator])
+
         for row in rows:
             values = [str(row.get(column, "—")) for column in columns]
             lines.append("| " + " | ".join(values) + " |")
@@ -58,7 +67,7 @@ class MarkdownRenderer:
                 lines.append("**Warnings:**")
                 for warning in warnings:
                     lines.append(f"- {warning}")
-            lines.append("")
+                lines.append("")
 
         if draft.get("needs_review"):
             lines.extend(
@@ -93,27 +102,27 @@ class MarkdownRenderer:
             lines.append("## Explore More")
             lines.append("")
 
-        for group_name, group_links in internal_links.items():
-            if not group_links:
-                continue
+            for group_name, group_links in internal_links.items():
+                if not group_links:
+                    continue
 
-            lines.append(f"### {group_name.replace('_', ' ').title()}")
-            lines.append("")
+                lines.append(f"### {group_name.replace('_', ' ').title()}")
+                lines.append("")
 
-            if isinstance(group_links, list):
-                for item in group_links:
-                    if isinstance(item, list):
-                        for nested in item:
-                            label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
-                            url = OutputFormatter.resolve_url(nested.get("url"))
+                if isinstance(group_links, list):
+                    for item in group_links:
+                        if isinstance(item, list):
+                            for nested in item:
+                                label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
+                                url = OutputFormatter.resolve_url(nested.get("url"))
+                                if label and url:
+                                    lines.append(f"- {label}: {url}")
+                        elif isinstance(item, dict):
+                            label = item.get("label")
+                            url = OutputFormatter.resolve_url(item.get("url"))
                             if label and url:
                                 lines.append(f"- {label}: {url}")
-                    elif isinstance(item, dict):
-                        label = item.get("label")
-                        url = OutputFormatter.resolve_url(item.get("url"))
-                        if label and url:
-                            lines.append(f"- {label}: {url}")
 
-            lines.append("")
+                lines.append("")
 
         return "\n".join(lines).strip() + "\n"

@@ -54,6 +54,7 @@ export type ReviewTable = {
   title?: string;
   columns?: string[];
   rows?: Array<Record<string, unknown>>;
+  summary?: string;
 };
 
 export type ReviewFaq = {

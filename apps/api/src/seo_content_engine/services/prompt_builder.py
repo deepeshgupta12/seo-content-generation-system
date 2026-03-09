@@ -13,6 +13,7 @@ class PromptBuilder:
             "Use the canonical page pricing metric only when referencing price: asking price. "
             "Avoid phrases like premium, most sought-after, excellent connectivity, strong demand, investment potential, luxury, prime destination. "
             "If a fact is not explicitly present in the input, do not mention it. "
+            "Write metadata that is SEO friendly, readable, and specific to the page intent without sounding spammy. "
             "Return only valid JSON."
         )
 
@@ -28,6 +29,11 @@ class PromptBuilder:
             "requirements": {
                 "brand": "Square Yards",
                 "strict_grounding": True,
+                "seo_requirements": {
+                    "human_readable": True,
+                    "avoid_keyword_stuffing": True,
+                    "location_specific": True,
+                },
                 "output_schema": {
                     "title": "string",
                     "meta_description": "string",
@@ -56,7 +62,8 @@ class PromptBuilder:
             "Do not say demand is strong, weak, healthy, rising, falling, or favorable unless that exact interpretation is explicitly provided. "
             "For property-type sections, only summarize explicit property-type names, counts, rates, status buckets, and grounded distributions from the input. "
             "Do not rank, recommend, or interpret which property type is better. "
-            "Use neutral, factual, concise language. "
+            "Write in a natural, descriptive, human style with 2 to 4 compact paragraphs per section where appropriate. "
+            "The copy should be SEO friendly, useful, and specific, but never promotional or exaggerated. "
             "Return only valid JSON."
         )
 
@@ -89,6 +96,8 @@ class PromptBuilder:
                     "review_sections_must_use_explicit_review_inputs_only": True,
                     "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
                     "property_type_sections_must_use_explicit_property_type_inputs_only": True,
+                    "human_written_and_descriptive": True,
+                    "seo_friendly_but_not_spammy": True,
                 },
                 "output_schema": {
                     "sections": [
@@ -109,7 +118,8 @@ class PromptBuilder:
         system_prompt = (
             "You generate FAQ answers for Square Yards resale listing pages. "
             "Use only the provided FAQ plan and grounded data context. "
-            "Answer directly, avoid fluff, and do not invent numbers or claims. "
+            "Answer directly, clearly, and with slightly more descriptive coverage than one-line responses. "
+            "Do not invent numbers or claims. "
             "When referencing price, prefer the canonical page pricing metric: asking price. "
             "For review-related FAQs, use only explicit rating, review-count, review-tag, or AI-summary inputs if present. "
             "Do not infer quality, trust, or desirability. "
@@ -117,6 +127,7 @@ class PromptBuilder:
             "Do not add market interpretation beyond explicit data. "
             "For property-type FAQs, use only explicit property-type, status, or rate inputs if present. "
             "Do not recommend one property type over another. "
+            "Generate broad FAQ coverage from the provided faq_plan, aiming for higher useful coverage instead of only a few answers. "
             "Return only valid JSON."
         )
 
@@ -132,6 +143,8 @@ class PromptBuilder:
                     "demand_supply_faqs_must_use_explicit_inputs_only": True,
                     "property_type_faqs_must_use_explicit_inputs_only": True,
                     "exclude_non_canonical_pricing_metrics_from_price_answers": True,
+                    "more_descriptive_answers": True,
+                    "maximize_grounded_faq_coverage": True,
                 },
                 "output_schema": {
                     "faqs": [

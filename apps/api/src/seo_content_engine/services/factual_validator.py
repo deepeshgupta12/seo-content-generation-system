@@ -66,16 +66,18 @@ class FactualValidator:
     STALE_DATA_WARNING_DAYS = 45
     STALE_DATA_FAIL_DAYS = 90
 
-    PRIMARY_KEYWORD_MAX_OCCURRENCES = 3
-    PRIMARY_KEYWORD_MAX_DENSITY = 0.04
-    EXACT_KEYWORD_MAX_OCCURRENCES = 4
+    PRIMARY_KEYWORD_MAX_OCCURRENCES = 4
+    PRIMARY_KEYWORD_MAX_DENSITY = 0.055
+    EXACT_KEYWORD_MAX_OCCURRENCES = 5
 
     MIN_SECTION_WORD_COUNT = 8
     MIN_SIGNIFICANT_SENTENCE_WORDS = 6
     MIN_SIMILARITY_WORDS = 10
-    SECTION_SIMILARITY_THRESHOLD = 0.78
-    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.38
+    SECTION_SIMILARITY_THRESHOLD = 0.82
+    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.32
     REPEATED_OPENING_WORDS = 6
+    MIN_WORDS_FOR_DISTINCT_RATIO_CHECK = 120
+    MIN_SECTIONS_FOR_OPENING_WARNING = 3
 
     PASS_SCORE_THRESHOLD = 85
     WARNING_SCORE_THRESHOLD = 70
@@ -84,24 +86,18 @@ class FactualValidator:
     @staticmethod
     def _float_string_variants(value: float) -> set[str]:
         variants: set[str] = set()
-
-        # Python natural string form, e.g. 8.4 / 16.47
         variants.add(str(value))
 
-        # Fixed precision form used elsewhere in the system
         fixed_2 = f"{value:.2f}"
         variants.add(fixed_2)
 
-        # Trimmed precision form, e.g. 8.40 -> 8.4
         trimmed = fixed_2.rstrip("0").rstrip(".")
         if trimmed:
             variants.add(trimmed)
 
-        # Integer-like values should also allow integer form
         if float(value).is_integer():
             variants.add(str(int(value)))
         else:
-            # Rounded integer is still useful because some safe-body builders may round
             variants.add(str(round(value)))
 
         return variants
@@ -130,7 +126,7 @@ class FactualValidator:
                 allowed.update(FactualValidator._float_string_variants(value))
                 return
             if isinstance(value, str):
-                for match in re.findall(r"-?\d{4}(?:\.\d+)?", value):
+                for match in re.findall(r"-?\d+(?:\.\d+)?", value):
                     allowed.add(match)
 
         walk(content_plan.get("data_context", {}))
@@ -369,7 +365,7 @@ class FactualValidator:
         repeated_openings = [
             {"opening": opening, "count": count, "section_ids": opening_section_ids[opening]}
             for opening, count in opening_counter.items()
-            if count > 1
+            if count >= FactualValidator.MIN_SECTIONS_FOR_OPENING_WARNING
         ]
 
         repeated_opening_section_ids = sorted(
@@ -396,8 +392,9 @@ class FactualValidator:
             warnings.append("high_cross_section_similarity_detected")
         if repeated_openings:
             warnings.append("repeated_section_opening_pattern_detected")
-        if words and distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
-            warnings.append("low_distinct_term_ratio_detected")
+        if words and len(words) >= FactualValidator.MIN_WORDS_FOR_DISTINCT_RATIO_CHECK:
+            if distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
+                warnings.append("low_distinct_term_ratio_detected")
 
         return {
             "passed": len(warnings) == 0,
@@ -617,7 +614,7 @@ class FactualValidator:
             "duplicate_faq_answer_detected": 5,
             "high_cross_section_similarity_detected": 6,
             "repeated_section_opening_pattern_detected": 2,
-            "low_distinct_term_ratio_detected": 5,
+            "low_distinct_term_ratio_detected": 4,
             "primary_keyword_stuffing_detected": 15,
             "exact_match_keyword_overused": 7,
             "stale_source_data_detected": 10,

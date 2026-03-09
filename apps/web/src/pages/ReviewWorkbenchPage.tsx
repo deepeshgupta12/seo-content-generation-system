@@ -70,6 +70,8 @@ function TableSnapshot({ table }: { table: ReviewTable }) {
         </div>
       </div>
 
+      {table.summary ? <div className="stack-card__body">{table.summary}</div> : null}
+
       {columns.length === 0 ? (
         <div className="empty-state">No table columns available.</div>
       ) : rows.length === 0 ? (

@@ -378,6 +378,9 @@ class DraftGenerationService:
         if "property type" in lowered or "property types" in lowered or "status" in lowered:
             return DraftGenerationService._build_property_type_safe_body(content_plan)
 
+        if "price" in lowered or "rate" in lowered:
+            return DraftGenerationService._build_price_trends_safe_body(content_plan)
+
         return None
 
     @staticmethod

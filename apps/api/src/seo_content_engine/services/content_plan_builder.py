@@ -138,9 +138,9 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current market signals on Square Yards.",
-            f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
-            f"Browse resale listings in {location_label} with rates, property mix, and key buying insights on Square Yards.",
+            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, review signals, FAQs, and current market signals on Square Yards.",
+            f"Find flats and resale properties in {location_label} with price trends, inventory mix, property-type insights, and nearby area coverage on Square Yards.",
+            f"Browse resale listings in {location_label} with asking price trends, supply signals, BHK mix, and grounded buying insights on Square Yards.",
         ]
 
         canonical_pricing = {
@@ -388,6 +388,24 @@ class ContentPlanBuilder:
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                 "data_dependencies": ["nearby_localities"],
             },
+            {
+                "id": "reviews",
+                "question_template": f"What review and rating signals are available for {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                "data_dependencies": ["review_summary", "ai_summary"],
+            },
+            {
+                "id": "demand_supply",
+                "question_template": f"What demand and supply inputs are available for resale inventory in {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
+            },
+            {
+                "id": "property_type",
+                "question_template": f"What property-type signals are available on the resale page for {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                "data_dependencies": ["pricing_summary.property_types", "pricing_summary.property_status"],
+            },
         ]
 
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
@@ -398,6 +416,17 @@ class ContentPlanBuilder:
                     "question_template": f"What RERA or buyer-protection details are available for {location_label} on this page?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                     "data_dependencies": ["rera_context"],
+                }
+            )
+
+        cms_faq = normalized.get("cms_faq", []) or []
+        if cms_faq:
+            faq_intents.append(
+                {
+                    "id": "cms_faq_support",
+                    "question_template": f"What additional buyer questions are covered for {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
+                    "data_dependencies": ["cms_faq"],
                 }
             )
 
@@ -466,7 +495,7 @@ class ContentPlanBuilder:
                 "title": "Frequently Asked Questions",
                 "objective": "Cover key buying and market questions with grounded answers.",
                 "render_type": "generative",
-                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("faq_keyword_candidates", []), 6),
+                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("faq_keyword_candidates", []), 8),
                 "data_dependencies": ["pricing_summary", "listing_summary", "distributions", "nearby_localities"],
             },
             {
