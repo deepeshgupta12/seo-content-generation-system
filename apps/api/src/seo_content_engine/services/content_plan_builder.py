@@ -571,7 +571,7 @@ class ContentPlanBuilder:
         section_plan = ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized)
 
         return {
-            "version": "v1.5",
+            "version": "v1.6",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],

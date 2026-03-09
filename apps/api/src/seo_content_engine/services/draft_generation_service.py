@@ -126,15 +126,15 @@ class DraftGenerationService:
 
     @staticmethod
     def _build_review_signals_safe_body(content_plan: dict) -> str:
-        review_summary = content_plan["data_context"].get("review_summary", {})
-        ai_summary = content_plan["data_context"].get("ai_summary", {})
-        overview = review_summary.get("overview", {})
+        review_summary = content_plan["data_context"].get("review_summary", {}) or {}
+        ai_summary = content_plan["data_context"].get("ai_summary", {}) or {}
+        overview = review_summary.get("overview", {}) or {}
 
         avg_rating = overview.get("avg_rating")
         review_count = overview.get("review_count")
         rating_count = overview.get("rating_count")
-        positive_tags = review_summary.get("positive_tags", [])
-        negative_tags = review_summary.get("negative_tags", [])
+        positive_tags = review_summary.get("positive_tags", []) or []
+        negative_tags = review_summary.get("negative_tags", []) or []
         locality_summary = ai_summary.get("locality_summary")
 
         lines: list[str] = []
@@ -164,15 +164,15 @@ class DraftGenerationService:
 
     @staticmethod
     def _build_demand_supply_safe_body(content_plan: dict) -> str:
-        listing_summary = content_plan["data_context"].get("listing_summary", {})
-        demand_supply = content_plan["data_context"].get("demand_supply", {})
-        listing_ranges = content_plan["data_context"].get("listing_ranges", {})
+        listing_summary = content_plan["data_context"].get("listing_summary", {}) or {}
+        demand_supply = content_plan["data_context"].get("demand_supply", {}) or {}
+        listing_ranges = content_plan["data_context"].get("listing_ranges", {}) or {}
 
-        sale_summary = demand_supply.get("sale", {})
-        unit_types = sale_summary.get("unitType", [])
+        sale_summary = demand_supply.get("sale", {}) or {}
+        unit_types = sale_summary.get("unitType", []) or []
         sale_available = listing_summary.get("sale_available")
         sale_count = listing_summary.get("sale_count")
-        sale_range = listing_ranges.get("sale_listing_range", {})
+        sale_range = listing_ranges.get("sale_listing_range", {}) or {}
 
         lines: list[str] = []
 
@@ -221,12 +221,12 @@ class DraftGenerationService:
 
     @staticmethod
     def _build_property_type_safe_body(content_plan: dict) -> str:
-        pricing_summary = content_plan["data_context"].get("pricing_summary", {})
-        distributions = content_plan["data_context"].get("distributions", {})
+        pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
+        distributions = content_plan["data_context"].get("distributions", {}) or {}
 
-        property_types = pricing_summary.get("property_types", [])
-        property_status = pricing_summary.get("property_status", [])
-        sale_property_type_distribution = distributions.get("sale_property_type_distribution", [])
+        property_types = pricing_summary.get("property_types", []) or []
+        property_status = pricing_summary.get("property_status", []) or []
+        sale_property_type_distribution = distributions.get("sale_property_type_distribution", []) or []
 
         lines: list[str] = []
 
@@ -274,13 +274,13 @@ class DraftGenerationService:
         if section_id == "price_trends_and_rates":
             return DraftGenerationService._build_price_trends_safe_body(content_plan)
 
-        if "review" in section_id or "rating" in section_id:
+        if section_id == "review_and_rating_signals":
             return DraftGenerationService._build_review_signals_safe_body(content_plan)
 
-        if "demand" in section_id or "supply" in section_id:
+        if section_id == "demand_and_supply_signals":
             return DraftGenerationService._build_demand_supply_safe_body(content_plan)
 
-        if "property_type" in section_id or "property_types" in section_id:
+        if section_id == "property_type_signals":
             return DraftGenerationService._build_property_type_safe_body(content_plan)
 
         return None
@@ -291,7 +291,8 @@ class DraftGenerationService:
         if not issues:
             return section
 
-        safe_body = DraftGenerationService._build_safe_section_body(content_plan, section.get("id", ""))
+        section_id = section.get("id", "")
+        safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
         if safe_body is None:
             return section
 
