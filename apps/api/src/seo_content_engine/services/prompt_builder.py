@@ -13,6 +13,9 @@ class PromptBuilder:
             "Use the canonical page pricing metric only when referencing price: asking price. "
             "Avoid phrases like premium, most sought-after, excellent connectivity, strong demand, investment potential, luxury, prime destination. "
             "The output should still sound natural, readable, and SEO-friendly. "
+            "Write metadata that feels human, specific, and useful without becoming promotional or making unsupported claims. "
+            "Use the primary keyword naturally, and use supporting keywords only when they fit cleanly. "
+            "Avoid keyword stuffing, repetitive phrasing, and robotic search-optimized wording. "
             "If a fact is not explicitly present in the input, do not mention it. "
             "Return only valid JSON."
         )
@@ -33,6 +36,14 @@ class PromptBuilder:
                     "use_primary_keyword_naturally": True,
                     "avoid_keyword_stuffing": True,
                     "meta_description_should_be_descriptive": True,
+                    "write_for_humans_first": True,
+                    "avoid_clickbait": True,
+                },
+                "style_rules": {
+                    "tone": "natural, grounded, clear, SEO-friendly",
+                    "avoid_robotic_patterns": True,
+                    "avoid_repetition": True,
+                    "keep_brand_safe": True,
                 },
                 "output_schema": {
                     "title": "string",
@@ -64,6 +75,10 @@ class PromptBuilder:
             "Do not rank, recommend, or interpret which property type is better. "
             "Write in a natural, human, descriptive style with 2 to 4 short paragraphs per section when the data allows. "
             "Each section should feel SEO-friendly and readable, not robotic or overly templated, while remaining fully grounded. "
+            "Use natural transitions and vary sentence openings. "
+            "Do not write generic filler like 'this page provides' or 'users can explore' unless it is necessary and specific. "
+            "Make each section meaningfully different from the others. "
+            "Prefer explanatory prose that helps a real buyer understand the visible data on the page. "
             "Return only valid JSON."
         )
 
@@ -99,6 +114,17 @@ class PromptBuilder:
                     "min_target_words_per_section": 90,
                     "max_target_words_per_section": 220,
                     "write_like_human_editorial_copy": True,
+                    "prefer_2_to_4_short_paragraphs": True,
+                    "avoid_template_like_openings": True,
+                    "avoid_cross_section_repetition": True,
+                    "use_keywords_naturally": True,
+                },
+                "style_rules": {
+                    "tone": "human, descriptive, grounded, SEO-friendly",
+                    "reader_goal": "help a buyer understand visible resale data on the page",
+                    "avoid_filler": True,
+                    "avoid_marketing_hype": True,
+                    "prefer_specific_grounded_sentences": True,
                 },
                 "output_schema": {
                     "sections": [
@@ -129,6 +155,8 @@ class PromptBuilder:
             "Do not recommend one property type over another. "
             "Generate broad FAQ coverage and be more descriptive than a one-line answer. "
             "Target 8 to 12 FAQs when the plan supports it, with each answer usually 45 to 110 words. "
+            "Questions should feel realistic for actual search or buyer intent. "
+            "Answers should be readable, grounded, and naturally written, not repetitive or robotic. "
             "Return only valid JSON."
         )
 
@@ -146,6 +174,16 @@ class PromptBuilder:
                     "exclude_non_canonical_pricing_metrics_from_price_answers": True,
                     "prefer_broader_coverage": True,
                     "prefer_descriptive_answers": True,
+                    "target_min_faqs": 8,
+                    "target_max_faqs": 12,
+                    "avoid_duplicate_questions": True,
+                    "avoid_duplicate_answers": True,
+                },
+                "style_rules": {
+                    "tone": "natural, buyer-friendly, grounded",
+                    "prefer_clear_explanations": True,
+                    "avoid_one_line_answers_when_context_exists": True,
+                    "avoid_keyword_stuffing": True,
                 },
                 "output_schema": {
                     "faqs": [
@@ -154,6 +192,41 @@ class PromptBuilder:
                             "answer": "string",
                         }
                     ]
+                },
+            },
+        }
+
+        return system_prompt, json.dumps(user_payload, ensure_ascii=False, indent=2)
+
+    @staticmethod
+    def table_summary_prompt(table: dict, entity: dict) -> tuple[str, str]:
+        system_prompt = (
+            "You generate a short human-readable summary for a grounded Square Yards data table. "
+            "Use only the visible table title, columns, rows, and entity context provided. "
+            "Do not invent trends, interpretations, recommendations, or unsupported market claims. "
+            "Write 3 to 4 sentences maximum. "
+            "The summary must be user-friendly, reviewer-friendly, and SEO-friendly without sounding robotic. "
+            "It should explain what the table covers, why it matters, and reference visible row-level grounded values when useful. "
+            "Do not write generic QA/reviewer language like 'this table is included to make scanning easier'. "
+            "Do not mention row counts or column counts unless it is genuinely useful. "
+            "Return only valid JSON."
+        )
+
+        user_payload = {
+            "entity": entity,
+            "table": table,
+            "requirements": {
+                "strict_grounding": True,
+                "style_rules": {
+                    "tone": "natural, informative, concise",
+                    "min_sentences": 3,
+                    "max_sentences": 4,
+                    "avoid_robotic_patterns": True,
+                    "avoid_generic_review_workbench_language": True,
+                    "avoid_market_hype": True,
+                },
+                "output_schema": {
+                    "summary": "string",
                 },
             },
         }
@@ -172,6 +245,7 @@ class PromptBuilder:
             "For demand-supply sections, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
             "For property-type sections, only use explicit property-type, status, rate, and distribution inputs if present. "
             "Make the rewrite sound natural and descriptive, but still grounded. "
+            "Keep the rewritten section distinct from other sections and avoid robotic phrasing. "
             "Do not introduce any fact that is not present in the provided grounded data. "
             "Return only valid JSON."
         )
@@ -195,6 +269,8 @@ class PromptBuilder:
                 "review_sections_must_use_explicit_review_inputs_only": True,
                 "demand_supply_sections_must_use_explicit_inputs_only": True,
                 "property_type_sections_must_use_explicit_inputs_only": True,
+                "keep_human_descriptive_style": True,
+                "avoid_repetition": True,
             },
             "output_schema": {
                 "id": "string",
@@ -217,6 +293,7 @@ class PromptBuilder:
             "For property-type FAQs, only use explicit property-type, status, or rate inputs if present. "
             "Keep the answer more descriptive than a single sentence when the grounded inputs allow it. "
             "Do not introduce any fact that is not present in the grounded data. "
+            "Avoid robotic phrasing and repetitive wording. "
             "Return only valid JSON."
         )
 
@@ -235,6 +312,8 @@ class PromptBuilder:
                 "review_faqs_must_use_explicit_review_inputs_only": True,
                 "demand_supply_faqs_must_use_explicit_inputs_only": True,
                 "property_type_faqs_must_use_explicit_inputs_only": True,
+                "prefer_descriptive_grounded_answer": True,
+                "avoid_repetition": True,
             },
             "output_schema": {
                 "question": "string",
@@ -258,6 +337,7 @@ class PromptBuilder:
             "If price is mentioned, use only the canonical asking price metric. "
             "Do not introduce facts beyond the grounded data. "
             "Keep the result natural and SEO-friendly. "
+            "Avoid stiff, repetitive, or stuffed keyword phrasing. "
             "Return only valid JSON."
         )
 
@@ -272,6 +352,8 @@ class PromptBuilder:
                 "preserve_output_fields": ["title", "meta_description", "h1", "intro_snippet"],
                 "avoid_forbidden_claims": True,
                 "avoid_non_canonical_pricing_terms": True,
+                "keep_human_and_seo_friendly": True,
+                "avoid_keyword_stuffing": True,
             },
             "output_schema": {
                 "title": "string",

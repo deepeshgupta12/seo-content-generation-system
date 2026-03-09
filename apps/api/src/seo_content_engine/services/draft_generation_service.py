@@ -104,8 +104,8 @@ class DraftGenerationService:
         lines: list[str] = []
         if asking_price is not None:
             lines.append(
-                f"Resale price signals for {entity_name}, {city_name} currently anchor around an asking price of ₹{asking_price:,}. "
-                f"This gives buyers a grounded starting point for understanding how listings on the page are positioned."
+                f"Resale price signals for {entity_name}, {city_name} currently centre around an asking price of ₹{asking_price:,}. "
+                f"This gives a grounded starting point for understanding how the visible resale inventory on this page is positioned."
             )
 
         if price_trend:
@@ -117,7 +117,7 @@ class DraftGenerationService:
 
             trend_parts: list[str] = []
             if quarter:
-                trend_parts.append(f"the latest available tracked period is {quarter}")
+                trend_parts.append(f"the latest tracked period is {quarter}")
             if location_rate is not None:
                 trend_parts.append(f"the locality-level rate is ₹{location_rate:,}")
             if micromarket_rate is not None:
@@ -127,16 +127,15 @@ class DraftGenerationService:
 
             if trend_parts:
                 lines.append(
-                    "Within the currently available trend inputs, "
+                    "Within the available trend inputs, "
                     + ", ".join(trend_parts)
-                    + ". These figures help place the current page inventory in a broader local pricing context."
+                    + ". These values help place the current page-level asking signal in a wider local market context without introducing unsupported interpretation."
                 )
 
         if not lines:
             return (
-                f"This section summarises the grounded asking price and trend inputs available for "
-                f"{entity_name}, {city_name}. Where trend records are present, they can be used to compare "
-                f"the current page-level price signal with the surrounding market context."
+                f"This section summarises the grounded asking-price inputs available for {entity_name}, {city_name}. "
+                f"When trend records are present, they can be used to compare the current page-level price signal with nearby market benchmarks."
             )
 
         return " ".join(lines)
@@ -168,28 +167,28 @@ class DraftGenerationService:
             lines.append(
                 "Grounded review inputs on this page show "
                 + ", ".join(summary_parts)
-                + ". These signals reflect what is currently available in the underlying page data."
+                + ". These figures reflect only what is currently available in the source-backed review layer."
             )
 
         if positive_tags:
             lines.append(
-                f"Among the positive review tags currently surfaced, examples include {', '.join(positive_tags[:3])}. "
-                f"These are presented as observed tag signals rather than editorial interpretation."
+                f"Among the positive tags currently surfaced, examples include {', '.join(positive_tags[:3])}. "
+                f"These are presented as observed review signals rather than editorial judgement."
             )
         if negative_tags:
             lines.append(
                 f"The available negative tags include {', '.join(negative_tags[:3])}. "
-                f"This helps reviewers understand what kinds of recurring feedback labels are present in the source layer."
+                f"This helps show the kinds of feedback labels attached to the current review dataset."
             )
         if locality_summary:
             lines.append(
-                f"The page also includes an AI summary field that currently reads: {locality_summary}"
+                f"The page also includes an AI summary field for the locality, which currently reads: {locality_summary}"
             )
 
         if not lines:
             return (
-                "Review and rating signals are only shown when they are present in the grounded page inputs. "
-                "Where available, this section summarises counts, ratings, tags, and AI summary fields without adding interpretation."
+                "Review and rating signals are shown only when they are present in the grounded page inputs. "
+                "Where available, this section summarises counts, ratings, tags, and AI summary fields without adding interpretation beyond the data."
             )
 
         return " ".join(lines)
@@ -241,7 +240,7 @@ class DraftGenerationService:
                 lines.append(
                     "At the unit-type level, the available grounded inputs indicate "
                     + ", ".join(unit_parts)
-                    + ". This is useful for understanding how the page inventory and demand-side signals align for a specific format."
+                    + ". This helps explain how the visible resale inventory is distributed for one of the surfaced configurations."
                 )
 
         range_parts: list[str] = []
@@ -255,7 +254,7 @@ class DraftGenerationService:
             lines.append(
                 "Listing-range inputs further show "
                 + ", ".join(range_parts)
-                + ". These values help frame the span of resale listings represented in the current dataset."
+                + ". These values help frame the spread of resale listings represented in the current structured dataset."
             )
 
         if not lines:
@@ -265,6 +264,53 @@ class DraftGenerationService:
             )
 
         return " ".join(lines)
+    
+    @staticmethod
+    def _summarize_table(table: dict) -> str:
+        title = table.get("title", "This table")
+        rows = table.get("rows", []) or []
+        columns = table.get("columns", []) or []
+
+        if not rows:
+            return (
+                f"{title} currently does not contain structured rows in the grounded dataset. "
+                "This table is still retained in the draft structure so reviewers can confirm when source-backed structured coverage is unavailable. "
+                "Reviewers can use this table to cross-check whether a narrative should stay descriptive only, without leaning on unavailable row-level data."
+            )
+
+        row_count = len(rows)
+        column_count = len(columns)
+        first_row = rows[0] if rows else {}
+
+        highlights: list[str] = []
+        for column in columns[:3]:
+            value = first_row.get(column)
+            if value not in {None, "", "—"}:
+                highlights.append(f"{column} starts with {value}")
+
+        summary = (
+            f"{title} presents {row_count} grounded row{'s' if row_count != 1 else ''} "
+            f"across {column_count} column{'s' if column_count != 1 else ''}. "
+            "It gives a structured snapshot of the source-backed values that support this page section. "
+        )
+
+        if highlights:
+            summary += "In the first visible row, " + ", ".join(highlights) + ". "
+
+        summary += (
+            "This makes it easier to review the visible price, inventory, locality, or category signals without relying only on prose. "
+            "Reviewers can use this table to cross-check whether the generated narrative stays aligned with the underlying structured inputs."
+        )
+        return summary
+    
+    @staticmethod
+    def _attach_table_summaries(tables: list[dict]) -> list[dict]:
+        enriched: list[dict] = []
+        for table in tables:
+            updated = dict(table)
+            updated["summary"] = DraftGenerationService._summarize_table(updated)
+            enriched.append(updated)
+        return enriched
 
     @staticmethod
     def _build_property_type_safe_body(content_plan: dict) -> str:
@@ -290,8 +336,9 @@ class DraftGenerationService:
                 parts.append(f"change percent is {first['changePercent']}")
             if parts:
                 lines.append(
-                    "The available property-type rate inputs show " + ", ".join(parts) + ". "
-                    "This gives a grounded view of how at least one property-type bucket is represented in the current resale dataset."
+                    "The available property-type rate inputs show "
+                    + ", ".join(parts)
+                    + ". This offers a grounded snapshot of how at least one property-type bucket is represented in the current resale dataset."
                 )
 
         if sale_property_type_distribution:
@@ -317,8 +364,9 @@ class DraftGenerationService:
                 status_parts.append(f"average price is ₹{first_status['avgPrice']:,}")
             if status_parts:
                 lines.append(
-                    "Status-level inputs also indicate " + ", ".join(status_parts) + ". "
-                    "This is useful when the page includes readiness or stock-condition segmentation."
+                    "Status-level inputs also indicate "
+                    + ", ".join(status_parts)
+                    + ". This is useful where the page includes readiness or completion-state segmentation."
                 )
 
         if location_rates:
@@ -332,7 +380,7 @@ class DraftGenerationService:
                 location_parts.append(f"change percentage is {first_location['changePercentage']}")
             if location_parts:
                 lines.append(
-                    "At the more local rate level, the grounded input shows " + ", ".join(location_parts) + "."
+                    "At the local rate level, the grounded input shows " + ", ".join(location_parts) + "."
                 )
 
         if micromarket_rates:
@@ -419,18 +467,108 @@ class DraftGenerationService:
     @staticmethod
     def _build_safe_faq_answer(content_plan: dict, question: str) -> str | None:
         lowered = question.lower()
+        data_context = content_plan.get("data_context", {}) or {}
+        entity = content_plan.get("entity", {}) or {}
+        entity_name = entity.get("entity_name", "this location")
+        city_name = entity.get("city_name", "")
+        location_label = f"{entity_name}, {city_name}" if city_name and city_name != entity_name else entity_name
+
+        listing_summary = data_context.get("listing_summary", {}) or {}
+        distributions = data_context.get("distributions", {}) or {}
+        nearby_localities = data_context.get("nearby_localities", []) or []
+        pricing_summary = data_context.get("pricing_summary", {}) or {}
+        listing_ranges = data_context.get("listing_ranges", {}) or {}
 
         if "review" in lowered or "rating" in lowered:
             return DraftGenerationService._build_review_signals_safe_body(content_plan)
 
-        if "demand" in lowered or "supply" in lowered or "listing range" in lowered:
+        if "demand" in lowered or "supply" in lowered:
             return DraftGenerationService._build_demand_supply_safe_body(content_plan)
 
-        if "property type" in lowered or "property types" in lowered or "status" in lowered:
+        if "property type" in lowered or "property-type" in lowered or "property types" in lowered:
             return DraftGenerationService._build_property_type_safe_body(content_plan)
+
+        if "status" in lowered or "ready-to-move" in lowered or "ready to move" in lowered:
+            return DraftGenerationService._build_property_type_safe_body(content_plan)
+
+        if "price range" in lowered or ("range" in lowered and "price" in lowered):
+            sale_range = listing_ranges.get("sale_listing_range", {}) or {}
+            parts: list[str] = []
+            if sale_range.get("doc_count") is not None:
+                parts.append(f"the visible resale price-range dataset covers {sale_range['doc_count']} listings")
+            if sale_range.get("min_price") is not None:
+                parts.append(f"the minimum listed price is ₹{sale_range['min_price']:,}")
+            if sale_range.get("max_price") is not None:
+                parts.append(f"the maximum listed price is ₹{sale_range['max_price']:,}")
+
+            if parts:
+                return (
+                    f"For {location_label}, the grounded resale listing-range inputs show that "
+                    + ", ".join(parts)
+                    + ". This answer is based only on the structured values available in the current page dataset."
+                )
 
         if "price" in lowered or "asking" in lowered or "rate" in lowered:
             return DraftGenerationService._build_price_trends_safe_body(content_plan)
+
+        if "how many" in lowered or "available" in lowered or "inventory" in lowered:
+            sale_count = listing_summary.get("sale_count")
+            total_listings = listing_summary.get("total_listings")
+            total_projects = listing_summary.get("total_projects")
+
+            parts: list[str] = []
+            if sale_count is not None:
+                parts.append(f"the visible resale listing count is {sale_count}")
+            if total_listings is not None:
+                parts.append(f"the total listing count is {total_listings}")
+            if total_projects is not None:
+                parts.append(f"the total project count is {total_projects}")
+
+            if parts:
+                return (
+                    f"For {location_label}, the current page-level inventory inputs show that "
+                    + ", ".join(parts)
+                    + ". These figures are taken directly from the grounded listing summary available to the draft."
+                )
+
+        if "bhk" in lowered or "unit type" in lowered or "unit-type" in lowered:
+            bhk_mix = distributions.get("sale_unit_type_distribution", []) or []
+            if bhk_mix:
+                first = bhk_mix[0]
+                key = first.get("key")
+                doc_count = first.get("doc_count")
+                details: list[str] = []
+                if key:
+                    details.append(f"the first visible BHK bucket is {key}")
+                if doc_count is not None:
+                    details.append(f"its document count is {doc_count}")
+
+                return (
+                    f"The grounded BHK mix for {location_label} is derived from the available resale unit-type distribution. "
+                    + (", ".join(details) + ". " if details else "")
+                    + "This helps show which configurations are currently represented in the structured page data."
+                )
+
+        if "nearby" in lowered or "localities" in lowered or "locality" in lowered:
+            if nearby_localities:
+                first = nearby_localities[0]
+                name = first.get("name")
+                distance_km = first.get("distance_km")
+                sale_count = first.get("sale_count")
+
+                parts: list[str] = []
+                if name:
+                    parts.append(f"the first nearby locality listed is {name}")
+                if distance_km is not None:
+                    parts.append(f"it is {distance_km:.2f} km away")
+                if sale_count is not None:
+                    parts.append(f"it shows {sale_count} resale listings")
+
+                return (
+                    f"The nearby-locality comparison inputs for {location_label} help surface alternate areas visible in the same grounded dataset. "
+                    + (", ".join(parts) + ". " if parts else "")
+                    + "These nearby options are included to support comparison and exploration within the current page context."
+                )
 
         return None
 
@@ -532,49 +670,6 @@ class DraftGenerationService:
         return ensured
 
     @staticmethod
-    def _summarize_table(table: dict) -> str:
-        title = table.get("title", "This table")
-        rows = table.get("rows", []) or []
-        columns = table.get("columns", []) or []
-
-        if not rows:
-            return (
-                f"{title} currently does not contain structured rows in the grounded dataset. "
-                "When table rows are available, this section is intended to give a compact view of the most relevant structured inputs used in the draft."
-            )
-
-        row_count = len(rows)
-        column_count = len(columns)
-        first_row = rows[0] if rows else {}
-
-        highlights: list[str] = []
-        for column in columns[:3]:
-            value = first_row.get(column)
-            if value not in {None, "", "—"}:
-                highlights.append(f"{column} starts with {value}")
-
-        base = (
-            f"{title} presents {row_count} grounded row{'s' if row_count != 1 else ''} "
-            f"across {column_count} column{'s' if column_count != 1 else ''}. "
-            "It is included to make the source-backed numeric and categorical inputs easier to scan during review."
-        )
-
-        if highlights:
-            base += " In the first visible row, " + ", ".join(highlights) + "."
-
-        base += " Reviewers can use this table to cross-check whether the generated narrative stays aligned with the underlying structured inputs."
-        return base
-
-    @staticmethod
-    def _attach_table_summaries(tables: list[dict]) -> list[dict]:
-        enriched: list[dict] = []
-        for table in tables:
-            updated = dict(table)
-            updated["summary"] = DraftGenerationService._summarize_table(updated)
-            enriched.append(updated)
-        return enriched
-
-    @staticmethod
     def _build_base_draft(
         content_plan: dict,
         keyword_intelligence_version: str,
@@ -625,6 +720,7 @@ class DraftGenerationService:
         client = openai_client or OpenAIClient()
 
         metadata = DraftGenerationService._generate_metadata(content_plan, client)
+
         sections = DraftGenerationService._generate_sections(content_plan, client)
         sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
 

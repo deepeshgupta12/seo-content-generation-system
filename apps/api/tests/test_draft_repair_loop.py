@@ -12,16 +12,19 @@ class RepairingDummyOpenAIClient:
             self.metadata_repair_called += 1
             return {
                 "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-                "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends and BHK mix on Square Yards.",
+                "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends, BHK mix, and nearby locality insights on Square Yards.",
                 "h1": "Resale Properties in Andheri West, Mumbai",
-                "intro_snippet": "Browse current resale property options in Andheri West, Mumbai on Square Yards.",
+                "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with grounded price, inventory, and locality-level signals on Square Yards.",
             }
 
         if '"faq"' in user_prompt and '"validator_feedback"' in user_prompt:
             self.faq_repair_called += 1
             return {
                 "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
-                "answer": "The asking price signal is ₹40,238 based on Square Yards data.",
+                "answer": (
+                    "The grounded asking price signal for resale properties in Andheri West, Mumbai is ₹40,238. "
+                    "This page uses source-backed pricing inputs to help readers understand how current resale listings are positioned."
+                ),
             }
 
         if '"section"' in user_prompt and '"validator_feedback"' in user_prompt:
@@ -31,41 +34,70 @@ class RepairingDummyOpenAIClient:
                 return {
                     "id": "price_trends_and_rates",
                     "title": "Price Trends and Rates",
-                    "body": "The asking price signal is ₹40,238.",
+                    "body": (
+                        "The grounded asking price signal for resale properties in Andheri West, Mumbai is ₹40,238. "
+                        "This serves as the main pricing anchor for understanding how current resale listings on the page are positioned."
+                        "\n\n"
+                        "The available trend records also help place the asking-price view in a wider local context using source-backed period and locality-level inputs."
+                    ),
                 }
 
             if '"id": "market_snapshot"' in user_prompt:
                 return {
                     "id": "market_snapshot",
                     "title": "Resale Market Snapshot",
-                    "body": "The asking price signal is ₹40,238 and total listings are 6,109.",
+                    "body": (
+                        "Andheri West currently shows 2,039 resale listings within a broader visible listing base of 6,109. "
+                        "This gives users a direct view of the active resale inventory reflected on the page."
+                        "\n\n"
+                        "The grounded asking price signal is ₹40,238, which helps frame the visible inventory alongside the current resale pricing context."
+                    ),
                 }
 
             if '"id": "review_and_rating_signals"' in user_prompt:
                 return {
                     "id": "review_and_rating_signals",
                     "title": "Review and Rating Signals",
-                    "body": "The page includes an average rating of 4.23 based on 97 reviews.",
+                    "body": (
+                        "The current review layer shows an average rating of 4.23 based on 97 reviews. "
+                        "These are the review signals currently available in the grounded source inputs."
+                        "\n\n"
+                        "The page also includes tag-level feedback and an AI summary field, which together help reviewers inspect the shape of the available sentiment layer."
+                    ),
                 }
 
             if '"id": "demand_and_supply_signals"' in user_prompt:
                 return {
                     "id": "demand_and_supply_signals",
                     "title": "Demand and Supply Signals",
-                    "body": "The sale-side inputs include a 2 BHK demand percent of 30 and supply percent of 32.",
+                    "body": (
+                        "The sale-side inputs include a 2 BHK listing count of 577, with demand percent at 30 and supply percent at 32. "
+                        "These values provide a grounded snapshot of how a major unit type is represented in the current resale dataset."
+                        "\n\n"
+                        "The page also includes listing-range signals that help frame the spread of inventory visible in the source-backed resale layer."
+                    ),
                 }
 
             if '"id": "property_type_signals"' in user_prompt:
                 return {
                     "id": "property_type_signals",
                     "title": "Property Type Signals",
-                    "body": "Apartment appears in the grounded property-type inputs.",
+                    "body": (
+                        "Apartment appears in the grounded property-type inputs for this resale page. "
+                        "The structured property-type layer also includes average value and change-percent fields where available."
+                        "\n\n"
+                        "This helps reviewers understand how the visible resale inventory is distributed across property-format buckets without turning that input into a recommendation."
+                    ),
                 }
 
             return {
                 "id": "hero_intro",
                 "title": "Resale Property Overview in Andheri West, Mumbai",
-                "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
+                "body": (
+                    "Andheri West currently shows 2,039 resale listings on Square Yards, giving users a meaningful starting point for evaluating resale supply in this part of Mumbai."
+                    "\n\n"
+                    "The page combines grounded inventory, pricing, and structured mix signals so that readers can review current resale options with clearer local context."
+                ),
             }
 
         if '"faqs"' in user_prompt:
@@ -204,7 +236,7 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
         openai_client=client,
     )
 
-    assert draft["version"] == "v2.4"
+    assert draft["version"] == "v2.5"
     assert client.metadata_repair_called >= 1
     assert client.section_repair_called >= 1
     assert client.faq_repair_called >= 1
@@ -222,3 +254,10 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
     assert "excellent" not in review_section["body"].lower()
     assert "strong demand" not in demand_section["body"].lower()
     assert "best property type" not in property_type_section["body"].lower()
+
+    assert len(draft["faqs"]) >= 5
+    assert all(faq.get("answer") for faq in draft["faqs"])
+    assert all("₹99,999" not in faq.get("answer", "") for faq in draft["faqs"])
+
+    assert len(draft["tables"]) > 0
+    assert all("summary" in table for table in draft["tables"])

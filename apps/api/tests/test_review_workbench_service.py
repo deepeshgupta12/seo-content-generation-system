@@ -33,7 +33,7 @@ class DummyContentPlanBuilder:
     @staticmethod
     def build(normalized, keyword_intelligence):
         return {
-            "version": "v1.6",
+            "version": "v1.7",
             "page_type": normalized["entity"]["page_type"],
             "listing_type": normalized["entity"]["listing_type"],
             "entity": normalized["entity"],
@@ -60,7 +60,7 @@ class DummyDraftGenerationService:
     @staticmethod
     def generate(normalized, keyword_intelligence):
         return {
-            "version": "v2.4",
+            "version": "v2.5",
             "page_type": normalized["entity"]["page_type"],
             "listing_type": normalized["entity"]["listing_type"],
             "entity": normalized["entity"],
@@ -74,13 +74,43 @@ class DummyDraftGenerationService:
                 {
                     "id": "hero_intro",
                     "title": "Resale Property Overview in Andheri West, Mumbai",
-                    "body": "Andheri West has 2,039 resale listings visible on Square Yards.",
+                    "body": (
+                        "Andheri West has 2,039 resale listings visible on Square Yards. "
+                        "This gives buyers a grounded view of the current resale inventory represented on the page."
+                    ),
                     "validation_passed": True,
                     "validation_issues": [],
                 }
             ],
-            "tables": [],
-            "faqs": [],
+            "tables": [
+                {
+                    "id": "price_trend_table",
+                    "title": "Price Trend Snapshot",
+                    "columns": ["quarterName", "locationRate", "micromarketRate"],
+                    "rows": [
+                        {
+                            "quarterName": "Dec 2025",
+                            "locationRate": "₹40,238",
+                            "micromarketRate": "₹21,180",
+                        }
+                    ],
+                    "summary": (
+                        "Price Trend Snapshot presents 1 grounded row across 3 columns. "
+                        "It is included to make the structured price inputs easier to review alongside the generated narrative."
+                    ),
+                }
+            ],
+            "faqs": [
+                {
+                    "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
+                    "answer": (
+                        "The asking price signal for resale properties in Andheri West, Mumbai is ₹40,238 "
+                        "based on the grounded inputs used for this draft."
+                    ),
+                    "validation_passed": True,
+                    "validation_issues": [],
+                }
+            ],
             "internal_links": {},
             "content_plan": {
                 "metadata_plan": {
@@ -102,16 +132,36 @@ class DummyDraftGenerationService:
                         "validation": {
                             "passed": True,
                             "issues": [],
-                            "sanitized_text": "Andheri West has 2,039 resale listings visible on Square Yards.",
+                            "sanitized_text": (
+                                "Andheri West has 2,039 resale listings visible on Square Yards. "
+                                "This gives buyers a grounded view of the current resale inventory represented on the page."
+                            ),
                         },
                     }
                 ],
-                "faq_checks": [],
+                "faq_checks": [
+                    {
+                        "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
+                        "validation": {
+                            "passed": True,
+                            "issues": [],
+                            "sanitized_text": (
+                                "The asking price signal for resale properties in Andheri West, Mumbai is ₹40,238 "
+                                "based on the grounded inputs used for this draft."
+                            ),
+                        },
+                    }
+                ],
             },
             "quality_report": {
                 "approval_status": "pass",
                 "overall_quality_score": 96,
                 "warning_reasons": [],
+                "warning_taxonomy": {
+                    "categorized_warnings": {},
+                    "severity_counts": {"low": 0, "medium": 0, "high": 0},
+                    "warning_entries": [],
+                },
                 "section_quality_scores": [
                     {
                         "id": "hero_intro",
@@ -119,7 +169,7 @@ class DummyDraftGenerationService:
                         "score": 96,
                         "confidence": "high",
                         "warnings": [],
-                        "word_count": 9,
+                        "word_count": 22,
                     }
                 ],
             },
@@ -129,7 +179,12 @@ class DummyDraftGenerationService:
                 "blocking_reasons": [],
             },
             "publish_ready": True,
-            "markdown_draft": "# Resale Properties in Andheri West, Mumbai\n",
+            "markdown_draft": (
+                "# Resale Properties in Andheri West, Mumbai\n\n"
+                "## Key Data Tables\n\n"
+                "### Price Trend Snapshot\n\n"
+                "Price Trend Snapshot presents 1 grounded row across 3 columns.\n"
+            ),
         }
 
 
@@ -207,9 +262,13 @@ def test_review_workbench_service_build_session(monkeypatch) -> None:
 
     assert session["entity"]["entity_name"] == "Andheri West"
     assert session["draft"]["quality_report"]["approval_status"] == "pass"
+    assert session["draft"]["version"] == "v2.5"
     assert session["keyword_preview"]["primary_keyword"]["keyword"] == "flats for sale in andheri west mumbai"
     assert len(session["section_review"]) == 1
     assert len(session["version_history"]) == 1
+    assert len(session["draft"]["tables"]) == 1
+    assert "summary" in session["draft"]["tables"][0]
+    assert len(session["draft"]["faqs"]) == 1
 
 
 def test_review_workbench_service_update_section_body(monkeypatch) -> None:
@@ -221,7 +280,14 @@ def test_review_workbench_service_update_section_body(monkeypatch) -> None:
         "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai"}},
         "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
         "draft": DummyDraftGenerationService.generate(
-            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            normalized={
+                "entity": {
+                    "entity_name": "Andheri West",
+                    "city_name": "Mumbai",
+                    "page_type": "resale_locality",
+                    "listing_type": "resale",
+                }
+            },
             keyword_intelligence={"version": "v1.1"},
         ),
         "validation_report": {},
@@ -233,7 +299,14 @@ def test_review_workbench_service_update_section_body(monkeypatch) -> None:
                 "version_number": 1,
                 "action_type": "initial_generate",
                 "draft_snapshot": DummyDraftGenerationService.generate(
-                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    normalized={
+                        "entity": {
+                            "entity_name": "Andheri West",
+                            "city_name": "Mumbai",
+                            "page_type": "resale_locality",
+                            "listing_type": "resale",
+                        }
+                    },
                     keyword_intelligence={"version": "v1.1"},
                 ),
             }
@@ -247,12 +320,12 @@ def test_review_workbench_service_update_section_body(monkeypatch) -> None:
     updated_session, mutation_summary = ReviewWorkbenchService.update_section_body(
         session_id="review-test-123",
         section_id="hero_intro",
-        body="Updated grounded section body.",
+        body="Updated grounded section body with more descriptive resale context.",
         persist_session=True,
         action_label="section_edit",
     )
 
-    assert updated_session["draft"]["sections"][0]["body"] == "Updated grounded section body."
+    assert updated_session["draft"]["sections"][0]["body"] == "Updated grounded section body with more descriptive resale context."
     assert mutation_summary["action_type"] == "section_edit"
     assert mutation_summary["section_id"] == "hero_intro"
     assert len(updated_session["version_history"]) == 2
@@ -267,7 +340,14 @@ def test_review_workbench_service_update_metadata(monkeypatch) -> None:
         "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai"}},
         "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
         "draft": DummyDraftGenerationService.generate(
-            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            normalized={
+                "entity": {
+                    "entity_name": "Andheri West",
+                    "city_name": "Mumbai",
+                    "page_type": "resale_locality",
+                    "listing_type": "resale",
+                }
+            },
             keyword_intelligence={"version": "v1.1"},
         ),
         "validation_report": {},
@@ -279,7 +359,14 @@ def test_review_workbench_service_update_metadata(monkeypatch) -> None:
                 "version_number": 1,
                 "action_type": "initial_generate",
                 "draft_snapshot": DummyDraftGenerationService.generate(
-                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    normalized={
+                        "entity": {
+                            "entity_name": "Andheri West",
+                            "city_name": "Mumbai",
+                            "page_type": "resale_locality",
+                            "listing_type": "resale",
+                        }
+                    },
                     keyword_intelligence={"version": "v1.1"},
                 ),
             }
@@ -312,10 +399,24 @@ def test_review_workbench_service_regenerate_draft(monkeypatch) -> None:
     base_session = {
         "session_id": "review-test-123",
         "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
-        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        "normalized": {
+            "entity": {
+                "entity_name": "Andheri West",
+                "city_name": "Mumbai",
+                "page_type": "resale_locality",
+                "listing_type": "resale",
+            }
+        },
         "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
         "draft": DummyDraftGenerationService.generate(
-            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            normalized={
+                "entity": {
+                    "entity_name": "Andheri West",
+                    "city_name": "Mumbai",
+                    "page_type": "resale_locality",
+                    "listing_type": "resale",
+                }
+            },
             keyword_intelligence={"version": "v1.1"},
         ),
         "validation_report": {},
@@ -327,7 +428,14 @@ def test_review_workbench_service_regenerate_draft(monkeypatch) -> None:
                 "version_number": 1,
                 "action_type": "initial_generate",
                 "draft_snapshot": DummyDraftGenerationService.generate(
-                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    normalized={
+                        "entity": {
+                            "entity_name": "Andheri West",
+                            "city_name": "Mumbai",
+                            "page_type": "resale_locality",
+                            "listing_type": "resale",
+                        }
+                    },
                     keyword_intelligence={"version": "v1.1"},
                 ),
             }
@@ -340,6 +448,7 @@ def test_review_workbench_service_regenerate_draft(monkeypatch) -> None:
         def generate(normalized, keyword_intelligence):
             draft = DummyDraftGenerationService.generate(normalized, keyword_intelligence)
             draft["metadata"]["title"] = "Regenerated Title"
+            draft["tables"][0]["summary"] = "Regenerated table summary for review."
             return draft
 
     monkeypatch.setattr(module.ReviewSessionStore, "load_session", lambda session_id: deepcopy(base_session))
@@ -353,6 +462,7 @@ def test_review_workbench_service_regenerate_draft(monkeypatch) -> None:
     )
 
     assert updated_session["draft"]["metadata"]["title"] == "Regenerated Title"
+    assert updated_session["draft"]["tables"][0]["summary"] == "Regenerated table summary for review."
     assert mutation_summary["action_type"] == "full_regenerate"
     assert len(updated_session["version_history"]) == 2
 
@@ -361,7 +471,14 @@ def test_review_workbench_service_restore_version(monkeypatch) -> None:
     from seo_content_engine.services import review_workbench_service as module
 
     initial_draft = DummyDraftGenerationService.generate(
-        normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        normalized={
+            "entity": {
+                "entity_name": "Andheri West",
+                "city_name": "Mumbai",
+                "page_type": "resale_locality",
+                "listing_type": "resale",
+            }
+        },
         keyword_intelligence={"version": "v1.1"},
     )
     modified_draft = deepcopy(initial_draft)
@@ -370,7 +487,14 @@ def test_review_workbench_service_restore_version(monkeypatch) -> None:
     base_session = {
         "session_id": "review-test-123",
         "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
-        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        "normalized": {
+            "entity": {
+                "entity_name": "Andheri West",
+                "city_name": "Mumbai",
+                "page_type": "resale_locality",
+                "listing_type": "resale",
+            }
+        },
         "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
         "draft": modified_draft,
         "validation_report": {},

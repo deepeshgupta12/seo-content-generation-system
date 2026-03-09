@@ -23,6 +23,7 @@ class DummyReviewWorkbenchService:
                 "entity_name": "Andheri West",
                 "city_name": "Mumbai",
                 "page_type": "resale_locality",
+                "listing_type": "resale",
             },
             "source_preview": {"listing_summary": {"sale_count": 2039}},
             "keyword_preview": {"primary_keyword": {"keyword": "flats for sale in andheri west mumbai"}},
@@ -36,7 +37,24 @@ class DummyReviewWorkbenchService:
                     {
                         "id": "hero_intro",
                         "title": "Hero Intro",
-                        "body": "Initial body",
+                        "body": "Initial body with grounded resale context.",
+                    }
+                ],
+                "tables": [
+                    {
+                        "id": "price_trend_table",
+                        "title": "Price Trend Snapshot",
+                        "columns": ["quarterName", "locationRate"],
+                        "rows": [{"quarterName": "Dec 2025", "locationRate": "₹40,238"}],
+                        "summary": "Price Trend Snapshot presents structured price inputs for draft review.",
+                    }
+                ],
+                "faqs": [
+                    {
+                        "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
+                        "answer": "The asking price signal is ₹40,238 based on the grounded inputs.",
+                        "validation_passed": True,
+                        "validation_issues": [],
                     }
                 ],
                 "metadata": {
@@ -45,6 +63,7 @@ class DummyReviewWorkbenchService:
                     "h1": "Initial H1",
                     "intro_snippet": "Initial intro",
                 },
+                "publish_ready": True,
             },
             "validation_report": {"passed": True},
             "quality_report": {"approval_status": "pass", "overall_quality_score": 96},
@@ -61,6 +80,7 @@ class DummyReviewWorkbenchService:
                 "entity_name": "Andheri West",
                 "city_name": "Mumbai",
                 "page_type": "resale_locality",
+                "listing_type": "resale",
             },
             "source_preview": {"listing_summary": {"sale_count": 2039}},
             "keyword_preview": {"primary_keyword": {"keyword": "flats for sale in andheri west mumbai"}},
@@ -70,6 +90,9 @@ class DummyReviewWorkbenchService:
             "draft": {
                 "entity": {"entity_name": "Andheri West"},
                 "quality_report": {"approval_status": "pass", "overall_quality_score": 96},
+                "tables": [],
+                "faqs": [],
+                "publish_ready": True,
             },
             "validation_report": {"passed": True},
             "quality_report": {"approval_status": "pass", "overall_quality_score": 96},
@@ -87,6 +110,21 @@ class DummyReviewWorkbenchService:
                 "draft": {
                     "metadata": {"title": "Regenerated Title"},
                     "sections": [],
+                    "tables": [
+                        {
+                            "id": "price_trend_table",
+                            "title": "Price Trend Snapshot",
+                            "columns": ["quarterName", "locationRate"],
+                            "rows": [{"quarterName": "Dec 2025", "locationRate": "₹40,238"}],
+                            "summary": "Regenerated table summary for structured price review.",
+                        }
+                    ],
+                    "faqs": [
+                        {
+                            "question": "What is the asking price signal for resale properties in Andheri West, Mumbai?",
+                            "answer": "The asking price signal remains ₹40,238 in the regenerated draft.",
+                        }
+                    ],
                     "publish_ready": True,
                 },
                 "quality_report": {"approval_status": "pass", "overall_quality_score": 97},
@@ -112,7 +150,7 @@ class DummyReviewWorkbenchService:
                         {
                             "id": section_id,
                             "title": "Hero Intro",
-                            "body": "Regenerated section body",
+                            "body": "Regenerated section body with more descriptive grounded resale context.",
                         }
                     ],
                     "publish_ready": True,
@@ -244,6 +282,8 @@ def test_create_review_session_route(monkeypatch) -> None:
     assert payload["success"] is True
     assert payload["review_session"]["session_id"] == "review-test-123"
     assert payload["review_session"]["entity"]["entity_name"] == "Andheri West"
+    assert len(payload["review_session"]["draft"]["tables"]) == 1
+    assert len(payload["review_session"]["draft"]["faqs"]) == 1
 
 
 def test_get_review_session_route(monkeypatch) -> None:
@@ -286,6 +326,7 @@ def test_regenerate_review_draft_route(monkeypatch) -> None:
     assert payload["success"] is True
     assert payload["mutation_summary"]["action_type"] == "full_regenerate"
     assert payload["review_session"]["latest_version_id"] == "v-regenerated"
+    assert payload["review_session"]["draft"]["tables"][0]["summary"] == "Regenerated table summary for structured price review."
 
 
 def test_regenerate_review_section_route(monkeypatch) -> None:

@@ -9,23 +9,27 @@ class MarkdownRenderer:
         columns = table["columns"]
         rows = table["rows"]
 
-        if not rows:
-            return f"### {table['title']}\n\nNo structured data available.\n"
-
-        header = "| " + " | ".join(columns) + " |"
-        separator = "| " + " | ".join(["---"] * len(columns)) + " |"
-
         lines = [f"### {table['title']}", ""]
+
         if table.get("summary"):
             lines.append(table["summary"])
             lines.append("")
+
+        if not rows:
+            lines.append("No structured data available.")
+            lines.append("")
+            return "\n".join(lines)
+
+        header = "| " + " | ".join(columns) + " |"
+        separator = "| " + " | ".join(["---"] * len(columns)) + " |"
 
         lines.extend([header, separator])
         for row in rows:
             values = [str(row.get(column, "—")) for column in columns]
             lines.append("| " + " | ".join(values) + " |")
 
-        return "\n".join(lines) + "\n"
+        lines.append("")
+        return "\n".join(lines)
 
     @staticmethod
     def render(draft: dict) -> str:
@@ -63,7 +67,7 @@ class MarkdownRenderer:
                 lines.append("**Warnings:**")
                 for warning in warnings:
                     lines.append(f"- {warning}")
-                lines.append("")
+            lines.append("")
 
         if draft.get("needs_review"):
             lines.extend(

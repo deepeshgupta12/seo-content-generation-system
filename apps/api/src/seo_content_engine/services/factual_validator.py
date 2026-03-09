@@ -74,7 +74,7 @@ class FactualValidator:
     MIN_SIGNIFICANT_SENTENCE_WORDS = 7
     MIN_SIMILARITY_WORDS = 18
     SECTION_SIMILARITY_THRESHOLD = 0.86
-    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.30
+    LOW_DISTINCT_TERM_RATIO_THRESHOLD = 0.45
     REPEATED_OPENING_WORDS = 8
 
     PASS_SCORE_THRESHOLD = 85
@@ -390,7 +390,7 @@ class FactualValidator:
             warnings.append("high_cross_section_similarity_detected")
         if repeated_openings:
             warnings.append("repeated_section_opening_pattern_detected")
-        if len(sections) >= 4 and words and distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
+        if words and distinct_term_ratio < FactualValidator.LOW_DISTINCT_TERM_RATIO_THRESHOLD:
             warnings.append("low_distinct_term_ratio_detected")
 
         return {
