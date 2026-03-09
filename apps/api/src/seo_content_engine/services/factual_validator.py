@@ -82,6 +82,31 @@ class FactualValidator:
     FAIL_SCORE_THRESHOLD = 50
 
     @staticmethod
+    def _float_string_variants(value: float) -> set[str]:
+        variants: set[str] = set()
+
+        # Python natural string form, e.g. 8.4 / 16.47
+        variants.add(str(value))
+
+        # Fixed precision form used elsewhere in the system
+        fixed_2 = f"{value:.2f}"
+        variants.add(fixed_2)
+
+        # Trimmed precision form, e.g. 8.40 -> 8.4
+        trimmed = fixed_2.rstrip("0").rstrip(".")
+        if trimmed:
+            variants.add(trimmed)
+
+        # Integer-like values should also allow integer form
+        if float(value).is_integer():
+            variants.add(str(int(value)))
+        else:
+            # Rounded integer is still useful because some safe-body builders may round
+            variants.add(str(round(value)))
+
+        return variants
+
+    @staticmethod
     def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
         allowed: set[str] = set()
 
@@ -102,8 +127,7 @@ class FactualValidator:
                 allowed.add(str(value))
                 return
             if isinstance(value, float):
-                allowed.add(f"{value:.2f}")
-                allowed.add(str(round(value)))
+                allowed.update(FactualValidator._float_string_variants(value))
                 return
             if isinstance(value, str):
                 for match in re.findall(r"-?\d{4}(?:\.\d+)?", value):

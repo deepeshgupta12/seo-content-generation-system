@@ -205,3 +205,79 @@ def test_draft_generation_service() -> None:
     assert "warning_taxonomy" in draft["quality_report"]
     assert "page_uniqueness_check" in draft["quality_report"]
     assert "https://www.squareyards.com/" in draft["markdown_draft"]
+
+def test_micromarket_property_type_safe_body_allows_single_decimal_grounded_value() -> None:
+    normalized = {
+        "entity": {
+            "entity_type": "micromarket",
+            "page_type": "resale_micromarket",
+            "listing_type": "resale",
+            "entity_name": "Chandigarh Sectors",
+            "city_name": "Chandigarh",
+            "micromarket_name": "Chandigarh Sectors",
+        },
+        "listing_summary": {
+            "sale_count": 10,
+            "total_listings": 10,
+            "total_projects": 2,
+            "sale_available": 10,
+        },
+        "pricing_summary": {
+            "asking_price": 25000,
+            "registration_rate": 20000,
+            "price_trend": [{"quarterName": "Dec 2025", "micromarketRate": 25000}],
+            "location_rates": [{"name": "Sector 51", "avgRate": 18543, "changePercentage": 16.47}],
+            "property_types": [{"propertyType": "villa", "avgPrice": 36631, "changePercent": 8.4}],
+            "property_status": [{"status": "Ready To Move", "units": 1, "avgPrice": 20047}],
+        },
+        "distributions": {
+            "sale_unit_type_distribution": [{"key": "3 BHK", "doc_count": 4}],
+            "sale_property_type_distribution": [{"key": "Villa", "doc_count": 2}],
+        },
+        "nearby_localities": [],
+        "links": {
+            "sale_unit_type_urls": [],
+            "sale_property_type_urls": [],
+            "sale_quick_links": [],
+        },
+        "top_projects": {"byTransactions": {"projects": []}},
+        "review_summary": {"overview": {}},
+        "ai_summary": {},
+        "insight_rates": {},
+        "demand_supply": {},
+        "listing_ranges": {},
+        "cms_faq": [],
+        "featured_projects": [],
+        "projects_by_status": {},
+        "raw_source_meta": {
+            "main_message": "micromarket Found",
+            "rates_message": "Property Rates Data Found",
+            "last_modified_date": "2026-03-05",
+        },
+    }
+
+    keyword_intelligence = {
+        "version": "v1.1",
+        "keyword_clusters": {
+            "primary_keyword": {"keyword": "resale properties in chandigarh sectors chandigarh", "score": 90},
+            "secondary_keywords": [{"keyword": "apartments for sale in chandigarh sectors chandigarh"}],
+            "bhk_keywords": [],
+            "price_keywords": [{"keyword": "property prices in chandigarh sectors chandigarh"}],
+            "ready_to_move_keywords": [],
+            "faq_keyword_candidates": [],
+            "metadata_keywords": ["resale properties in chandigarh sectors chandigarh"],
+            "exact_match_keywords": [{"keyword": "resale properties in chandigarh sectors chandigarh"}],
+            "loose_match_keywords": [],
+        },
+    }
+
+    content_plan = DraftGenerationService.generate(
+        normalized=normalized,
+        keyword_intelligence=keyword_intelligence,
+        openai_client=DummyOpenAIClient(),
+    )["content_plan"]
+
+    safe_body = DraftGenerationService._build_property_type_safe_body(content_plan)
+
+    assert "8.4" in safe_body
+    assert "16.47" in safe_body
