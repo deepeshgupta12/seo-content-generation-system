@@ -29,6 +29,7 @@ class MarkdownRenderer:
         tables = draft["tables"]
         faqs = draft["faqs"]
         internal_links = draft["internal_links"]
+        quality_report = draft.get("quality_report", {})
 
         lines: list[str] = [
             f"# {metadata['h1']}",
@@ -40,6 +41,24 @@ class MarkdownRenderer:
             metadata["intro_snippet"],
             "",
         ]
+
+        if quality_report:
+            approval_status = quality_report.get("approval_status")
+            score = quality_report.get("overall_score")
+            warnings = quality_report.get("warnings", [])
+
+            lines.append("## Quality Summary")
+            lines.append("")
+            if approval_status is not None:
+                lines.append(f"**Approval Status:** {approval_status}")
+            if score is not None:
+                lines.append(f"**Overall Score:** {score}")
+            if warnings:
+                lines.append("")
+                lines.append("**Warnings:**")
+                for warning in warnings:
+                    lines.append(f"- {warning}")
+            lines.append("")
 
         if draft.get("needs_review"):
             lines.extend(

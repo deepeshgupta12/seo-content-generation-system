@@ -150,7 +150,13 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
             "sale_property_type_distribution": [{"key": "Apartment", "doc_count": 1658}],
         },
         "nearby_localities": [
-            {"name": "Sv Patel Nagar", "distance_km": 0.587, "sale_count": 38, "sale_avg_price_per_sqft": 29775.32, "url": "sv-patel-nagar-mumbai"},
+            {
+                "name": "Sv Patel Nagar",
+                "distance_km": 0.587,
+                "sale_count": 38,
+                "sale_avg_price_per_sqft": 29775.32,
+                "url": "sv-patel-nagar-mumbai",
+            }
         ],
         "links": {
             "sale_unit_type_urls": [[{"unitType": "2 BHK", "url": "sale/2-bhk-for-sale-in-andheri-west-mumbai"}]],
@@ -205,6 +211,7 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
     assert draft["repair_passes_used"] >= 1
     assert "pre_block_draft" in draft
     assert "debug_summary" in draft
+    assert "quality_report" in draft
 
     price_section = next(section for section in draft["sections"] if section["id"] == "price_trends_and_rates")
     review_section = next(section for section in draft["sections"] if section["id"] == "review_and_rating_signals")

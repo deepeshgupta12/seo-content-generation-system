@@ -119,7 +119,13 @@ def test_draft_generation_service() -> None:
             "sale_property_type_distribution": [{"key": "Apartment", "doc_count": 1658}],
         },
         "nearby_localities": [
-            {"name": "Sv Patel Nagar", "distance_km": 0.587, "sale_count": 38, "sale_avg_price_per_sqft": 29775.32, "url": "sv-patel-nagar-mumbai"},
+            {
+                "name": "Sv Patel Nagar",
+                "distance_km": 0.587,
+                "sale_count": 38,
+                "sale_avg_price_per_sqft": 29775.32,
+                "url": "sv-patel-nagar-mumbai",
+            }
         ],
         "links": {
             "sale_unit_type_urls": [[{"unitType": "2 BHK", "url": "sale/2-bhk-for-sale-in-andheri-west-mumbai"}]],
@@ -140,7 +146,11 @@ def test_draft_generation_service() -> None:
         "cms_faq": [{"question": "Sample question", "answer": "Sample answer"}],
         "featured_projects": [{"name": "Project A", "url": "projects-in-andheri-west-mumbai/project-a"}],
         "projects_by_status": {},
-        "raw_source_meta": {"main_message": "locality Found", "rates_message": "Property Rates Data Found", "last_modified_date": "2026-03-02"},
+        "raw_source_meta": {
+            "main_message": "locality Found",
+            "rates_message": "Property Rates Data Found",
+            "last_modified_date": "2026-03-02",
+        },
     }
 
     keyword_intelligence = {

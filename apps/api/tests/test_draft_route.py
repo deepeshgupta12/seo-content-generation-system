@@ -41,22 +41,25 @@ class DummyKeywordService:
 class DummyDraftService:
     @staticmethod
     def generate(normalized, keyword_intelligence):
+        entity_name = normalized["entity"]["entity_name"]
+        city_name = normalized["entity"]["city_name"]
+
         return {
-            "version": "v2.3",
+            "version": "v2.4",
             "page_type": normalized["entity"]["page_type"],
             "listing_type": normalized["entity"]["listing_type"],
             "entity": normalized["entity"],
             "metadata": {
-                "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-                "meta_description": "Explore resale properties in Andheri West, Mumbai on Square Yards.",
-                "h1": "Resale Properties in Andheri West, Mumbai",
-                "intro_snippet": "Browse resale listings in Andheri West, Mumbai.",
+                "title": f"Resale Properties in {entity_name}, {city_name} | Square Yards",
+                "meta_description": f"Explore resale properties in {entity_name}, {city_name} on Square Yards.",
+                "h1": f"Resale Properties in {entity_name}, {city_name}",
+                "intro_snippet": f"Browse resale listings in {entity_name}, {city_name}.",
             },
             "sections": [
                 {
                     "id": "hero_intro",
-                    "title": "Resale Property Overview in Andheri West, Mumbai",
-                    "body": "Andheri West has a visible resale supply on Square Yards.",
+                    "title": f"Resale Property Overview in {entity_name}, {city_name}",
+                    "body": f"{entity_name} has a visible resale supply on Square Yards.",
                 }
             ],
             "tables": [],
@@ -65,11 +68,12 @@ class DummyDraftService:
             "content_plan": {},
             "keyword_intelligence_version": "v1.1",
             "validation_report": {"passed": True},
+            "quality_report": {"approval_status": "pass", "overall_score": 1.0, "warnings": []},
             "validation_history": [],
             "pre_block_draft": {},
-            "debug_summary": {"blocked": False, "blocking_reasons": []},
+            "debug_summary": {"blocked": False, "blocking_reasons": [], "approval_status": "pass"},
             "publish_ready": True,
-            "markdown_draft": "# Resale Properties in Andheri West, Mumbai\n",
+            "markdown_draft": f"# Resale Properties in {entity_name}, {city_name}\n",
         }
 
 
@@ -107,4 +111,5 @@ def test_draft_route(monkeypatch) -> None:
     assert payload["success"] is True
     assert payload["draft"]["entity"]["entity_name"] == "Andheri West"
     assert payload["draft"]["metadata"]["h1"] == "Resale Properties in Andheri West, Mumbai"
+    assert payload["draft"]["quality_report"]["approval_status"] == "pass"
     assert payload["artifact_paths"] is None

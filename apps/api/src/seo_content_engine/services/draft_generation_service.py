@@ -56,11 +56,18 @@ class DraftGenerationService:
                     if "url" in updated:
                         updated["url"] = OutputFormatter.resolve_url(updated.get("url"))
                     resolved_group.append(updated)
+
             resolved[group_name] = resolved_group
+
         return resolved
 
     @staticmethod
-    def _repair_metadata(content_plan: dict, metadata: dict, validation_report: dict, client: OpenAIClient) -> dict:
+    def _repair_metadata(
+        content_plan: dict,
+        metadata: dict,
+        validation_report: dict,
+        client: OpenAIClient,
+    ) -> dict:
         issues_by_field = {
             field_name: report["issues"]
             for field_name, report in validation_report["metadata_checks"].items()
@@ -74,6 +81,7 @@ class DraftGenerationService:
             for field_name, report in validation_report["metadata_checks"].items()
             if report["issues"]
         }
+
         system_prompt, user_prompt = PromptBuilder.repair_metadata_prompt(
             content_plan,
             metadata,
@@ -545,6 +553,7 @@ class DraftGenerationService:
         sanitized["validation_history"] = validation_history
         sanitized["pre_block_draft"] = pre_block_draft
         sanitized["debug_summary"] = final_debug_summary
-        sanitized["publish_ready"] = final_debug_summary.get("approval_status") != "fail"
+        sanitized["quality_report"] = sanitized.get("quality_report", final_debug_summary)
+        sanitized["publish_ready"] = sanitized["quality_report"].get("approval_status") != "fail"
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
         return sanitized
