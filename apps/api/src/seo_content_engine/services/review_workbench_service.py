@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -12,6 +13,10 @@ from seo_content_engine.services.source_loader import SourceLoader
 
 
 class ReviewWorkbenchService:
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(UTC).isoformat()
+
     @staticmethod
     def _build_source_preview(normalized: dict) -> dict:
         entity = normalized.get("entity", {})
@@ -76,12 +81,17 @@ class ReviewWorkbenchService:
         return section_review_items
 
     @staticmethod
-    def _build_version_entry(draft: dict) -> dict:
+    def _build_version_entry(
+        draft: dict,
+        *,
+        version_number: int,
+        action_type: str,
+    ) -> dict:
         return {
             "version_id": f"v-{uuid4().hex[:12]}",
-            "version_number": 1,
-            "action_type": "initial_generate",
-            "created_at": datetime.now(UTC).isoformat(),
+            "version_number": version_number,
+            "action_type": action_type,
+            "created_at": ReviewWorkbenchService._now_iso(),
             "publish_ready": draft.get("publish_ready", False),
             "approval_status": draft.get("quality_report", {}).get("approval_status"),
             "overall_quality_score": draft.get("quality_report", {}).get("overall_quality_score"),
@@ -91,8 +101,52 @@ class ReviewWorkbenchService:
                 "warning_reasons": draft.get("quality_report", {}).get("warning_reasons", []),
                 "blocking_reasons": draft.get("debug_summary", {}).get("blocking_reasons", []),
             },
-            "draft_snapshot": draft,
+            "draft_snapshot": deepcopy(draft),
         }
+
+    @staticmethod
+    def _next_version_number(session: dict) -> int:
+        version_history = session.get("version_history", [])
+        if not version_history:
+            return 1
+        return max(item.get("version_number", 0) for item in version_history) + 1
+
+    @staticmethod
+    def _mutation_summary(session: dict, *, action_type: str, extra: dict | None = None) -> dict:
+        payload = {
+            "action_type": action_type,
+            "session_id": session["session_id"],
+            "latest_version_id": session.get("latest_version_id"),
+            "approval_status": session.get("quality_report", {}).get("approval_status"),
+            "overall_quality_score": session.get("quality_report", {}).get("overall_quality_score"),
+            "publish_ready": session.get("draft", {}).get("publish_ready", False),
+        }
+        if extra:
+            payload.update(extra)
+        return payload
+
+    @staticmethod
+    def _apply_draft_to_session(session: dict, draft: dict, *, action_type: str) -> dict:
+        updated = deepcopy(session)
+        updated["draft"] = draft
+        updated["validation_report"] = draft.get("validation_report", {})
+        updated["quality_report"] = draft.get("quality_report", {})
+        updated["section_review"] = ReviewWorkbenchService._build_section_review_payload(draft)
+        updated["updated_at"] = ReviewWorkbenchService._now_iso()
+
+        version_entry = ReviewWorkbenchService._build_version_entry(
+            draft,
+            version_number=ReviewWorkbenchService._next_version_number(updated),
+            action_type=action_type,
+        )
+        updated.setdefault("version_history", []).append(version_entry)
+        updated["latest_version_id"] = version_entry["version_id"]
+        return updated
+
+    @staticmethod
+    def _persist_if_needed(session: dict, persist_session: bool) -> None:
+        if persist_session:
+            ReviewSessionStore.save_session(session)
 
     @staticmethod
     def build_session(
@@ -132,12 +186,16 @@ class ReviewWorkbenchService:
         )
 
         session_id = f"review-{uuid4().hex}"
-        version_entry = ReviewWorkbenchService._build_version_entry(draft)
+        version_entry = ReviewWorkbenchService._build_version_entry(
+            draft,
+            version_number=1,
+            action_type="initial_generate",
+        )
 
         review_session = {
             "session_id": session_id,
-            "created_at": datetime.now(UTC).isoformat(),
-            "updated_at": datetime.now(UTC).isoformat(),
+            "created_at": ReviewWorkbenchService._now_iso(),
+            "updated_at": ReviewWorkbenchService._now_iso(),
             "inputs": {
                 "main_datacenter_json_path": main_datacenter_json_path,
                 "property_rates_json_path": property_rates_json_path,
@@ -169,3 +227,181 @@ class ReviewWorkbenchService:
     @staticmethod
     def get_session(session_id: str) -> dict:
         return ReviewSessionStore.load_session(session_id)
+
+    @staticmethod
+    def regenerate_draft(
+        *,
+        session_id: str,
+        persist_session: bool = True,
+        action_label: str = "full_regenerate",
+    ) -> tuple[dict, dict]:
+        session = ReviewSessionStore.load_session(session_id)
+        regenerated_draft = DraftGenerationService.generate(
+            normalized=session["normalized"],
+            keyword_intelligence=session["keyword_intelligence"],
+        )
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            regenerated_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+        )
+
+    @staticmethod
+    def regenerate_section(
+        *,
+        session_id: str,
+        section_id: str,
+        persist_session: bool = True,
+        action_label: str = "section_regenerate",
+    ) -> tuple[dict, dict]:
+        session = ReviewSessionStore.load_session(session_id)
+        regenerated_draft = DraftGenerationService.generate(
+            normalized=session["normalized"],
+            keyword_intelligence=session["keyword_intelligence"],
+        )
+
+        existing_sections = {section.get("id"): section for section in session["draft"].get("sections", [])}
+        regenerated_sections = {section.get("id"): section for section in regenerated_draft.get("sections", [])}
+
+        if section_id not in existing_sections:
+            raise ValueError(f"Section not found in current draft: {section_id}")
+        if section_id not in regenerated_sections:
+            raise ValueError(f"Section not found in regenerated draft: {section_id}")
+
+        merged_draft = deepcopy(session["draft"])
+        merged_sections = []
+        for section in merged_draft.get("sections", []):
+            if section.get("id") == section_id:
+                merged_sections.append(regenerated_sections[section_id])
+            else:
+                merged_sections.append(section)
+        merged_draft["sections"] = merged_sections
+
+        if "validation_report" in regenerated_draft:
+            merged_draft["validation_report"] = regenerated_draft["validation_report"]
+        if "quality_report" in regenerated_draft:
+            merged_draft["quality_report"] = regenerated_draft["quality_report"]
+        if "debug_summary" in regenerated_draft:
+            merged_draft["debug_summary"] = regenerated_draft["debug_summary"]
+        if "publish_ready" in regenerated_draft:
+            merged_draft["publish_ready"] = regenerated_draft["publish_ready"]
+        if "needs_review" in regenerated_draft:
+            merged_draft["needs_review"] = regenerated_draft["needs_review"]
+        if "markdown_draft" in regenerated_draft:
+            merged_draft["markdown_draft"] = regenerated_draft["markdown_draft"]
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            merged_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={"section_id": section_id},
+        )
+
+    @staticmethod
+    def update_section_body(
+        *,
+        session_id: str,
+        section_id: str,
+        body: str,
+        persist_session: bool = True,
+        action_label: str = "section_edit",
+    ) -> tuple[dict, dict]:
+        session = ReviewSessionStore.load_session(session_id)
+        updated_draft = deepcopy(session["draft"])
+
+        found = False
+        for section in updated_draft.get("sections", []):
+            if section.get("id") == section_id:
+                section["body"] = body
+                found = True
+                break
+
+        if not found:
+            raise ValueError(f"Section not found: {section_id}")
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            updated_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={"section_id": section_id},
+        )
+
+    @staticmethod
+    def update_metadata(
+        *,
+        session_id: str,
+        title: str,
+        meta_description: str,
+        h1: str,
+        intro_snippet: str,
+        persist_session: bool = True,
+        action_label: str = "metadata_edit",
+    ) -> tuple[dict, dict]:
+        session = ReviewSessionStore.load_session(session_id)
+        updated_draft = deepcopy(session["draft"])
+        updated_draft["metadata"] = {
+            **updated_draft.get("metadata", {}),
+            "title": title,
+            "meta_description": meta_description,
+            "h1": h1,
+            "intro_snippet": intro_snippet,
+        }
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            updated_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+        )
+
+    @staticmethod
+    def restore_version(
+        *,
+        session_id: str,
+        version_id: str,
+        persist_session: bool = True,
+        action_label: str = "restore_version",
+    ) -> tuple[dict, dict]:
+        session = ReviewSessionStore.load_session(session_id)
+        version_history = session.get("version_history", [])
+
+        matched_version = None
+        for version in version_history:
+            if version.get("version_id") == version_id:
+                matched_version = version
+                break
+
+        if matched_version is None:
+            raise ValueError(f"Version not found: {version_id}")
+
+        restored_draft = deepcopy(matched_version["draft_snapshot"])
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            restored_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={"restored_from_version_id": version_id},
+        )

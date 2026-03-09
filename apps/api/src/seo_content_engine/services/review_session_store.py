@@ -35,3 +35,10 @@ class ReviewSessionStore:
 
         with input_path.open("r", encoding="utf-8") as file:
             return json.load(file)
+
+    @staticmethod
+    def update_session(session_id: str, session_payload: dict) -> str:
+        if session_payload.get("session_id") != session_id:
+            raise ValueError("Session payload session_id does not match requested session_id.")
+
+        return ReviewSessionStore.save_session(session_payload)

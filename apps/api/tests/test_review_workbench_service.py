@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from seo_content_engine.domain.enums import ListingType
 from seo_content_engine.services.review_workbench_service import ReviewWorkbenchService
 
@@ -97,7 +99,11 @@ class DummyDraftGenerationService:
                     {
                         "id": "hero_intro",
                         "title": "Resale Property Overview in Andheri West, Mumbai",
-                        "validation": {"passed": True, "issues": [], "sanitized_text": "Andheri West has 2,039 resale listings visible on Square Yards."},
+                        "validation": {
+                            "passed": True,
+                            "issues": [],
+                            "sanitized_text": "Andheri West has 2,039 resale listings visible on Square Yards.",
+                        },
                     }
                 ],
                 "faq_checks": [],
@@ -204,3 +210,200 @@ def test_review_workbench_service_build_session(monkeypatch) -> None:
     assert session["keyword_preview"]["primary_keyword"]["keyword"] == "flats for sale in andheri west mumbai"
     assert len(session["section_review"]) == 1
     assert len(session["version_history"]) == 1
+
+
+def test_review_workbench_service_update_section_body(monkeypatch) -> None:
+    from seo_content_engine.services import review_workbench_service as module
+
+    base_session = {
+        "session_id": "review-test-123",
+        "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
+        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai"}},
+        "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
+        "draft": DummyDraftGenerationService.generate(
+            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            keyword_intelligence={"version": "v1.1"},
+        ),
+        "validation_report": {},
+        "quality_report": {},
+        "section_review": [],
+        "version_history": [
+            {
+                "version_id": "v-initial",
+                "version_number": 1,
+                "action_type": "initial_generate",
+                "draft_snapshot": DummyDraftGenerationService.generate(
+                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    keyword_intelligence={"version": "v1.1"},
+                ),
+            }
+        ],
+        "latest_version_id": "v-initial",
+    }
+
+    monkeypatch.setattr(module.ReviewSessionStore, "load_session", lambda session_id: deepcopy(base_session))
+    monkeypatch.setattr(module.ReviewSessionStore, "save_session", lambda session_payload: "/tmp/review-session.json")
+
+    updated_session, mutation_summary = ReviewWorkbenchService.update_section_body(
+        session_id="review-test-123",
+        section_id="hero_intro",
+        body="Updated grounded section body.",
+        persist_session=True,
+        action_label="section_edit",
+    )
+
+    assert updated_session["draft"]["sections"][0]["body"] == "Updated grounded section body."
+    assert mutation_summary["action_type"] == "section_edit"
+    assert mutation_summary["section_id"] == "hero_intro"
+    assert len(updated_session["version_history"]) == 2
+
+
+def test_review_workbench_service_update_metadata(monkeypatch) -> None:
+    from seo_content_engine.services import review_workbench_service as module
+
+    base_session = {
+        "session_id": "review-test-123",
+        "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
+        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai"}},
+        "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
+        "draft": DummyDraftGenerationService.generate(
+            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            keyword_intelligence={"version": "v1.1"},
+        ),
+        "validation_report": {},
+        "quality_report": {},
+        "section_review": [],
+        "version_history": [
+            {
+                "version_id": "v-initial",
+                "version_number": 1,
+                "action_type": "initial_generate",
+                "draft_snapshot": DummyDraftGenerationService.generate(
+                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    keyword_intelligence={"version": "v1.1"},
+                ),
+            }
+        ],
+        "latest_version_id": "v-initial",
+    }
+
+    monkeypatch.setattr(module.ReviewSessionStore, "load_session", lambda session_id: deepcopy(base_session))
+    monkeypatch.setattr(module.ReviewSessionStore, "save_session", lambda session_payload: "/tmp/review-session.json")
+
+    updated_session, mutation_summary = ReviewWorkbenchService.update_metadata(
+        session_id="review-test-123",
+        title="Updated Title",
+        meta_description="Updated Description",
+        h1="Updated H1",
+        intro_snippet="Updated intro snippet",
+        persist_session=True,
+        action_label="metadata_edit",
+    )
+
+    assert updated_session["draft"]["metadata"]["title"] == "Updated Title"
+    assert updated_session["draft"]["metadata"]["meta_description"] == "Updated Description"
+    assert mutation_summary["action_type"] == "metadata_edit"
+    assert len(updated_session["version_history"]) == 2
+
+
+def test_review_workbench_service_regenerate_draft(monkeypatch) -> None:
+    from seo_content_engine.services import review_workbench_service as module
+
+    base_session = {
+        "session_id": "review-test-123",
+        "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
+        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
+        "draft": DummyDraftGenerationService.generate(
+            normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+            keyword_intelligence={"version": "v1.1"},
+        ),
+        "validation_report": {},
+        "quality_report": {},
+        "section_review": [],
+        "version_history": [
+            {
+                "version_id": "v-initial",
+                "version_number": 1,
+                "action_type": "initial_generate",
+                "draft_snapshot": DummyDraftGenerationService.generate(
+                    normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+                    keyword_intelligence={"version": "v1.1"},
+                ),
+            }
+        ],
+        "latest_version_id": "v-initial",
+    }
+
+    class RegeneratedDraftService(DummyDraftGenerationService):
+        @staticmethod
+        def generate(normalized, keyword_intelligence):
+            draft = DummyDraftGenerationService.generate(normalized, keyword_intelligence)
+            draft["metadata"]["title"] = "Regenerated Title"
+            return draft
+
+    monkeypatch.setattr(module.ReviewSessionStore, "load_session", lambda session_id: deepcopy(base_session))
+    monkeypatch.setattr(module.ReviewSessionStore, "save_session", lambda session_payload: "/tmp/review-session.json")
+    monkeypatch.setattr(module, "DraftGenerationService", RegeneratedDraftService)
+
+    updated_session, mutation_summary = ReviewWorkbenchService.regenerate_draft(
+        session_id="review-test-123",
+        persist_session=True,
+        action_label="full_regenerate",
+    )
+
+    assert updated_session["draft"]["metadata"]["title"] == "Regenerated Title"
+    assert mutation_summary["action_type"] == "full_regenerate"
+    assert len(updated_session["version_history"]) == 2
+
+
+def test_review_workbench_service_restore_version(monkeypatch) -> None:
+    from seo_content_engine.services import review_workbench_service as module
+
+    initial_draft = DummyDraftGenerationService.generate(
+        normalized={"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        keyword_intelligence={"version": "v1.1"},
+    )
+    modified_draft = deepcopy(initial_draft)
+    modified_draft["metadata"]["title"] = "Modified Title"
+
+    base_session = {
+        "session_id": "review-test-123",
+        "entity": {"entity_name": "Andheri West", "city_name": "Mumbai"},
+        "normalized": {"entity": {"entity_name": "Andheri West", "city_name": "Mumbai", "page_type": "resale_locality", "listing_type": "resale"}},
+        "keyword_intelligence": {"version": "v1.1", "keyword_clusters": {}},
+        "draft": modified_draft,
+        "validation_report": {},
+        "quality_report": {},
+        "section_review": [],
+        "version_history": [
+            {
+                "version_id": "v-initial",
+                "version_number": 1,
+                "action_type": "initial_generate",
+                "draft_snapshot": initial_draft,
+            },
+            {
+                "version_id": "v-second",
+                "version_number": 2,
+                "action_type": "metadata_edit",
+                "draft_snapshot": modified_draft,
+            },
+        ],
+        "latest_version_id": "v-second",
+    }
+
+    monkeypatch.setattr(module.ReviewSessionStore, "load_session", lambda session_id: deepcopy(base_session))
+    monkeypatch.setattr(module.ReviewSessionStore, "save_session", lambda session_payload: "/tmp/review-session.json")
+
+    updated_session, mutation_summary = ReviewWorkbenchService.restore_version(
+        session_id="review-test-123",
+        version_id="v-initial",
+        persist_session=True,
+        action_label="restore_version",
+    )
+
+    assert updated_session["draft"]["metadata"]["title"] == "Resale Properties in Andheri West, Mumbai | Square Yards"
+    assert mutation_summary["action_type"] == "restore_version"
+    assert mutation_summary["restored_from_version_id"] == "v-initial"
+    assert len(updated_session["version_history"]) == 3

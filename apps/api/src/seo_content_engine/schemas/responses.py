@@ -41,3 +41,10 @@ class ReviewSessionResponse(BaseModel):
     success: bool
     message: str
     review_session: dict[str, Any]
+
+
+class ReviewMutationResponse(BaseModel):
+    success: bool
+    message: str
+    review_session: dict[str, Any]
+    mutation_summary: dict[str, Any]
