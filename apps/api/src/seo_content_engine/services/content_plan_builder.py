@@ -28,16 +28,34 @@ class ContentPlanBuilder:
         return deduped
 
     @staticmethod
+    def _entity_label_parts(entity: dict) -> tuple[str, str]:
+        entity_name = (entity.get("entity_name") or "").strip()
+        city_name = (entity.get("city_name") or entity_name).strip()
+        if not entity_name:
+            entity_name = city_name
+        if not city_name:
+            city_name = entity_name
+        return entity_name, city_name
+
+    @staticmethod
+    def _display_location(entity: dict) -> str:
+        entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
+        if entity_name.lower() == city_name.lower():
+            return entity_name
+        return f"{entity_name}, {city_name}"
+
+    @staticmethod
     def _metadata_whitelist_filter(keywords: list[str], entity: dict) -> list[str]:
-        entity_name = entity["entity_name"].lower()
-        city_name = entity["city_name"].lower()
+        entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
+        entity_name = entity_name.lower()
+        city_name = city_name.lower()
 
         allowed: list[str] = []
         for keyword in keywords:
             lowered = keyword.lower()
-            if entity_name not in lowered:
+            if entity_name and entity_name not in lowered:
                 continue
-            if city_name not in lowered and f"{entity_name} {city_name}" not in lowered:
+            if city_name and city_name not in lowered and f"{entity_name} {city_name}" not in lowered:
                 continue
             if "rent" in lowered or "rental" in lowered or "lease" in lowered:
                 continue
@@ -104,25 +122,25 @@ class ContentPlanBuilder:
 
     @staticmethod
     def _build_metadata_plan(entity: dict, keyword_clusters: dict, raw_source_meta: dict) -> dict:
-        entity_name = entity["entity_name"]
-        city_name = entity["city_name"]
+        entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
+        location_label = ContentPlanBuilder._display_location(entity)
 
         primary_keyword = keyword_clusters.get("primary_keyword")
         primary_keyword_text = (
-            primary_keyword["keyword"] if primary_keyword else f"resale properties in {entity_name} {city_name}"
+            primary_keyword["keyword"] if primary_keyword else f"resale properties in {location_label}"
         )
 
         metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity)
         title_candidates = [
-            f"Resale Properties in {entity_name}, {city_name} | Square Yards",
-            f"{entity_name}, {city_name} Resale Properties for Sale | Square Yards",
-            f"Flats for Sale in {entity_name}, {city_name} | Square Yards",
+            f"Resale Properties in {location_label} | Square Yards",
+            f"{location_label} Resale Properties for Sale | Square Yards",
+            f"Flats for Sale in {location_label} | Square Yards",
         ]
 
         description_candidates = [
-            f"Explore resale properties in {entity_name}, {city_name} with prices, BHK options, nearby localities, and current market signals on Square Yards.",
-            f"Find flats and resale properties in {entity_name}, {city_name} with price trends, inventory mix, and nearby area insights on Square Yards.",
-            f"Browse resale listings in {entity_name}, {city_name} with rates, property mix, and key buying insights on Square Yards.",
+            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current market signals on Square Yards.",
+            f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
+            f"Browse resale listings in {location_label} with rates, property mix, and key buying insights on Square Yards.",
         ]
 
         canonical_pricing = {
@@ -134,7 +152,7 @@ class ContentPlanBuilder:
         return {
             "primary_keyword": primary_keyword_text,
             "supporting_keywords": metadata_keywords,
-            "recommended_h1": f"Resale Properties in {entity_name}, {city_name}",
+            "recommended_h1": f"Resale Properties in {location_label}",
             "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
@@ -150,7 +168,7 @@ class ContentPlanBuilder:
                 "title": "Price Trend Snapshot",
                 "source_data_path": "pricing_summary.price_trend",
                 "render_type": "deterministic",
-                "columns": ["quarterName", "locationRate", "micromarketRate"],
+                "columns": ["quarterName", "locationRate", "micromarketRate", "cityRate"],
             },
             {
                 "id": "sale_unit_type_distribution_table",
@@ -336,38 +354,37 @@ class ContentPlanBuilder:
 
     @staticmethod
     def _build_faq_plan(entity: dict, keyword_clusters: dict, normalized: dict) -> dict:
-        entity_name = entity["entity_name"]
-        city_name = entity["city_name"]
-
+        location_label = ContentPlanBuilder._display_location(entity)
         faq_keywords = keyword_clusters.get("faq_keyword_candidates", [])
+
         faq_intents = [
             {
                 "id": "pricing",
-                "question_template": f"What is the asking price signal for resale properties in {entity_name}, {city_name}?",
+                "question_template": f"What is the asking price signal for resale properties in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 3),
                 "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
             },
             {
                 "id": "inventory",
-                "question_template": f"How many resale properties are available in {entity_name}, {city_name}?",
+                "question_template": f"How many resale properties are available in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 3),
                 "data_dependencies": ["listing_summary.sale_count", "listing_summary.total_listings"],
             },
             {
                 "id": "bhk_availability",
-                "question_template": f"Which BHK options are commonly available in {entity_name}, {city_name}?",
+                "question_template": f"Which BHK options are commonly available in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 4),
                 "data_dependencies": ["distributions.sale_unit_type_distribution"],
             },
             {
                 "id": "ready_to_move",
-                "question_template": f"Are ready-to-move resale properties available in {entity_name}, {city_name}?",
+                "question_template": f"Are ready-to-move resale properties available in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("ready_to_move_keywords", []), 3),
                 "data_dependencies": ["pricing_summary.property_status"],
             },
             {
                 "id": "nearby_localities",
-                "question_template": f"Which nearby localities can buyers also consider around {entity_name}, {city_name}?",
+                "question_template": f"Which nearby localities can buyers also consider around {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                 "data_dependencies": ["nearby_localities"],
             },
@@ -378,7 +395,7 @@ class ContentPlanBuilder:
             faq_intents.append(
                 {
                     "id": "rera_buyer_protection",
-                    "question_template": f"What RERA or buyer-protection details are available for {entity_name}, {city_name} on this page?",
+                    "question_template": f"What RERA or buyer-protection details are available for {location_label} on this page?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 3),
                     "data_dependencies": ["rera_context"],
                 }
@@ -391,14 +408,13 @@ class ContentPlanBuilder:
 
     @staticmethod
     def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
-        entity_name = entity["entity_name"]
-        city_name = entity["city_name"]
+        location_label = ContentPlanBuilder._display_location(entity)
         property_status = normalized.get("pricing_summary", {}).get("property_status", [])
 
         common_sections = [
             {
                 "id": "hero_intro",
-                "title": f"Resale Property Overview in {entity_name}, {city_name}",
+                "title": f"Resale Property Overview in {location_label}",
                 "objective": "Introduce the page clearly and establish the main sale/resale intent.",
                 "render_type": "generative",
                 "target_keywords": [keyword_clusters.get("primary_keyword", {}).get("keyword")]
@@ -530,7 +546,7 @@ class ContentPlanBuilder:
             "objective": "Introduce how resale opportunities are distributed across the city using grounded data.",
             "render_type": "generative",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 3),
-            "data_dependencies": ["listing_summary", "links"],
+            "data_dependencies": ["listing_summary", "links", "pricing_summary.location_rates"],
         }
 
         readiness_section = {

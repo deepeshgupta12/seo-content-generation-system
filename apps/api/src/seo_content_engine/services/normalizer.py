@@ -113,7 +113,7 @@ class EntityNormalizer:
 
     @staticmethod
     def _extract_insight_rates(locality_overview: dict[str, Any], root_insight_rates: dict[str, Any]) -> dict[str, Any]:
-        overview_rates = locality_overview.get("insightRates", {})
+        overview_rates = locality_overview.get("insightRates", {}) if isinstance(locality_overview, dict) else {}
         root_rates = root_insight_rates or {}
 
         return compact_dict(
@@ -164,13 +164,159 @@ class EntityNormalizer:
         }
 
     @staticmethod
+    def _city_sale_summary_from_megamenu(mega_menu_buy: dict[str, Any]) -> dict[str, Any]:
+        popular_searches = mega_menu_buy.get("Popular Searches", []) if isinstance(mega_menu_buy, dict) else []
+        property_type_links = mega_menu_buy.get("Property Type", []) if isinstance(mega_menu_buy, dict) else []
+        by_bhk_links = mega_menu_buy.get("By BHK", []) if isinstance(mega_menu_buy, dict) else []
+
+        sale_count = None
+        total_listings = None
+
+        for item in popular_searches:
+            if not isinstance(item, dict):
+                continue
+            title = (item.get("title") or item.get("name") or "").lower()
+            if "property in" in title or "property for sale" in title:
+                sale_count = item.get("doc_count")
+                total_listings = item.get("doc_count")
+                break
+
+        total_projects = None
+        for item in mega_menu_buy.get("New Projects in Mumbai", []):
+            if isinstance(item, dict) and item.get("doc_count") is not None:
+                total_projects = item.get("doc_count")
+                break
+
+        return compact_dict(
+            {
+                "sale_count": sale_count,
+                "total_listings": total_listings,
+                "total_projects": total_projects,
+                "sale_available": sale_count,
+                "sale_property_type_count": len(property_type_links) if property_type_links else None,
+                "sale_bhk_link_count": len(by_bhk_links) if by_bhk_links else None,
+            }
+        )
+
+    @staticmethod
+    def _city_distributions_from_megamenu(mega_menu_buy: dict[str, Any]) -> dict[str, Any]:
+        by_bhk = mega_menu_buy.get("By BHK", []) if isinstance(mega_menu_buy, dict) else []
+        property_types = mega_menu_buy.get("Property Type", []) if isinstance(mega_menu_buy, dict) else []
+
+        bhk_distribution = []
+        for item in by_bhk:
+            if not isinstance(item, dict):
+                continue
+            bhk_distribution.append(
+                compact_dict(
+                    {
+                        "key": item.get("name"),
+                        "doc_count": item.get("doc_count"),
+                        "url": item.get("url"),
+                    }
+                )
+            )
+
+        property_type_distribution = []
+        for item in property_types:
+            if not isinstance(item, dict):
+                continue
+            property_type_distribution.append(
+                compact_dict(
+                    {
+                        "key": item.get("name"),
+                        "doc_count": item.get("doc_count"),
+                        "url": item.get("url"),
+                    }
+                )
+            )
+
+        return {
+            "sale_unit_type_distribution": bhk_distribution,
+            "sale_property_type_distribution": property_type_distribution,
+            "rent_unit_type_distribution": [],
+            "rent_property_type_distribution": [],
+        }
+
+    @staticmethod
+    def _city_links_from_megamenu(mega_menu_buy: dict[str, Any]) -> dict[str, Any]:
+        by_bhk = mega_menu_buy.get("By BHK", []) if isinstance(mega_menu_buy, dict) else []
+        property_types = mega_menu_buy.get("Property Type", []) if isinstance(mega_menu_buy, dict) else []
+        new_projects = mega_menu_buy.get("New Projects in Mumbai", []) if isinstance(mega_menu_buy, dict) else []
+
+        sale_unit_type_urls = [
+            [
+                compact_dict(
+                    {
+                        "unitType": item.get("name"),
+                        "url": item.get("url"),
+                    }
+                )
+            ]
+            for item in by_bhk
+            if isinstance(item, dict) and item.get("name") and item.get("url")
+        ]
+
+        sale_property_type_urls = [
+            [
+                compact_dict(
+                    {
+                        "propertyType": item.get("name"),
+                        "url": item.get("url"),
+                    }
+                )
+            ]
+            for item in property_types
+            if isinstance(item, dict) and item.get("name") and item.get("url")
+        ]
+
+        sale_quick_links = [
+            compact_dict(
+                {
+                    "label": item.get("name"),
+                    "url": item.get("url"),
+                }
+            )
+            for item in new_projects
+            if isinstance(item, dict) and item.get("name") and item.get("url")
+        ]
+
+        return {
+            "sale_unit_type_urls": sale_unit_type_urls,
+            "sale_property_type_urls": sale_property_type_urls,
+            "sale_quick_links": sale_quick_links,
+        }
+
+    @staticmethod
+    def _city_nearby_from_rates(rates_root: dict[str, Any], city_name: str | None) -> list[dict[str, Any]]:
+        nearby = []
+        for item in rates_root.get("micromarketRates", [])[:10]:
+            if not isinstance(item, dict):
+                continue
+            nearby.append(
+                compact_dict(
+                    {
+                        "name": item.get("name"),
+                        "city_name": city_name,
+                        "sale_avg_price_per_sqft": item.get("avgRate"),
+                    }
+                )
+            )
+        return nearby
+
+    @staticmethod
     def normalize(main_data: dict[str, Any], rates_data: dict[str, Any], listing_type: ListingType) -> dict[str, Any]:
         root = main_data.get("data", {})
         overview = root.get("localityOverviewData", {})
         locality_data = root.get("localityData", {})
+        city_data = root.get("cityData", {})
+        mega_menu = root.get("megaMenu", {})
+        mega_menu_buy = mega_menu.get("Buy", {}) if isinstance(mega_menu, dict) else {}
+
         rates_root = rates_data.get("data", {}).get("propertyRatesData", {})
         details = rates_root.get("details", {})
         market_overview = rates_root.get("marketOverview", {})
+
         sale = overview.get("sale", {})
         rent = overview.get("rent", {})
         metrics = overview.get("metrics", {})
@@ -188,88 +334,133 @@ class EntityNormalizer:
         entity_type = EntityNormalizer.detect_entity_type(main_data, rates_data)
         page_type = EntityNormalizer.resolve_page_type(entity_type, listing_type)
 
-        entity = compact_dict(
-            {
-                "entity_type": entity_type.value,
-                "page_type": page_type.value,
-                "listing_type": listing_type.value,
-                "entity_name": details.get("name") or overview.get("name") or locality_data.get("subLocalityName"),
-                "city_name": details.get("cityName") or overview.get("cityName") or locality_data.get("cityName"),
-                "micromarket_name": details.get("microMarketName") or overview.get("dotcomLocationName"),
-                "entity_id": details.get("id") or locality_data.get("beatsLocalityId"),
-                "city_id": details.get("cityId") or locality_data.get("beatsCityId"),
-                "micromarket_id": details.get("microMarketId") or locality_data.get("microMarketId"),
-                "beats_locality_id": locality_data.get("beatsLocalityId"),
-                "dotcom_locality_id": locality_data.get("dotcomLocalityId"),
-                "latitude": overview.get("latitude") or locality_data.get("sublocalityLatitude"),
-                "longitude": overview.get("longitude") or locality_data.get("sublocalityLongitude"),
-                "pincode": overview.get("pincode"),
-                "overview_url": locality_data.get("overviewUrl") or root.get("url"),
-                "property_rates_url": details.get("diUrl"),
-                "last_modified_date": root.get("lastModifiedDate"),
-            }
-        )
+        if entity_type == EntityType.CITY:
+            city_name = (
+                root.get("cityName")
+                or city_data.get("cityName")
+                or details.get("cityName")
+                or details.get("name")
+            )
+            entity_name = details.get("name") or city_name
 
-        listing_summary = {
-            "sale_count": overview.get("saleCount"),
-            "rent_count": overview.get("rentCount"),
-            "total_listings": overview.get("totallistings"),
-            "total_projects": overview.get("totalprojects"),
-            "sale_available": sale.get("available"),
-            "rent_available": rent.get("available"),
-            "sale_avg_price_per_sqft": sale.get("avgPricePerSqFt"),
-            "rent_avg_price_per_sqft": rent.get("avgPricePerSqFt"),
-            "sale_supply_count": metrics.get("sale", {}).get("supplyCount"),
-            "sale_visit_count": metrics.get("sale", {}).get("visitCount"),
-            "sale_enquired_count": metrics.get("sale", {}).get("enquiredCount"),
-            "rent_supply_count": metrics.get("rent", {}).get("supplyCount"),
-            "rent_visit_count": metrics.get("rent", {}).get("visitCount"),
-            "rent_enquired_count": metrics.get("rent", {}).get("enquiredCount"),
-        }
-
-        pricing_summary = {
-            "asking_price": market_overview.get("askingPrice"),
-            "registration_rate": market_overview.get("registrationRate"),
-            "avg_rental_rate": market_overview.get("avgRentalRate"),
-            "price_trend": rates_root.get("priceTrend", []),
-            "location_rates": rates_root.get("locationRates", []),
-            "property_types": rates_root.get("propertyTypes", []),
-            "property_status": rates_root.get("propertyStatus", []),
-        }
-
-        distributions = {
-            "sale_unit_type_distribution": sale.get("unitType", []),
-            "sale_property_type_distribution": sale.get("propertyType", []),
-            "rent_unit_type_distribution": rent.get("unitType", []),
-            "rent_property_type_distribution": rent.get("propertyType", []),
-        }
-
-        links = {
-            "sale_unit_type_urls": footer.get("unitTypeUrls", []),
-            "sale_property_type_urls": footer.get("propTypeUrls", []),
-            "sale_quick_links": footer.get("quickLinks", []),
-        }
-
-        nearby = [
-            compact_dict(
+            entity = compact_dict(
                 {
-                    "name": item.get("subLocalityName"),
-                    "city_name": item.get("cityName"),
-                    "distance_km": round(item.get("distance", 0), 3) if item.get("distance") is not None else None,
-                    "sale_count": item.get("sale", {}).get("count"),
-                    "sale_available": item.get("sale", {}).get("available"),
-                    "sale_avg_price_per_sqft": item.get("sale", {}).get("avgPricePerSqFt"),
-                    "rent_count": item.get("rent", {}).get("count"),
-                    "rent_available": item.get("rent", {}).get("available"),
-                    "rent_avg_price_per_sqft": item.get("rent", {}).get("avgPricePerSqFt"),
-                    "sale_supply_count": item.get("metrics", {}).get("sale", {}).get("supplyCount"),
-                    "sale_visit_count": item.get("metrics", {}).get("sale", {}).get("visitCount"),
-                    "sale_enquired_count": item.get("metrics", {}).get("sale", {}).get("enquiredCount"),
-                    "url": item.get("url"),
+                    "entity_type": entity_type.value,
+                    "page_type": page_type.value,
+                    "listing_type": listing_type.value,
+                    "entity_name": entity_name,
+                    "city_name": city_name,
+                    "entity_id": details.get("id") or root.get("beatsCityId") or city_data.get("beatsCityId"),
+                    "city_id": details.get("cityId") or root.get("beatsCityId") or city_data.get("beatsCityId"),
+                    "beats_city_id": root.get("beatsCityId") or city_data.get("beatsCityId"),
+                    "dotcom_city_id": root.get("dotcomCityId") or city_data.get("dotcomCityId"),
+                    "latitude": city_data.get("latitude"),
+                    "longitude": city_data.get("longitude"),
+                    "overview_url": root.get("url"),
+                    "property_rates_url": details.get("diUrl"),
+                    "last_modified_date": root.get("lastModifiedDate"),
                 }
             )
-            for item in nearby_localities[:10]
-        ]
+
+            listing_summary = EntityNormalizer._city_sale_summary_from_megamenu(mega_menu_buy)
+
+            pricing_summary = {
+                "asking_price": market_overview.get("askingPrice"),
+                "registration_rate": market_overview.get("registrationRate"),
+                "avg_rental_rate": market_overview.get("avgRentalRate"),
+                "price_trend": rates_root.get("priceTrend", []),
+                "location_rates": rates_root.get("micromarketRates", []),
+                "property_types": rates_root.get("propertyTypes", []),
+                "property_status": rates_root.get("propertyStatus", []),
+            }
+
+            distributions = EntityNormalizer._city_distributions_from_megamenu(mega_menu_buy)
+            links = EntityNormalizer._city_links_from_megamenu(mega_menu_buy)
+            nearby = EntityNormalizer._city_nearby_from_rates(rates_root, city_name)
+
+        else:
+            entity = compact_dict(
+                {
+                    "entity_type": entity_type.value,
+                    "page_type": page_type.value,
+                    "listing_type": listing_type.value,
+                    "entity_name": details.get("name") or overview.get("name") or locality_data.get("subLocalityName"),
+                    "city_name": details.get("cityName") or overview.get("cityName") or locality_data.get("cityName"),
+                    "micromarket_name": details.get("microMarketName") or overview.get("dotcomLocationName"),
+                    "entity_id": details.get("id") or locality_data.get("beatsLocalityId"),
+                    "city_id": details.get("cityId") or locality_data.get("beatsCityId"),
+                    "micromarket_id": details.get("microMarketId") or locality_data.get("microMarketId"),
+                    "beats_locality_id": locality_data.get("beatsLocalityId"),
+                    "dotcom_locality_id": locality_data.get("dotcomLocalityId"),
+                    "latitude": overview.get("latitude") or locality_data.get("sublocalityLatitude"),
+                    "longitude": overview.get("longitude") or locality_data.get("sublocalityLongitude"),
+                    "pincode": overview.get("pincode"),
+                    "overview_url": locality_data.get("overviewUrl") or root.get("url"),
+                    "property_rates_url": details.get("diUrl"),
+                    "last_modified_date": root.get("lastModifiedDate"),
+                }
+            )
+
+            listing_summary = {
+                "sale_count": overview.get("saleCount"),
+                "rent_count": overview.get("rentCount"),
+                "total_listings": overview.get("totallistings"),
+                "total_projects": overview.get("totalprojects"),
+                "sale_available": sale.get("available"),
+                "rent_available": rent.get("available"),
+                "sale_avg_price_per_sqft": sale.get("avgPricePerSqFt"),
+                "rent_avg_price_per_sqft": rent.get("avgPricePerSqFt"),
+                "sale_supply_count": metrics.get("sale", {}).get("supplyCount"),
+                "sale_visit_count": metrics.get("sale", {}).get("visitCount"),
+                "sale_enquired_count": metrics.get("sale", {}).get("enquiredCount"),
+                "rent_supply_count": metrics.get("rent", {}).get("supplyCount"),
+                "rent_visit_count": metrics.get("rent", {}).get("visitCount"),
+                "rent_enquired_count": metrics.get("rent", {}).get("enquiredCount"),
+            }
+
+            pricing_summary = {
+                "asking_price": market_overview.get("askingPrice"),
+                "registration_rate": market_overview.get("registrationRate"),
+                "avg_rental_rate": market_overview.get("avgRentalRate"),
+                "price_trend": rates_root.get("priceTrend", []),
+                "location_rates": rates_root.get("locationRates", []),
+                "property_types": rates_root.get("propertyTypes", []),
+                "property_status": rates_root.get("propertyStatus", []),
+            }
+
+            distributions = {
+                "sale_unit_type_distribution": sale.get("unitType", []),
+                "sale_property_type_distribution": sale.get("propertyType", []),
+                "rent_unit_type_distribution": rent.get("unitType", []),
+                "rent_property_type_distribution": rent.get("propertyType", []),
+            }
+
+            links = {
+                "sale_unit_type_urls": footer.get("unitTypeUrls", []),
+                "sale_property_type_urls": footer.get("propTypeUrls", []),
+                "sale_quick_links": footer.get("quickLinks", []),
+            }
+
+            nearby = [
+                compact_dict(
+                    {
+                        "name": item.get("subLocalityName"),
+                        "city_name": item.get("cityName"),
+                        "distance_km": round(item.get("distance", 0), 3) if item.get("distance") is not None else None,
+                        "sale_count": item.get("sale", {}).get("count"),
+                        "sale_available": item.get("sale", {}).get("available"),
+                        "sale_avg_price_per_sqft": item.get("sale", {}).get("avgPricePerSqFt"),
+                        "rent_count": item.get("rent", {}).get("count"),
+                        "rent_available": item.get("rent", {}).get("available"),
+                        "rent_avg_price_per_sqft": item.get("rent", {}).get("avgPricePerSqFt"),
+                        "sale_supply_count": item.get("metrics", {}).get("sale", {}).get("supplyCount"),
+                        "sale_visit_count": item.get("metrics", {}).get("sale", {}).get("visitCount"),
+                        "sale_enquired_count": item.get("metrics", {}).get("sale", {}).get("enquiredCount"),
+                        "url": item.get("url"),
+                    }
+                )
+                for item in nearby_localities[:10]
+            ]
 
         normalized_cms_faq = [
             compact_dict({"question": item.get("question"), "answer": item.get("answer")})
