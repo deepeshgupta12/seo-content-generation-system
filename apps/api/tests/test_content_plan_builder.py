@@ -86,7 +86,7 @@ def test_content_plan_builder_for_locality() -> None:
     }
 
     keyword_intelligence = {
-        "version": "v1.1",
+        "version": "v1.2",
         "keyword_clusters": {
             "primary_keyword": {"keyword": "flats for sale in andheri west mumbai", "score": 92},
             "secondary_keywords": [{"keyword": "apartments for sale in andheri west mumbai"}],
@@ -158,6 +158,8 @@ def test_content_plan_builder_for_locality() -> None:
     )
 
     assert "property_rates_ai_summary" in content_plan["data_context"]
+    assert "competitor_intelligence" in content_plan
+    assert "competitor_inspiration" in content_plan
     assert content_plan["data_context"]["property_rates_ai_summary"]["market_snapshot"].startswith("Balanced resale market")
 
 
@@ -227,7 +229,7 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
     }
 
     keyword_intelligence = {
-        "version": "v1.1",
+        "version": "v1.2",
         "keyword_clusters": {
             "primary_keyword": {"keyword": "resale properties in noida extension greater noida", "score": 88},
             "secondary_keywords": [{"keyword": "apartments for sale in noida extension greater noida"}],
@@ -342,7 +344,7 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
     }
 
     keyword_intelligence = {
-        "version": "v1.1",
+        "version": "v1.2",
         "keyword_clusters": {
             "primary_keyword": {"keyword": "resale properties in pune", "score": 91},
             "secondary_keywords": [{"keyword": "apartments for sale in pune"}],

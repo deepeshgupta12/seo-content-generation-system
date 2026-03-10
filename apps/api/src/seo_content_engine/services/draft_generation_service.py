@@ -340,14 +340,12 @@ class DraftGenerationService:
         return "\n\n".join(paragraphs)
 
     @staticmethod
-    def _build_property_type_safe_body(content_plan: dict) -> str:
+    def _build_property_type_signals_safe_body(content_plan: dict) -> str:
         pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
         distributions = content_plan["data_context"].get("distributions", {}) or {}
 
         property_types = pricing_summary.get("property_types", []) or []
         property_status = pricing_summary.get("property_status", []) or []
-        location_rates = pricing_summary.get("location_rates", []) or []
-        micromarket_rates = pricing_summary.get("micromarket_rates", []) or []
         sale_property_type_distribution = distributions.get("sale_property_type_distribution", []) or []
 
         lines: list[str] = []
@@ -363,9 +361,9 @@ class DraftGenerationService:
                 parts.append(f"change percent is {first['changePercent']}")
             if parts:
                 lines.append(
-                    "The available property-type rate inputs show "
+                    "The available property-type inputs show "
                     + ", ".join(parts)
-                    + ". This offers a grounded snapshot of how at least one property-type bucket is represented in the current resale dataset."
+                    + ". This gives a grounded snapshot of one visible property-type bucket in the current resale dataset."
                 )
 
         if sale_property_type_distribution:
@@ -376,7 +374,11 @@ class DraftGenerationService:
             if first_dist.get("doc_count") is not None:
                 dist_parts.append(f"document count is {first_dist['doc_count']}")
             if dist_parts:
-                lines.append("Within the sale property-type distribution, " + ", ".join(dist_parts) + ".")
+                lines.append(
+                    "Within the structured property-type distribution, "
+                    + ", ".join(dist_parts)
+                    + "."
+                )
 
         if property_status:
             first_status = property_status[0]
@@ -389,9 +391,43 @@ class DraftGenerationService:
                 status_parts.append(f"average price is ₹{first_status['avgPrice']:,}")
             if status_parts:
                 lines.append(
-                    "Status-level inputs also indicate "
+                    "The visible status-level inputs also indicate "
                     + ", ".join(status_parts)
-                    + ". This is useful where the page includes readiness or completion-state segmentation."
+                    + ". This is useful where the page includes readiness-linked property segmentation."
+                )
+
+        if not lines:
+            return (
+                "Property-type signals are shown only when grounded source inputs are available. "
+                "Where present, this section summarises property-type, status, and mix fields without ranking one type over another."
+            )
+
+        return " ".join(lines)
+
+    @staticmethod
+    def _build_property_type_rate_snapshot_safe_body(content_plan: dict) -> str:
+        pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
+
+        property_types = pricing_summary.get("property_types", []) or []
+        location_rates = pricing_summary.get("location_rates", []) or []
+        micromarket_rates = pricing_summary.get("micromarket_rates", []) or []
+
+        lines: list[str] = []
+
+        if property_types:
+            first = property_types[0]
+            parts: list[str] = []
+            if first.get("propertyType"):
+                parts.append(f"property type is {first['propertyType']}")
+            if first.get("avgPrice") is not None:
+                parts.append(f"average listed value in this input is ₹{first['avgPrice']:,}")
+            if first.get("changePercent") is not None:
+                parts.append(f"change percent is {first['changePercent']}")
+            if parts:
+                lines.append(
+                    "The visible property-type rate snapshot shows "
+                    + ", ".join(parts)
+                    + ". This helps explain how one property-type bucket is represented in the current resale pricing layer."
                 )
 
         if location_rates:
@@ -404,7 +440,11 @@ class DraftGenerationService:
             if first_location.get("changePercentage") is not None:
                 location_parts.append(f"change percentage is {first_location['changePercentage']}")
             if location_parts:
-                lines.append("At the local rate level, the grounded input shows " + ", ".join(location_parts) + ".")
+                lines.append(
+                    "At the local rate level, the grounded input shows "
+                    + ", ".join(location_parts)
+                    + "."
+                )
 
         if micromarket_rates:
             first_micromarket = micromarket_rates[0]
@@ -416,12 +456,16 @@ class DraftGenerationService:
             if first_micromarket.get("changePercentage") is not None:
                 micromarket_parts.append(f"change percentage is {first_micromarket['changePercentage']}")
             if micromarket_parts:
-                lines.append("Micromarket-rate inputs show " + ", ".join(micromarket_parts) + ".")
+                lines.append(
+                    "Micromarket-rate inputs also show "
+                    + ", ".join(micromarket_parts)
+                    + "."
+                )
 
         if not lines:
             return (
-                "Property-type and status signals are shown only when grounded source inputs are available. "
-                "Where present, this section summarises property-type, status, and rate fields without recommending one type over another."
+                "Property-type rate snapshot signals are shown only when grounded source inputs are available. "
+                "Where present, this section summarises property-type and location-rate fields without adding unsupported interpretation."
             )
 
         return " ".join(lines)
@@ -440,8 +484,11 @@ class DraftGenerationService:
         if section_id == "demand_and_supply_signals":
             return DraftGenerationService._build_demand_supply_safe_body(content_plan)
 
-        if section_id in {"property_type_signals", "property_type_rate_snapshot"}:
-            return DraftGenerationService._build_property_type_safe_body(content_plan)
+        if section_id == "property_type_signals":
+            return DraftGenerationService._build_property_type_signals_safe_body(content_plan)
+
+        if section_id == "property_type_rate_snapshot":
+            return DraftGenerationService._build_property_type_rate_snapshot_safe_body(content_plan)
 
         return None
 

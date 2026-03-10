@@ -219,6 +219,29 @@ export function ReviewWorkbenchPage() {
   const totalIncludedKeywords = stringifyValue(session?.keyword_preview?.total_included_keywords);
   const totalExcludedKeywords = stringifyValue(session?.keyword_preview?.total_excluded_keywords);
 
+  const contentPlanRecord = getRecord(session?.content_plan);
+  const competitorIntelligence = getRecord(contentPlanRecord?.competitor_intelligence);
+  const competitorBreakdown = getArray(competitorIntelligence?.competitor_breakdown);
+  const competitorIntersection = getRecord(competitorIntelligence?.keyword_intersection);
+  const competitorSerpOverlap = getRecord(competitorIntelligence?.serp_overlap);
+  const competitorInspiration = getRecord(competitorIntelligence?.inspiration_signals);
+
+  const competitorIntersectionKeywords = getArray(
+    competitorIntersection?.intersection_keywords,
+  );
+  const competitorRecommendedSections = getArray(
+    competitorInspiration?.recommended_sections,
+  );
+  const competitorRecommendedFaqThemes = getArray(
+    competitorInspiration?.recommended_faq_themes,
+  );
+  const competitorRecommendedTableThemes = getArray(
+    competitorInspiration?.recommended_table_themes,
+  );
+  const competitorSchemaHierarchyPatterns = getArray(
+    competitorInspiration?.recommended_schema_hierarchy_patterns,
+  );
+
   const warningReasons = qualityReport?.warning_reasons ?? [];
   const sectionReview = session?.section_review ?? [];
   const versionHistory = session?.version_history ?? [];
@@ -1096,6 +1119,199 @@ export function ReviewWorkbenchPage() {
                 <div className="detail-card__value">{totalExcludedKeywords}</div>
               </div>
             </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Competitor intelligence</h2>
+            </div>
+
+            {!competitorIntelligence ? (
+              <div className="empty-state">No competitor intelligence available yet.</div>
+            ) : (
+              <>
+                <div className="details-grid">
+                  <div className="detail-card">
+                    <div className="detail-card__label">Selected Competitors</div>
+                    <div className="detail-card__value">
+                      {competitorDomains.length ? competitorDomains.join(", ") : "—"}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">SERP Overlap Domains</div>
+                    <div className="detail-card__value">
+                      {getStringArray(competitorSerpOverlap?.overlapping_domains).length
+                        ? getStringArray(competitorSerpOverlap?.overlapping_domains).join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Keyword Intersection Count</div>
+                    <div className="detail-card__value">
+                      {stringifyValue(competitorIntersection?.intersection_count)}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Inspiration Confidence</div>
+                    <div className="detail-card__value">
+                      {stringifyValue(competitorInspiration?.confidence)}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Usage Rule</div>
+                    <div className="detail-card__value">
+                      {stringifyValue(competitorInspiration?.usage_rule)}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Intersection Keywords</div>
+                    <div className="detail-card__value">
+                      {competitorIntersectionKeywords.length
+                        ? competitorIntersectionKeywords
+                            .map((item) => stringifyValue(getRecord(item)?.keyword))
+                            .join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="stack-list" style={{ marginTop: 16 }}>
+                  {competitorBreakdown.length ? (
+                    competitorBreakdown.map((item, index) => {
+                      const competitor = getRecord(item);
+                      const pageFamilies = getArray(competitor?.page_family_breakdown);
+                      const themeBreakdown = getArray(competitor?.theme_breakdown);
+                      const topKeywords = getArray(competitor?.top_keywords);
+
+                      return (
+                        <div className="stack-card" key={`competitor-${index}`}>
+                          <div className="stack-card__header">
+                            <div>
+                              <div className="stack-card__title">
+                                {stringifyValue(competitor?.domain)}
+                              </div>
+                              <div className="stack-card__meta">
+                                keyword count: {stringifyValue(competitor?.keyword_count)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="details-grid">
+                            <div className="detail-card">
+                              <div className="detail-card__label">Top Keywords</div>
+                              <div className="detail-card__value">
+                                {topKeywords.length
+                                  ? topKeywords
+                                      .map((record) => stringifyValue(getRecord(record)?.keyword))
+                                      .join(", ")
+                                  : "—"}
+                              </div>
+                            </div>
+
+                            <div className="detail-card">
+                              <div className="detail-card__label">Page Families</div>
+                              <div className="detail-card__value">
+                                {pageFamilies.length
+                                  ? pageFamilies
+                                      .map((family) => {
+                                        const record = getRecord(family);
+                                        return `${stringifyValue(record?.page_family)} (${stringifyValue(
+                                          record?.keyword_count,
+                                        )})`;
+                                      })
+                                      .join(", ")
+                                  : "—"}
+                              </div>
+                            </div>
+
+                            <div className="detail-card">
+                              <div className="detail-card__label">Theme Breakdown</div>
+                              <div className="detail-card__value">
+                                {themeBreakdown.length
+                                  ? themeBreakdown
+                                      .map((theme) => {
+                                        const record = getRecord(theme);
+                                        return `${stringifyValue(record?.theme)} (${stringifyValue(
+                                          record?.count,
+                                        )})`;
+                                      })
+                                      .join(", ")
+                                  : "—"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="empty-state">No competitor breakdown available.</div>
+                  )}
+                </div>
+
+                <div className="details-grid" style={{ marginTop: 16 }}>
+                  <div className="detail-card">
+                    <div className="detail-card__label">Recommended Sections</div>
+                    <div className="detail-card__value">
+                      {competitorRecommendedSections.length
+                        ? competitorRecommendedSections
+                            .map((item) => {
+                              const record = getRecord(item);
+                              return `${stringifyValue(record?.title)} [${stringifyValue(record?.theme)}]`;
+                            })
+                            .join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Recommended FAQ Themes</div>
+                    <div className="detail-card__value">
+                      {competitorRecommendedFaqThemes.length
+                        ? competitorRecommendedFaqThemes
+                            .map((item) => {
+                              const record = getRecord(item);
+                              return stringifyValue(record?.question_pattern);
+                            })
+                            .join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Recommended Table Themes</div>
+                    <div className="detail-card__value">
+                      {competitorRecommendedTableThemes.length
+                        ? competitorRecommendedTableThemes
+                            .map((item) => {
+                              const record = getRecord(item);
+                              return stringifyValue(record?.table_pattern);
+                            })
+                            .join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+
+                  <div className="detail-card">
+                    <div className="detail-card__label">Schema / Hierarchy Patterns</div>
+                    <div className="detail-card__value">
+                      {competitorSchemaHierarchyPatterns.length
+                        ? competitorSchemaHierarchyPatterns
+                            .map((item) => {
+                              const record = getRecord(item);
+                              return stringifyValue(record?.pattern);
+                            })
+                            .join(", ")
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
 
           <section className="panel">

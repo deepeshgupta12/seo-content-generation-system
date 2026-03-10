@@ -5,6 +5,7 @@ from typing import Any
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.domain.enums import PageType
+from seo_content_engine.services.competitor_intelligence_service import CompetitorIntelligenceService
 from seo_content_engine.utils.formatters import slugify
 
 
@@ -760,6 +761,10 @@ class ContentPlanBuilder:
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
 
         section_plan = ContentPlanBuilder._build_sections(page_type, entity, keyword_clusters, normalized)
+        competitor_intelligence = CompetitorIntelligenceService.build(
+            normalized=normalized,
+            keyword_intelligence=keyword_intelligence,
+        )
 
         return {
             "version": "v1.7",
@@ -775,6 +780,9 @@ class ContentPlanBuilder:
                 "price_keywords": keyword_clusters.get("price_keywords", []),
                 "ready_to_move_keywords": keyword_clusters.get("ready_to_move_keywords", []),
                 "faq_keyword_candidates": keyword_clusters.get("faq_keyword_candidates", []),
+                "competitor_keywords": keyword_clusters.get("competitor_keywords", []),
+                "informational_keywords": keyword_clusters.get("informational_keywords", []),
+                "serp_validated_keywords": keyword_clusters.get("serp_validated_keywords", []),
                 "metadata_keywords": keyword_clusters.get("metadata_keywords", []),
                 "exact_match_keywords": keyword_clusters.get("exact_match_keywords", []),
                 "loose_match_keywords": keyword_clusters.get("loose_match_keywords", []),
@@ -789,6 +797,8 @@ class ContentPlanBuilder:
             "comparison_plan": ContentPlanBuilder._build_comparison_plan(normalized),
             "faq_plan": ContentPlanBuilder._build_faq_plan(entity, keyword_clusters, normalized),
             "internal_links_plan": ContentPlanBuilder._build_internal_links_plan(normalized),
+            "competitor_intelligence": competitor_intelligence,
+            "competitor_inspiration": competitor_intelligence.get("inspiration_signals", {}),
             "data_context": {
                 "listing_summary": normalized["listing_summary"],
                 "pricing_summary": normalized["pricing_summary"],
@@ -809,5 +819,6 @@ class ContentPlanBuilder:
             "source_meta": {
                 "raw_source_meta": raw_source_meta,
                 "keyword_intelligence_version": keyword_intelligence["version"],
+                "competitor_intelligence_version": competitor_intelligence["version"],
             },
         }

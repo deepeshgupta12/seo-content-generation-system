@@ -26,6 +26,15 @@ class FactualValidator:
         "recommended property type",
         "ideal property type",
         "top property type",
+        "largest category",
+        "most numerous",
+        "highest average price",
+        "lowest average price",
+        "diverse offering",
+        "highly liquid",
+        "robust demand",
+        "offers potential",
+        "could provide entry",
     ]
 
     PRICING_SYNONYMS = {
@@ -101,34 +110,92 @@ class FactualValidator:
         return variants
 
     @staticmethod
-    def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
+    def _extract_allowed_numeric_strings_from_value(value: Any) -> set[str]:
         allowed: set[str] = set()
 
-        def walk(value: Any) -> None:
-            if value is None:
+        def walk(node: Any) -> None:
+            if node is None:
                 return
-            if isinstance(value, dict):
-                for nested in value.values():
+            if isinstance(node, dict):
+                for nested in node.values():
                     walk(nested)
                 return
-            if isinstance(value, list):
-                for nested in value:
+            if isinstance(node, list):
+                for nested in node:
                     walk(nested)
                 return
-            if isinstance(value, bool):
+            if isinstance(node, bool):
                 return
-            if isinstance(value, int):
-                allowed.add(str(value))
+            if isinstance(node, int):
+                allowed.add(str(node))
                 return
-            if isinstance(value, float):
-                allowed.update(FactualValidator._float_string_variants(value))
+            if isinstance(node, float):
+                allowed.update(FactualValidator._float_string_variants(node))
                 return
-            if isinstance(value, str):
-                for match in re.findall(r"-?\d+(?:\.\d+)?", value):
+            if isinstance(node, str):
+                for match in re.findall(r"-?\d+(?:\.\d+)?", node):
                     allowed.add(match)
 
-        walk(content_plan.get("data_context", {}))
+        walk(value)
         return allowed
+
+    @staticmethod
+    def _extract_allowed_numeric_strings(content_plan: dict) -> set[str]:
+        return FactualValidator._extract_allowed_numeric_strings_from_value(
+            content_plan.get("data_context", {})
+        )
+
+    @staticmethod
+    def _resolve_content_plan_dependency(content_plan: dict, path: str) -> Any:
+        root: dict[str, Any] = {
+            "entity": content_plan.get("entity", {}),
+            **(content_plan.get("data_context", {}) or {}),
+        }
+
+        current: Any = root
+        for key in path.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                return None
+        return current
+
+    @staticmethod
+    def _build_dependency_scoped_allowed_numbers(
+        content_plan: dict,
+        dependency_paths: list[str] | None,
+    ) -> set[str]:
+        if not dependency_paths:
+            return FactualValidator._extract_allowed_numeric_strings(content_plan)
+
+        allowed: set[str] = set()
+        for path in dependency_paths:
+            value = FactualValidator._resolve_content_plan_dependency(content_plan, path)
+            allowed.update(FactualValidator._extract_allowed_numeric_strings_from_value(value))
+
+        return allowed or FactualValidator._extract_allowed_numeric_strings(content_plan)
+
+    @staticmethod
+    def _get_section_dependency_paths(content_plan: dict, section_id: str | None) -> list[str]:
+        if not section_id:
+            return []
+
+        for section in content_plan.get("section_plan", []) or []:
+            if section.get("id") == section_id:
+                return list(section.get("data_dependencies", []) or [])
+
+        return []
+
+    @staticmethod
+    def _get_faq_dependency_paths(content_plan: dict, question: str | None) -> list[str]:
+        if not question:
+            return []
+
+        for item in content_plan.get("faq_plan", {}).get("faq_intents", []) or []:
+            if item.get("question_template") == question:
+                return list(item.get("data_dependencies", []) or [])
+
+        return []
 
     @staticmethod
     def _find_forbidden_claims(text: str) -> list[str]:
@@ -677,37 +744,45 @@ class FactualValidator:
     @staticmethod
     def validate_draft(draft: dict) -> dict[str, Any]:
         content_plan = draft["content_plan"]
-        allowed_numbers = FactualValidator._extract_allowed_numeric_strings(content_plan)
+        full_allowed_numbers = FactualValidator._extract_allowed_numeric_strings(content_plan)
         canonical_metric_name = content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"]
 
         metadata_checks = {
             "title": FactualValidator.validate_text(
                 draft["metadata"].get("title", ""),
-                allowed_numbers,
+                full_allowed_numbers,
                 canonical_metric_name,
             ),
             "meta_description": FactualValidator.validate_text(
                 draft["metadata"].get("meta_description", ""),
-                allowed_numbers,
+                full_allowed_numbers,
                 canonical_metric_name,
             ),
             "h1": FactualValidator.validate_text(
                 draft["metadata"].get("h1", ""),
-                allowed_numbers,
+                full_allowed_numbers,
                 canonical_metric_name,
             ),
             "intro_snippet": FactualValidator.validate_text(
                 draft["metadata"].get("intro_snippet", ""),
-                allowed_numbers,
+                full_allowed_numbers,
                 canonical_metric_name,
             ),
         }
 
         section_checks = []
         for section in draft.get("sections", []):
+            section_dependencies = FactualValidator._get_section_dependency_paths(
+                content_plan,
+                section.get("id"),
+            )
+            section_allowed_numbers = FactualValidator._build_dependency_scoped_allowed_numbers(
+                content_plan,
+                section_dependencies,
+            )
             body_check = FactualValidator.validate_text(
                 section.get("body", ""),
-                allowed_numbers,
+                section_allowed_numbers,
                 canonical_metric_name,
             )
             section_checks.append(
@@ -720,9 +795,17 @@ class FactualValidator:
 
         faq_checks = []
         for faq in draft.get("faqs", []):
+            faq_dependencies = FactualValidator._get_faq_dependency_paths(
+                content_plan,
+                faq.get("question"),
+            )
+            faq_allowed_numbers = FactualValidator._build_dependency_scoped_allowed_numbers(
+                content_plan,
+                faq_dependencies,
+            )
             answer_check = FactualValidator.validate_text(
                 faq.get("answer", ""),
-                allowed_numbers,
+                faq_allowed_numbers,
                 canonical_metric_name,
             )
             faq_checks.append(

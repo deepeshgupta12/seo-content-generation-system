@@ -31,6 +31,20 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {
+                    "id": "hero_intro",
+                    "data_dependencies": ["listing_summary.sale_count"],
+                }
+            ],
+            "faq_plan": {
+                "faq_intents": [
+                    {
+                        "question_template": "What is the average price?",
+                        "data_dependencies": ["pricing_summary.asking_price"],
+                    }
+                ]
+            },
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -88,6 +102,17 @@ def test_factual_validator_flags_forbidden_property_type_claim() -> None:
     assert "forbidden_claims_detected" in validation["issues"]
 
 
+def test_factual_validator_flags_comparative_property_type_claim() -> None:
+    validation = FactualValidator.validate_text(
+        text="Apartments form the largest category and are the most numerous here.",
+        allowed_numbers=set(),
+        canonical_metric_name="asking_price",
+    )
+
+    assert validation["passed"] is False
+    assert "forbidden_claims_detected" in validation["issues"]
+
+
 def test_factual_validator_warns_for_stale_source_data() -> None:
     draft = {
         "metadata": {
@@ -113,6 +138,13 @@ def test_factual_validator_warns_for_stale_source_data() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {
+                    "id": "hero_intro",
+                    "data_dependencies": ["listing_summary.sale_count"],
+                }
+            ],
+            "faq_plan": {"faq_intents": []},
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -163,6 +195,13 @@ def test_factual_validator_fails_for_severely_stale_source_data() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {
+                    "id": "hero_intro",
+                    "data_dependencies": ["listing_summary.sale_count"],
+                }
+            ],
+            "faq_plan": {"faq_intents": []},
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -214,6 +253,13 @@ def test_factual_validator_warns_for_keyword_stuffing() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {
+                    "id": "hero_intro",
+                    "data_dependencies": ["listing_summary.sale_count"],
+                }
+            ],
+            "faq_plan": {"faq_intents": []},
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -273,6 +319,11 @@ def test_factual_validator_warns_for_repeated_section_patterns() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {"id": "hero_intro", "data_dependencies": ["listing_summary.sale_count"]},
+                {"id": "market_snapshot", "data_dependencies": ["listing_summary.sale_count"]},
+            ],
+            "faq_plan": {"faq_intents": []},
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -333,6 +384,24 @@ def test_factual_validator_warns_for_duplicate_faq_answers() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {
+                    "id": "hero_intro",
+                    "data_dependencies": ["listing_summary.sale_count"],
+                }
+            ],
+            "faq_plan": {
+                "faq_intents": [
+                    {
+                        "question_template": "What is the asking price signal?",
+                        "data_dependencies": ["pricing_summary.asking_price"],
+                    },
+                    {
+                        "question_template": "How are rates represented on this page?",
+                        "data_dependencies": ["pricing_summary.asking_price"],
+                    },
+                ]
+            },
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -383,6 +452,11 @@ def test_factual_validator_warns_for_low_distinct_term_ratio() -> None:
                     "value": 40238,
                 }
             },
+            "section_plan": [
+                {"id": "hero_intro", "data_dependencies": ["listing_summary.sale_count"]},
+                {"id": "market_snapshot", "data_dependencies": ["listing_summary.sale_count"]},
+            ],
+            "faq_plan": {"faq_intents": []},
             "data_context": {
                 "pricing_summary": {"asking_price": 40238},
                 "listing_summary": {"sale_count": 2039},
@@ -437,3 +511,76 @@ def test_factual_validator_preserves_natural_grounded_descriptive_copy() -> None
 
     assert validation["passed"] is True
     assert validation["issues"] == []
+
+
+def test_factual_validator_scopes_section_numbers_to_its_own_dependencies() -> None:
+    draft = {
+        "metadata": {
+            "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
+            "meta_description": "Explore resale properties in Andheri West, Mumbai on Square Yards.",
+            "h1": "Resale Properties in Andheri West, Mumbai",
+            "intro_snippet": "Browse resale listings in Andheri West, Mumbai.",
+        },
+        "sections": [
+            {
+                "id": "property_type_rate_snapshot",
+                "title": "Property Type Rate Snapshot",
+                "body": (
+                    "The visible property-type snapshot shows apartment at ₹40,238. "
+                    "It also mentions Ready To Move with 957 units and average price of ₹31,639."
+                ),
+            }
+        ],
+        "faqs": [],
+        "content_plan": {
+            "generated_at": "2026-03-09T10:00:00+00:00",
+            "metadata_plan": {
+                "canonical_pricing_metric": {
+                    "metric_name": "asking_price",
+                    "label": "asking price",
+                    "value": 40238,
+                }
+            },
+            "section_plan": [
+                {
+                    "id": "property_type_rate_snapshot",
+                    "data_dependencies": [
+                        "pricing_summary.property_types",
+                        "pricing_summary.location_rates",
+                    ],
+                }
+            ],
+            "faq_plan": {"faq_intents": []},
+            "data_context": {
+                "pricing_summary": {
+                    "asking_price": 40238,
+                    "property_types": [
+                        {"propertyType": "apartment", "avgPrice": 40238, "changePercent": 4.61}
+                    ],
+                    "location_rates": [
+                        {"name": "Veera Desai Road", "avgRate": 33765, "changePercentage": 0}
+                    ],
+                    "property_status": [
+                        {"status": "Ready To Move", "units": 957, "avgPrice": 31639}
+                    ],
+                },
+                "listing_summary": {"sale_count": 2039},
+            },
+            "source_meta": {
+                "raw_source_meta": {
+                    "last_modified_date": "2026-03-02",
+                }
+            },
+            "keyword_strategy": {
+                "primary_keyword": {"keyword": "flats for sale in andheri west mumbai"},
+                "exact_match_keywords": [],
+            },
+        },
+    }
+
+    report = FactualValidator.validate_draft(draft)
+
+    assert report["passed"] is False
+    assert "unreconciled_numbers_detected" in report["section_checks"][0]["validation"]["issues"]
+    assert "957" in report["section_checks"][0]["validation"]["unreconciled_numbers"]
+    assert "31639" in report["section_checks"][0]["validation"]["unreconciled_numbers"]
