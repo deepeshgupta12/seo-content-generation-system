@@ -110,6 +110,49 @@ class EntityNormalizer:
                 "tagged_reviews": normalized_tagged_reviews,
             }
         )
+    
+    @staticmethod
+    def _extract_property_rates_ai_data(property_rates_ai_data: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(property_rates_ai_data, dict):
+            return {}
+
+        list_fields = [
+            "investmentOpportunities",
+            "marketChallenges",
+            "marketStrengths",
+        ]
+
+        normalized_lists: dict[str, list[str]] = {}
+        for field_name in list_fields:
+            values = property_rates_ai_data.get(field_name, [])
+            cleaned_values: list[str] = []
+            if isinstance(values, list):
+                for item in values[:10]:
+                    if isinstance(item, str) and item.strip():
+                        cleaned_values.append(item.strip())
+            normalized_lists[field_name] = cleaned_values
+
+        return compact_dict(
+            {
+                "market_snapshot_overview": property_rates_ai_data.get("marketSnapshotOverview"),
+                "insights_long": property_rates_ai_data.get("insightsLong"),
+                "insights_short": property_rates_ai_data.get("insightsShort"),
+                "asking_price_trends_description": property_rates_ai_data.get("askingPriceTrendsDescription"),
+                "by_area_description": property_rates_ai_data.get("byAreaDescription"),
+                "rates_by_property_types_description": property_rates_ai_data.get("ratesByPropertyTypesDescription"),
+                "rates_by_project_status_description": property_rates_ai_data.get("ratesByProjectStatusDescription"),
+                "top_projects_asking_description": property_rates_ai_data.get("topProjectsAskingDescription"),
+                "registration_overview_description": property_rates_ai_data.get("registrationOverviewDescription"),
+                "top_projects_by_transactions_description": property_rates_ai_data.get("topProjectsByTransactionsDescription"),
+                "top_projects_by_value_description": property_rates_ai_data.get("topProjectsByValueDescription"),
+                "top_developers_by_transactions_description": property_rates_ai_data.get("topDevelopersByTransactionsDescription"),
+                "top_developers_by_value_description": property_rates_ai_data.get("topDevelopersByValueDescription"),
+                "recent_transactions_description": property_rates_ai_data.get("recentTransactionsDescription"),
+                "investment_opportunities": normalized_lists["investmentOpportunities"],
+                "market_challenges": normalized_lists["marketChallenges"],
+                "market_strengths": normalized_lists["marketStrengths"],
+            }
+        )
 
     @staticmethod
     def _extract_insight_rates(locality_overview: dict[str, Any], root_insight_rates: dict[str, Any]) -> dict[str, Any]:
@@ -313,7 +356,9 @@ class EntityNormalizer:
         mega_menu = root.get("megaMenu", {})
         mega_menu_buy = mega_menu.get("Buy", {}) if isinstance(mega_menu, dict) else {}
 
-        rates_root = rates_data.get("data", {}).get("propertyRatesData", {})
+        rates_data_root = rates_data.get("data", {})
+        rates_root = rates_data_root.get("propertyRatesData", {})
+        property_rates_ai_data = rates_data_root.get("propertyRatesAiData", {})
         details = rates_root.get("details", {})
         market_overview = rates_root.get("marketOverview", {})
 
@@ -489,6 +534,7 @@ class EntityNormalizer:
             "top_projects": rates_root.get("topProjects", {}),
             "review_summary": EntityNormalizer._extract_review_summary(rating_review),
             "ai_summary": EntityNormalizer._extract_ai_summary(locality_ai_data),
+            "property_rates_ai_summary": EntityNormalizer._extract_property_rates_ai_data(property_rates_ai_data),
             "insight_rates": EntityNormalizer._extract_insight_rates(overview, insight_rates_root),
             "demand_supply": demand_supply,
             "listing_ranges": EntityNormalizer._extract_listing_count_data(listing_count_data),

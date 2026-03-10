@@ -55,6 +55,12 @@ def test_content_plan_builder_for_locality() -> None:
             "negative_tags": ["traffic"],
         },
         "ai_summary": {"locality_summary": "Established locality with mixed residential inventory."},
+        "property_rates_ai_summary": {
+            "market_snapshot": "Balanced resale market with established apartment inventory and visible end-user demand.",
+            "market_strengths": ["established micro-market", "active resale supply"],
+            "market_challenges": ["traffic pressure", "pricing dispersion across pockets"],
+            "investment_opportunities": ["ready-to-move resale stock", "well-known apartment clusters"],
+        },
         "insight_rates": {"name": "Andheri West", "avg_rate": 40238},
         "demand_supply": {
             "sale": {
@@ -115,6 +121,7 @@ def test_content_plan_builder_for_locality() -> None:
 
     section_ids = {section["id"] for section in content_plan["section_plan"]}
     assert "review_and_rating_signals" in section_ids
+    assert "property_rates_ai_signals" in section_ids
     assert "demand_and_supply_signals" in section_ids
     assert "property_type_rate_snapshot" in section_ids
     assert "nearby_alternatives" in section_ids
@@ -135,6 +142,10 @@ def test_content_plan_builder_for_locality() -> None:
     assert "bhk_availability" in faq_ids
     assert "ready_to_move" in faq_ids
     assert "nearby_localities" in faq_ids
+    assert "property_rates_ai_signals" in faq_ids
+
+    assert "property_rates_ai_summary" in content_plan["data_context"]
+    assert content_plan["data_context"]["property_rates_ai_summary"]["market_snapshot"].startswith("Balanced resale market")
 
 
 def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() -> None:
@@ -183,7 +194,13 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
         "top_projects": {"byTransactions": {"projects": []}},
         "review_summary": {"overview": {"avg_rating": 4.0, "review_count": 40, "rating_count": 40}},
         "ai_summary": {"locality_summary": "Large residential belt with active resale inventory."},
-        "insight_rates": {"name": "Noida Extension", "avg_rate": 8450},
+            "property_rates_ai_summary": {
+                "market_snapshot": "Emerging resale belt with broad apartment supply and active ready-to-move options.",
+                "market_strengths": ["broad apartment inventory", "visible ready stock"],
+                "market_challenges": ["project-to-project pricing variation"],
+                "investment_opportunities": ["mid-budget apartment resale"],
+            },
+            "insight_rates": {"name": "Noida Extension", "avg_rate": 8450},
         "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 540, "demandPercent": 34, "supplyPercent": 36}]}},
         "listing_ranges": {"sale_listing_range": {"doc_count": 1200, "min_price": 2500000, "max_price": 22000000}},
         "cms_faq": [],
@@ -219,6 +236,7 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
     section_ids = {section["id"] for section in content_plan["section_plan"]}
     assert "locality_coverage" in section_ids
     assert "review_and_rating_signals" in section_ids
+    assert "property_rates_ai_signals" in section_ids
     assert "demand_and_supply_signals" in section_ids
     assert "property_type_signals" in section_ids
 
@@ -227,6 +245,9 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
     assert "price_trend_table" in table_ids
 
     assert len(content_plan["faq_plan"]["faq_intents"]) >= 5
+
+    faq_ids = {item["id"] for item in content_plan["faq_plan"]["faq_intents"]}
+    assert "property_rates_ai_signals" in faq_ids
 
 
 def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() -> None:
@@ -275,7 +296,13 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
         "top_projects": {"byTransactions": {"projects": []}},
         "review_summary": {"overview": {"avg_rating": 4.1, "review_count": 120, "rating_count": 120}},
         "ai_summary": {"locality_summary": "City-level resale coverage across multiple residential belts."},
-        "insight_rates": {"name": "Pune", "avg_rate": 11250},
+            "property_rates_ai_summary": {
+                "market_snapshot": "Large city-level resale market with multiple active residential belts and varied pricing pockets.",
+                "market_strengths": ["broad city coverage", "multiple active resale zones"],
+                "market_challenges": ["wide sub-market dispersion"],
+                "investment_opportunities": ["city-wide apartment resale search"],
+            },
+            "insight_rates": {"name": "Pune", "avg_rate": 11250},
         "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 2200, "demandPercent": 38, "supplyPercent": 35}]}},
         "listing_ranges": {"sale_listing_range": {"doc_count": 7900, "min_price": 1800000, "max_price": 65000000}},
         "cms_faq": [],
@@ -311,6 +338,7 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
     section_ids = {section["id"] for section in content_plan["section_plan"]}
     assert "micromarket_coverage" in section_ids
     assert "review_and_rating_signals" in section_ids
+    assert "property_rates_ai_signals" in section_ids
     assert "demand_and_supply_signals" in section_ids
     assert "property_type_rate_snapshot" in section_ids
 
@@ -319,3 +347,6 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
     assert "location_rates_table" in table_ids
 
     assert len(content_plan["faq_plan"]["faq_intents"]) >= 5
+
+    faq_ids = {item["id"] for item in content_plan["faq_plan"]["faq_intents"]}
+    assert "property_rates_ai_signals" in faq_ids

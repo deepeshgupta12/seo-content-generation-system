@@ -436,6 +436,12 @@ class ContentPlanBuilder:
                 "data_dependencies": ["review_summary", "ai_summary"],
             },
             {
+                "id": "property_rates_ai_signals",
+                "question_template": f"What AI-generated market signals are available for {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                "data_dependencies": ["property_rates_ai_summary"],
+            },
+            {
                 "id": "demand_supply",
                 "question_template": f"What demand and supply signals are available for resale listings in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
@@ -572,6 +578,19 @@ class ContentPlanBuilder:
             "data_dependencies": ["review_summary", "ai_summary"],
         }
 
+        property_rates_ai_section = {
+            "id": "property_rates_ai_signals",
+            "title": "Market Signals from Property Rates AI Data",
+            "objective": (
+                "Summarize grounded AI-generated market notes from the property-rates source, including "
+                "market snapshot text, strengths, challenges, and investment opportunity cues, without adding "
+                "unsupported facts beyond the provided source fields."
+            ),
+            "render_type": "hybrid",
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+            "data_dependencies": ["property_rates_ai_summary"],
+        }
+
         demand_supply_section = {
             "id": "demand_and_supply_signals",
             "title": "Demand and Supply Signals",
@@ -635,9 +654,10 @@ class ContentPlanBuilder:
 
         sections = list(common_sections)
         sections.insert(4, review_signals_section)
-        sections.insert(5, demand_supply_section)
-        sections.insert(6, property_type_signals_section)
-        sections.insert(7, property_type_rate_snapshot_section)
+        sections.insert(5, property_rates_ai_section)
+        sections.insert(6, demand_supply_section)
+        sections.insert(7, property_type_signals_section)
+        sections.insert(8, property_type_rate_snapshot_section)
 
         if property_status:
             sections.insert(4, readiness_section)
@@ -694,6 +714,16 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["review_summary", "ai_summary"],
                     "instruction": "Use only explicit review counts, rating values, tags, and ai_summary inputs. Do not infer sentiment or desirability.",
                 }
+
+                if section["id"] == "property_rates_ai_signals":
+                    section_context["narrative_guardrails"] = {
+                        "allowed_inputs": ["property_rates_ai_summary"],
+                        "instruction": (
+                            "Use only explicit property_rates_ai_summary fields such as market snapshot overview, "
+                            "insight descriptions, market strengths, market challenges, and investment opportunities. "
+                            "Do not add any claims that are not directly supported by those source fields."
+                        ),
+                    }
 
             if section["id"] == "demand_and_supply_signals":
                 section_context["narrative_guardrails"] = {
@@ -763,6 +793,7 @@ class ContentPlanBuilder:
                 "top_projects": normalized["top_projects"],
                 "review_summary": normalized.get("review_summary"),
                 "ai_summary": normalized.get("ai_summary"),
+                "property_rates_ai_summary": normalized.get("property_rates_ai_summary"),
                 "insight_rates": normalized.get("insight_rates"),
                 "demand_supply": normalized.get("demand_supply"),
                 "listing_ranges": normalized.get("listing_ranges"),

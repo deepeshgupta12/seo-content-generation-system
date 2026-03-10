@@ -264,6 +264,51 @@ class DraftGenerationService:
             )
 
         return " ".join(lines)
+    
+    @staticmethod
+    def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
+        property_rates_ai_summary = content_plan["data_context"].get("property_rates_ai_summary", {}) or {}
+
+        market_snapshot = property_rates_ai_summary.get("market_snapshot")
+        market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
+        market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
+        investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
+
+        lines: list[str] = []
+
+        if market_snapshot:
+            lines.append(
+                f"The property-rates AI source for this page includes a market snapshot that currently reads: {market_snapshot}"
+            )
+
+        if market_strengths:
+            lines.append(
+                "The same source also highlights market strengths such as "
+                + ", ".join(market_strengths[:4])
+                + ". These points are presented here as source-provided signals rather than fresh editorial interpretation."
+            )
+
+        if market_challenges:
+            lines.append(
+                "Alongside that, the source lists market challenges including "
+                + ", ".join(market_challenges[:4])
+                + ". This helps preserve balance by reflecting both supportive and cautionary notes from the available source block."
+            )
+
+        if investment_opportunities:
+            lines.append(
+                "It also surfaces investment-opportunity cues such as "
+                + ", ".join(investment_opportunities[:4])
+                + ". These are included as grounded source statements only and should be read in that context."
+            )
+
+        if not lines:
+            return (
+                "This section is reserved for the structured property-rates AI summary fields when they are present in the source data. "
+                "Where available, it summarises market snapshot notes, strengths, challenges, and opportunity cues without adding unsupported interpretation."
+            )
+
+        return " ".join(lines)
 
     @staticmethod
     def _build_property_type_safe_body(content_plan: dict) -> str:
@@ -359,6 +404,9 @@ class DraftGenerationService:
 
         if section_id == "review_and_rating_signals":
             return DraftGenerationService._build_review_signals_safe_body(content_plan)
+
+        if section_id == "property_rates_ai_signals":
+            return DraftGenerationService._build_property_rates_ai_safe_body(content_plan)
 
         if section_id == "demand_and_supply_signals":
             return DraftGenerationService._build_demand_supply_safe_body(content_plan)
@@ -618,6 +666,42 @@ class DraftGenerationService:
             "These inputs are presented as review and tag signals only, without converting them into unsupported editorial claims."
         )
         return " ".join(parts)
+    
+    @staticmethod
+    def _faq_answer_for_property_rates_ai_signals(content_plan: dict) -> str | None:
+        property_rates_ai_summary = content_plan.get("data_context", {}).get("property_rates_ai_summary", {}) or {}
+        location_label = DraftGenerationService._location_label(content_plan)
+
+        market_snapshot = property_rates_ai_summary.get("market_snapshot")
+        market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
+        market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
+        investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
+
+        if (
+            not market_snapshot
+            and not market_strengths
+            and not market_challenges
+            and not investment_opportunities
+        ):
+            return None
+
+        parts: list[str] = [f"For {location_label}, the property-rates AI source currently includes"]
+
+        if market_snapshot:
+            parts.append("a market snapshot summary that describes the page-level market context.")
+        if market_strengths:
+            parts.append(f"visible market strengths such as {', '.join(market_strengths[:3])}.")
+        if market_challenges:
+            parts.append(f"visible market challenges such as {', '.join(market_challenges[:3])}.")
+        if investment_opportunities:
+            parts.append(
+                f"and source-backed opportunity cues such as {', '.join(investment_opportunities[:3])}."
+            )
+
+        parts.append(
+            "These fields are presented as grounded source notes only and are not expanded into unsupported editorial claims."
+        )
+        return " ".join(parts)
 
     @staticmethod
     def _faq_answer_for_demand_supply(content_plan: dict) -> str | None:
@@ -766,6 +850,7 @@ class DraftGenerationService:
             "ready_to_move": DraftGenerationService._faq_answer_for_ready_to_move,
             "nearby_localities": DraftGenerationService._faq_answer_for_nearby_localities,
             "review_signals": DraftGenerationService._faq_answer_for_review_signals,
+            "property_rates_ai_signals": DraftGenerationService._faq_answer_for_property_rates_ai_signals,
             "demand_supply": DraftGenerationService._faq_answer_for_demand_supply,
             "property_type_signals": DraftGenerationService._faq_answer_for_property_type_signals,
             "price_range": DraftGenerationService._faq_answer_for_price_range,
@@ -780,6 +865,15 @@ class DraftGenerationService:
 
         if "review" in lowered or "rating" in lowered:
             return DraftGenerationService._faq_answer_for_review_signals(content_plan)
+
+        if (
+            "market strengths" in lowered
+            or "market challenges" in lowered
+            or "investment opportunities" in lowered
+            or "property rates ai" in lowered
+            or "ai market" in lowered
+        ):
+            return DraftGenerationService._faq_answer_for_property_rates_ai_signals(content_plan)
 
         if "demand" in lowered or "supply" in lowered:
             return DraftGenerationService._faq_answer_for_demand_supply(content_plan)

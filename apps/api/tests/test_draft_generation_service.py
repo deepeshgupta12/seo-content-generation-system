@@ -6,9 +6,9 @@ class DummyOpenAIClient:
         if '"validation_by_field"' in user_prompt:
             return {
                 "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-                "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends, BHK mix, and nearby locality insights on Square Yards.",
+                "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends, BHK mix, nearby locality insights, and structured market signals on Square Yards.",
                 "h1": "Resale Properties in Andheri West, Mumbai",
-                "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with grounded price, inventory, and locality-level signals on Square Yards.",
+                "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with grounded price, inventory, locality-level signals, and source-backed market notes on Square Yards.",
             }
 
         if '"faq"' in user_prompt and '"validator_feedback"' in user_prompt:
@@ -79,6 +79,13 @@ class DummyOpenAIClient:
                         ),
                     },
                     {
+                        "question": "What market strengths, challenges, and opportunity cues are available for Andheri West, Mumbai?",
+                        "answer": (
+                            "The property-rates AI source includes a market snapshot for this page along with structured market strengths, market challenges, "
+                            "and investment-opportunity cues. These inputs are presented as source-backed notes only and help readers review the available market commentary block without expanding it into unsupported editorial claims."
+                        ),
+                    },
+                    {
                         "question": "What demand and supply inputs are available on this page?",
                         "answer": (
                             "The sale-side inputs include a 2 BHK listing count of 577, with demand percent at 30 and supply percent at 32. "
@@ -143,6 +150,17 @@ class DummyOpenAIClient:
                         ),
                     },
                     {
+                        "id": "property_rates_ai_signals",
+                        "title": "Property Rates AI Signals",
+                        "body": (
+                            "The property-rates AI layer for Andheri West, Mumbai includes a market snapshot describing a balanced resale market with established apartment inventory and visible end-user demand. "
+                            "This gives readers access to the structured AI-summary block attached to the source data for this page."
+                            "\n\n"
+                            "The same source also highlights market strengths, market challenges, and investment-opportunity cues. "
+                            "These items are surfaced here as source-backed notes only, without extending them into unsupported editorial claims."
+                        ),
+                    },
+                    {
                         "id": "demand_and_supply_signals",
                         "title": "Demand and Supply Signals",
                         "body": (
@@ -169,7 +187,7 @@ class DummyOpenAIClient:
 
         return {
             "title": "Resale Properties in Andheri West, Mumbai | Square Yards",
-            "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends, BHK mix, and nearby locality insights on Square Yards.",
+            "meta_description": "Explore resale properties in Andheri West, Mumbai with current price trends, BHK mix, nearby locality insights, and structured market signals on Square Yards.",
             "h1": "Resale Properties in Andheri West, Mumbai",
             "intro_snippet": "Browse current resale property options in Andheri West, Mumbai with grounded price, inventory, and locality-level signals on Square Yards.",
         }
@@ -225,6 +243,12 @@ def test_draft_generation_service() -> None:
             "negative_tags": ["traffic"],
         },
         "ai_summary": {"locality_summary": "Established locality with mixed residential inventory."},
+        "property_rates_ai_summary": {
+            "market_snapshot": "Balanced resale market with established apartment inventory and visible end-user demand.",
+            "market_strengths": ["established micro-market", "active resale supply"],
+            "market_challenges": ["traffic pressure", "pricing dispersion across pockets"],
+            "investment_opportunities": ["ready-to-move resale stock", "well-known apartment clusters"],
+        },
         "insight_rates": {"name": "Andheri West", "avg_rate": 40238},
         "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 577, "demandPercent": 30, "supplyPercent": 32}]}},
         "listing_ranges": {"sale_listing_range": {"doc_count": 1933, "min_price": 2320000, "max_price": 4900000000}},
@@ -279,16 +303,24 @@ def test_draft_generation_service() -> None:
     assert "debug_summary" in draft
 
     review_section = next(section for section in draft["sections"] if section["id"] == "review_and_rating_signals")
+    property_rates_ai_section = next(section for section in draft["sections"] if section["id"] == "property_rates_ai_signals")
     demand_section = next(section for section in draft["sections"] if section["id"] == "demand_and_supply_signals")
     property_type_section = next(section for section in draft["sections"] if section["id"] == "property_type_signals")
 
     assert "4.23" in review_section["body"]
+    assert "balanced resale market" in property_rates_ai_section["body"].lower()
+    assert "market strengths" in property_rates_ai_section["body"].lower()
     assert "demand percent" in demand_section["body"].lower()
     assert "apartment" in property_type_section["body"].lower()
     assert draft["quality_report"]["approval_status"] in {"pass", "warning"}
     assert "overall_quality_score" in draft["quality_report"]
     assert "warning_taxonomy" in draft["quality_report"]
     assert "page_uniqueness_check" in draft["quality_report"]
+
+    property_rates_ai_faq = next(
+        faq for faq in draft["faqs"] if "market strengths" in faq["question"].lower()
+    )
+    assert "source-backed notes" in property_rates_ai_faq["answer"].lower()
 
     first_table = draft["tables"][0]
     assert "summary" in first_table
@@ -298,6 +330,8 @@ def test_draft_generation_service() -> None:
     assert "## Key Data Tables" in draft["markdown_draft"]
     assert "This table shows the recent resale price trend" in draft["markdown_draft"]
     assert "The grounded asking price signal for resale properties in Andheri West, Mumbai is ₹40,238." in draft["markdown_draft"]
+    assert "balanced resale market" in draft["markdown_draft"].lower()
+    assert "market strengths" in draft["markdown_draft"].lower()
     assert "https://www.squareyards.com/" in draft["markdown_draft"]
 
 
@@ -338,6 +372,7 @@ def test_micromarket_property_type_safe_body_allows_single_decimal_grounded_valu
         "top_projects": {"byTransactions": {"projects": []}},
         "review_summary": {"overview": {}},
         "ai_summary": {},
+        "property_rates_ai_summary": {},
         "insight_rates": {},
         "demand_supply": {},
         "listing_ranges": {},
