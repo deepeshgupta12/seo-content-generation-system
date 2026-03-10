@@ -79,8 +79,10 @@ class PromptBuilder:
             "Do not write generic filler like 'this page provides' or 'users can explore' unless it is necessary and specific. "
             "Make each section meaningfully different from the others. "
             "Prefer explanatory prose that helps a real buyer understand the visible data on the page. "
+            "You may use competitor-derived planning signals only for structural inspiration such as section emphasis, section depth, and hierarchy. "
+            "Never copy competitor phrasing, claims, or FAQ wording. "
             "Return only valid JSON."
-        )
+            )
 
         sections = [
             section
@@ -101,6 +103,12 @@ class PromptBuilder:
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
                 "ready_to_move_keywords": content_plan["keyword_strategy"]["ready_to_move_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
+            "competitor_intelligence": {
+                "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
+                "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
+                "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
+            },
+            "planning_signals": content_plan.get("planning_signals", {}),
             },
             "requirements": {
                 "strict_grounding": True,
@@ -158,14 +166,22 @@ class PromptBuilder:
             "Questions should feel realistic for actual search or buyer intent. "
             "Prefer people-also-ask style phrasing where appropriate, but keep the wording natural and specific to the page. "
             "Answers should be readable, grounded, and naturally written, not repetitive or robotic. "
+            "You may use competitor-derived planning signals only to expand FAQ coverage and prioritize realistic buyer questions. "
+            "Never copy competitor phrasing, claims, or FAQ wording. "
             "Return only valid JSON."
-        )
+            )
 
         user_payload = {
             "entity": content_plan["entity"],
             "faq_plan": content_plan["faq_plan"],
             "data_context": content_plan["data_context"],
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
+            "competitor_intelligence": {
+                "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
+                "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
+                "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
+            },
+            "planning_signals": content_plan.get("planning_signals", {}),
             "requirements": {
                 "strict_grounding": True,
                 "faq_rules": {
@@ -201,7 +217,11 @@ class PromptBuilder:
         return system_prompt, json.dumps(user_payload, ensure_ascii=False, indent=2)
 
     @staticmethod
-    def table_summary_prompt(table: dict, entity: dict) -> tuple[str, str]:
+    def table_summary_prompt(
+        table: dict,
+        entity: dict,
+        planning_signals: dict | None = None,
+    ) -> tuple[str, str]:
         system_prompt = (
             "You generate a short human-readable summary for a grounded Square Yards data table. "
             "Use only the visible table title, columns, rows, and entity context provided. "
@@ -211,12 +231,15 @@ class PromptBuilder:
             "It should explain what the table covers, why it matters, and reference visible row-level grounded values when useful. "
             "Do not write generic QA or reviewer-workbench language. "
             "Do not mention row counts or column counts unless it is genuinely useful. "
+            "You may use competitor-derived planning signals only to decide what to emphasize structurally in the summary. "
+            "Never copy competitor wording or claims. "
             "Return only valid JSON."
-        )
+            )
 
         user_payload = {
             "entity": entity,
             "table": table,
+            "planning_signals": planning_signals or {},
             "requirements": {
                 "strict_grounding": True,
                 "style_rules": {

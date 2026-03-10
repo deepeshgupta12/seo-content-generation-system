@@ -1325,7 +1325,11 @@ class DraftGenerationService:
 
     @staticmethod
     def _generate_table_summary(table: dict, content_plan: dict, client: OpenAIClient) -> str:
-        system_prompt, user_prompt = PromptBuilder.table_summary_prompt(table, content_plan["entity"])
+        system_prompt, user_prompt = PromptBuilder.table_summary_prompt(
+            table,
+            content_plan["entity"],
+            content_plan.get("planning_signals", {}),
+        )
         response = client.generate_json(system_prompt, user_prompt)
         if isinstance(response, dict):
             summary = response.get("summary")

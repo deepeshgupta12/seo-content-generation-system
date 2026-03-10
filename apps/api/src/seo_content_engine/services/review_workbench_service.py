@@ -38,13 +38,15 @@ class ReviewWorkbenchService:
         }
 
     @staticmethod
-    def _build_keyword_preview(keyword_intelligence: dict) -> dict:
+    def _build_keyword_preview(keyword_intelligence: dict, content_plan: dict | None = None) -> dict:
         clusters = keyword_intelligence.get("keyword_clusters", {})
         raw_retrieval = keyword_intelligence.get("raw_retrieval", {})
         normalized_keywords = keyword_intelligence.get("normalized_keywords", {})
 
         competitor_block = raw_retrieval.get("competitor_keywords", {})
         serp_block = raw_retrieval.get("serp_validation", {})
+
+        competitor_intelligence = (content_plan or {}).get("competitor_intelligence", {}) or {}
 
         return {
             "version": keyword_intelligence.get("version"),
@@ -64,6 +66,9 @@ class ReviewWorkbenchService:
             "total_excluded_keywords": normalized_keywords.get("excluded_count", 0),
             "competitor_domains": competitor_block.get("competitor_domains", []),
             "serp_seed_keywords_checked": serp_block.get("seed_keywords_checked", []),
+            "relevant_competitor_keywords": competitor_intelligence.get("relevant_competitor_keywords", []),
+            "relevant_informational_keywords": competitor_intelligence.get("relevant_informational_keywords", []),
+            "relevant_overlap_keywords": competitor_intelligence.get("relevant_overlap_keywords", []),
         }
 
     @staticmethod
@@ -261,7 +266,10 @@ class ReviewWorkbenchService:
             },
             "entity": normalized.get("entity", {}),
             "source_preview": ReviewWorkbenchService._build_source_preview(normalized),
-            "keyword_preview": ReviewWorkbenchService._build_keyword_preview(keyword_intelligence),
+            "keyword_preview": ReviewWorkbenchService._build_keyword_preview(
+                keyword_intelligence,
+                content_plan,
+            ),
             "normalized": normalized,
             "keyword_intelligence": keyword_intelligence,
             "content_plan": content_plan,

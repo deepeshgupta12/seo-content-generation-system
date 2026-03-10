@@ -158,26 +158,155 @@ class CompetitorIntelligenceService:
             "overlap_count": len(overlapping_domains),
             "by_competitor": by_competitor,
         }
+    
+    @staticmethod
+    def _allowed_page_families() -> set[str]:
+        return {
+            "listing_page",
+            "locality_page",
+            "price_page",
+            "bhk_page",
+            "status_page",
+            "review_page",
+            "informational_page",
+        }
+
+    @staticmethod
+    def _build_scoped_competitor_records(
+        included_keywords: list[dict[str, Any]],
+        selected_domains: list[str],
+    ) -> list[dict[str, Any]]:
+        scoped: list[dict[str, Any]] = []
+        allowed_page_families = CompetitorIntelligenceService._allowed_page_families()
+
+        for record in included_keywords:
+            if not isinstance(record, dict):
+                continue
+
+            if not record.get("include", True):
+                continue
+
+            source_domains = record.get("source_domains", []) or []
+            serp_top_domains = record.get("serp_top_domains", []) or []
+
+            matched_competitor_domains = sorted(
+                {
+                    domain
+                    for domain in source_domains + serp_top_domains
+                    if domain in selected_domains
+                }
+            )
+
+            if not matched_competitor_domains:
+                continue
+
+            if not (
+                record.get("entity_match")
+                or record.get("city_match")
+                or record.get("exact_location_match")
+            ):
+                continue
+
+            keyword = record.get("keyword", "")
+            page_family = CompetitorIntelligenceService._classify_page_family(keyword)
+            if page_family not in allowed_page_families:
+                continue
+
+            enriched = dict(record)
+            enriched["page_family"] = page_family
+            enriched["matched_competitor_domains"] = matched_competitor_domains
+            enriched["keyword_themes"] = CompetitorIntelligenceService._classify_keyword_themes(keyword)
+            scoped.append(enriched)
+
+        scoped.sort(
+            key=lambda item: (
+                item.get("score", 0),
+                item.get("search_volume") or item.get("ads_search_volume") or 0,
+                item.get("keyword", ""),
+            ),
+            reverse=True,
+        )
+        return scoped
+
+    @staticmethod
+    def _build_relevant_keyword_views(
+        scoped_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        relevant_competitor_keywords = [
+            {
+                "keyword": record.get("keyword"),
+                "page_family": record.get("page_family"),
+                "themes": record.get("keyword_themes", []),
+                "matched_competitor_domains": record.get("matched_competitor_domains", []),
+                "score": record.get("score"),
+                "search_volume": record.get("search_volume"),
+                "ads_search_volume": record.get("ads_search_volume"),
+            }
+            for record in scoped_records[:20]
+        ]
+
+        relevant_informational_keywords = [
+            {
+                "keyword": record.get("keyword"),
+                "page_family": record.get("page_family"),
+                "themes": record.get("keyword_themes", []),
+                "matched_competitor_domains": record.get("matched_competitor_domains", []),
+                "score": record.get("score"),
+                "search_volume": record.get("search_volume"),
+                "ads_search_volume": record.get("ads_search_volume"),
+            }
+            for record in scoped_records
+            if (
+                record.get("informational_signal")
+                or "informational" in (record.get("keyword_themes", []) or [])
+                or record.get("page_family") == "informational_page"
+            )
+        ][:20]
+
+        relevant_overlap_keywords = [
+            {
+                "keyword": record.get("keyword"),
+                "source_domains": record.get("source_domains", []),
+                "serp_top_domains": record.get("serp_top_domains", []),
+                "matched_competitor_domains": record.get("matched_competitor_domains", []),
+                "page_family": record.get("page_family"),
+                "score": record.get("score"),
+                "search_volume": record.get("search_volume"),
+                "ads_search_volume": record.get("ads_search_volume"),
+            }
+            for record in scoped_records
+            if record.get("matched_competitor_domains")
+        ][:20]
+
+        return {
+            "relevant_competitor_keywords": relevant_competitor_keywords,
+            "relevant_informational_keywords": relevant_informational_keywords,
+            "relevant_overlap_keywords": relevant_overlap_keywords,
+        }
 
     @staticmethod
     def _build_competitor_breakdown(
-        competitor_records: list[dict[str, Any]],
+        scoped_records: list[dict[str, Any]],
         selected_domains: list[str],
     ) -> list[dict[str, Any]]:
         breakdown: list[dict[str, Any]] = []
 
         for domain in selected_domains:
-            domain_records = [item for item in competitor_records if item.get("source_domain") == domain]
+            domain_records = [
+                item
+                for item in scoped_records
+                if domain in (item.get("matched_competitor_domains", []) or [])
+            ]
 
             page_family_map: dict[str, list[str]] = {}
             theme_map: dict[str, list[str]] = {}
 
             for record in domain_records:
                 keyword = record.get("keyword", "")
-                family = CompetitorIntelligenceService._classify_page_family(keyword)
+                family = record.get("page_family") or CompetitorIntelligenceService._classify_page_family(keyword)
                 page_family_map.setdefault(family, []).append(keyword)
 
-                for theme in CompetitorIntelligenceService._classify_keyword_themes(keyword):
+                for theme in record.get("keyword_themes", []) or CompetitorIntelligenceService._classify_keyword_themes(keyword):
                     theme_map.setdefault(theme, []).append(keyword)
 
             page_family_breakdown = [
@@ -201,7 +330,18 @@ class CompetitorIntelligenceService:
             theme_breakdown.sort(key=CompetitorIntelligenceService._theme_sort_key, reverse=True)
 
             top_keywords = sorted(
-                domain_records,
+                [
+                    {
+                        "keyword": item.get("keyword"),
+                        "page_family": item.get("page_family"),
+                        "themes": item.get("keyword_themes", []),
+                        "score": item.get("score"),
+                        "search_volume": item.get("search_volume"),
+                        "ads_search_volume": item.get("ads_search_volume"),
+                        "matched_competitor_domains": item.get("matched_competitor_domains", []),
+                    }
+                    for item in domain_records
+                ],
                 key=lambda item: (
                     item.get("score", 0),
                     item.get("search_volume") or item.get("ads_search_volume") or 0,
@@ -224,29 +364,22 @@ class CompetitorIntelligenceService:
 
     @staticmethod
     def _build_keyword_intersection(
-        included_keywords: list[dict[str, Any]],
-        selected_domains: list[str],
+        scoped_records: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        shared_keywords: list[dict[str, Any]] = []
-
-        for record in included_keywords:
-            source_domains = record.get("source_domains", []) or []
-            if not any(domain in selected_domains for domain in source_domains):
-                continue
-
-            shared_keywords.append(
+        shared_keywords = sorted(
+            [
                 {
                     "keyword": record.get("keyword"),
                     "sources": record.get("sources", []),
-                    "source_domains": source_domains,
+                    "source_domains": record.get("source_domains", []),
+                    "matched_competitor_domains": record.get("matched_competitor_domains", []),
+                    "page_family": record.get("page_family"),
                     "score": record.get("score"),
                     "search_volume": record.get("search_volume"),
                     "ads_search_volume": record.get("ads_search_volume"),
                 }
-            )
-
-        shared_keywords = sorted(
-            shared_keywords,
+                for record in scoped_records
+            ],
             key=lambda item: (
                 item.get("score", 0),
                 item.get("search_volume") or item.get("ads_search_volume") or 0,
@@ -407,22 +540,28 @@ class CompetitorIntelligenceService:
         if not selected_domains:
             selected_domains = whitelist[:4]
 
-        competitor_records = CompetitorIntelligenceService._extract_competitor_records(keyword_intelligence)
         included_keywords = (
             keyword_intelligence.get("normalized_keywords", {}).get("included_keywords", []) or []
         )
 
+        scoped_records = CompetitorIntelligenceService._build_scoped_competitor_records(
+            included_keywords,
+            selected_domains,
+        )
+
         competitor_breakdown = CompetitorIntelligenceService._build_competitor_breakdown(
-            competitor_records,
+            scoped_records,
             selected_domains,
         )
         keyword_intersection = CompetitorIntelligenceService._build_keyword_intersection(
-            included_keywords,
-            selected_domains,
+            scoped_records,
         )
         serp_overlap = CompetitorIntelligenceService._extract_serp_overlap(
             keyword_intelligence,
             selected_domains,
+        )
+        relevant_keyword_views = CompetitorIntelligenceService._build_relevant_keyword_views(
+            scoped_records,
         )
         structural_patterns = CompetitorIntelligenceService._build_structural_patterns(
             competitor_breakdown
@@ -432,7 +571,7 @@ class CompetitorIntelligenceService:
         )
 
         return {
-            "version": "v1.0",
+            "version": "v1.1",
             "generated_at": datetime.now(UTC).isoformat(),
             "whitelist_domains": whitelist,
             "selected_competitors": selected_domains,
@@ -441,4 +580,7 @@ class CompetitorIntelligenceService:
             "serp_overlap": serp_overlap,
             "structural_patterns": structural_patterns,
             "inspiration_signals": inspiration_signals,
+            "relevant_competitor_keywords": relevant_keyword_views["relevant_competitor_keywords"],
+            "relevant_informational_keywords": relevant_keyword_views["relevant_informational_keywords"],
+            "relevant_overlap_keywords": relevant_keyword_views["relevant_overlap_keywords"],
         }

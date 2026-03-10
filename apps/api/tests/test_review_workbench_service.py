@@ -276,6 +276,9 @@ def test_review_workbench_service_build_session(monkeypatch) -> None:
     assert len(session["draft"]["faqs"]) == 1
     assert session["draft"]["publish_ready"] is True
     assert "markdown_draft" in session["draft"]
+    assert "relevant_competitor_keywords" in session["keyword_preview"]
+    assert "relevant_informational_keywords" in session["keyword_preview"]
+    assert "relevant_overlap_keywords" in session["keyword_preview"]
 
 
 def test_review_workbench_service_update_section_body(monkeypatch) -> None:

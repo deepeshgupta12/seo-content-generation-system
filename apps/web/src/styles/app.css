@@ -444,6 +444,24 @@ textarea {
   font-size: 14px;
 }
 
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 .data-table th {
   background: var(--soft-bg);
   font-weight: 700;

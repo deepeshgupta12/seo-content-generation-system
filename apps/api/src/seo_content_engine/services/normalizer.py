@@ -134,7 +134,7 @@ class EntityNormalizer:
 
         return compact_dict(
             {
-                "market_snapshot_overview": property_rates_ai_data.get("marketSnapshotOverview"),
+                "market_snapshot": property_rates_ai_data.get("marketSnapshotOverview"),
                 "insights_long": property_rates_ai_data.get("insightsLong"),
                 "insights_short": property_rates_ai_data.get("insightsShort"),
                 "asking_price_trends_description": property_rates_ai_data.get("askingPriceTrendsDescription"),
@@ -415,6 +415,7 @@ class EntityNormalizer:
                 "avg_rental_rate": market_overview.get("avgRentalRate"),
                 "price_trend": rates_root.get("priceTrend", []),
                 "location_rates": rates_root.get("micromarketRates", []),
+                "micromarket_rates": rates_root.get("micromarketRates", []),
                 "property_types": rates_root.get("propertyTypes", []),
                 "property_status": rates_root.get("propertyStatus", []),
             }
@@ -469,6 +470,7 @@ class EntityNormalizer:
                 "avg_rental_rate": market_overview.get("avgRentalRate"),
                 "price_trend": rates_root.get("priceTrend", []),
                 "location_rates": rates_root.get("locationRates", []),
+                "micromarket_rates": rates_root.get("micromarketRates", []),
                 "property_types": rates_root.get("propertyTypes", []),
                 "property_status": rates_root.get("propertyStatus", []),
             }

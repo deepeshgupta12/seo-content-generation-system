@@ -126,6 +126,28 @@ function FaqSnapshot({ faq }: { faq: ReviewFaq }) {
   );
 }
 
+function KeywordChipList({
+  items,
+  emptyLabel = "—",
+}: {
+  items: string[];
+  emptyLabel?: string;
+}) {
+  if (!items.length) {
+    return <div className="empty-state">{emptyLabel}</div>;
+  }
+
+  return (
+    <div className="chip-list">
+      {items.map((item, index) => (
+        <span className="chip" key={`${item}-${index}`}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function ReviewWorkbenchPage() {
   const [mainPath, setMainPath] = useState(DEFAULT_MAIN_PATH);
   const [ratesPath, setRatesPath] = useState(DEFAULT_RATES_PATH);
@@ -214,6 +236,16 @@ export function ReviewWorkbenchPage() {
   const competitorKeywords = getArray(session?.keyword_preview?.competitor_keywords);
   const informationalKeywords = getArray(session?.keyword_preview?.informational_keywords);
   const serpValidatedKeywords = getArray(session?.keyword_preview?.serp_validated_keywords);
+
+  const relevantCompetitorKeywords = getArray(
+    session?.keyword_preview?.relevant_competitor_keywords,
+  );
+  const relevantInformationalKeywords = getArray(
+    session?.keyword_preview?.relevant_informational_keywords,
+  );
+  const relevantOverlapKeywords = getArray(
+    session?.keyword_preview?.relevant_overlap_keywords,
+  );
   const competitorDomains = getStringArray(session?.keyword_preview?.competitor_domains);
   const serpSeedKeywordsChecked = getStringArray(session?.keyword_preview?.serp_seed_keywords_checked);
   const totalIncludedKeywords = stringifyValue(session?.keyword_preview?.total_included_keywords);
@@ -241,6 +273,18 @@ export function ReviewWorkbenchPage() {
   const competitorSchemaHierarchyPatterns = getArray(
     competitorInspiration?.recommended_schema_hierarchy_patterns,
   );
+
+  const competitorKeywordLabels = relevantCompetitorKeywords.length
+    ? relevantCompetitorKeywords.map((item) => stringifyValue(getRecord(item)?.keyword))
+    : competitorKeywords.map((item) => stringifyValue(getRecord(item)?.keyword));
+
+  const informationalKeywordLabels = relevantInformationalKeywords.length
+    ? relevantInformationalKeywords.map((item) => stringifyValue(getRecord(item)?.keyword))
+    : informationalKeywords.map((item) => stringifyValue(getRecord(item)?.keyword));
+
+  const overlapKeywordLabels = relevantOverlapKeywords.length
+    ? relevantOverlapKeywords.map((item) => stringifyValue(getRecord(item)?.keyword))
+    : serpValidatedKeywords.map((item) => stringifyValue(getRecord(item)?.keyword));
 
   const warningReasons = qualityReport?.warning_reasons ?? [];
   const sectionReview = session?.section_review ?? [];
@@ -1069,29 +1113,23 @@ export function ReviewWorkbenchPage() {
               </div>
 
               <div className="detail-card">
-                <div className="detail-card__label">Competitor Keywords</div>
+                <div className="detail-card__label">Relevant Competitor Keywords</div>
                 <div className="detail-card__value">
-                  {competitorKeywords.length
-                    ? competitorKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
-                    : "—"}
+                  <KeywordChipList items={competitorKeywordLabels} />
                 </div>
               </div>
 
               <div className="detail-card">
-                <div className="detail-card__label">Informational Keywords</div>
+                <div className="detail-card__label">Relevant Informational Signals</div>
                 <div className="detail-card__value">
-                  {informationalKeywords.length
-                    ? informationalKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
-                    : "—"}
+                  <KeywordChipList items={informationalKeywordLabels} />
                 </div>
               </div>
 
               <div className="detail-card">
-                <div className="detail-card__label">SERP Validated Keywords</div>
+                <div className="detail-card__label">Relevant Overlap Keywords</div>
                 <div className="detail-card__value">
-                  {serpValidatedKeywords.length
-                    ? serpValidatedKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
-                    : "—"}
+                  <KeywordChipList items={overlapKeywordLabels} />
                 </div>
               </div>
 
@@ -1123,7 +1161,7 @@ export function ReviewWorkbenchPage() {
 
           <section className="panel">
             <div className="panel-header">
-              <h2>Competitor intelligence</h2>
+              <h2>Planning signals from competitor patterns</h2>
             </div>
 
             {!competitorIntelligence ? (
@@ -1162,7 +1200,7 @@ export function ReviewWorkbenchPage() {
                   </div>
 
                   <div className="detail-card">
-                    <div className="detail-card__label">Usage Rule</div>
+                    <div className="detail-card__label">Structural Usage Rule</div>
                     <div className="detail-card__value">
                       {stringifyValue(competitorInspiration?.usage_rule)}
                     </div>

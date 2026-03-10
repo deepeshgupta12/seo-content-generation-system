@@ -109,7 +109,7 @@ def test_content_plan_builder_for_locality() -> None:
 
     content_plan = ContentPlanBuilder.build(normalized=normalized, keyword_intelligence=keyword_intelligence)
 
-    assert content_plan["version"] == "v1.7"
+    assert content_plan["version"] == "v1.8"
     assert content_plan["page_type"] == "resale_locality"
     assert content_plan["entity"]["entity_name"] == "Andheri West"
     assert content_plan["metadata_plan"]["recommended_h1"] == "Resale Properties in Andheri West, Mumbai"
@@ -160,6 +160,10 @@ def test_content_plan_builder_for_locality() -> None:
     assert "property_rates_ai_summary" in content_plan["data_context"]
     assert "competitor_intelligence" in content_plan
     assert "competitor_inspiration" in content_plan
+    assert "planning_signals" in content_plan
+    assert "relevant_competitor_keywords" in content_plan["competitor_intelligence"]
+    assert "relevant_informational_keywords" in content_plan["competitor_intelligence"]
+    assert "relevant_overlap_keywords" in content_plan["competitor_intelligence"]
     assert content_plan["data_context"]["property_rates_ai_summary"]["market_snapshot"].startswith("Balanced resale market")
 
 
@@ -245,7 +249,7 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
 
     content_plan = ContentPlanBuilder.build(normalized=normalized, keyword_intelligence=keyword_intelligence)
 
-    assert content_plan["version"] == "v1.7"
+    assert content_plan["version"] == "v1.8"
     assert content_plan["page_type"] == "resale_micromarket"
 
     section_ids = {section["id"] for section in content_plan["section_plan"]}
@@ -360,7 +364,7 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
 
     content_plan = ContentPlanBuilder.build(normalized=normalized, keyword_intelligence=keyword_intelligence)
 
-    assert content_plan["version"] == "v1.7"
+    assert content_plan["version"] == "v1.8"
     assert content_plan["page_type"] == "resale_city"
 
     section_ids = {section["id"] for section in content_plan["section_plan"]}
