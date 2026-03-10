@@ -52,6 +52,7 @@ def test_factual_validator_flags_forbidden_claims_and_unknown_numbers() -> None:
     assert report["passed"] is False
     assert "forbidden_claims_detected" in report["metadata_checks"]["meta_description"]["issues"]
     assert "unreconciled_numbers_detected" in report["metadata_checks"]["intro_snippet"]["issues"]
+    assert "forbidden_claims_detected" in report["section_checks"][0]["validation"]["issues"]
 
 
 def test_factual_validator_flags_non_canonical_pricing_metric() -> None:
@@ -134,6 +135,7 @@ def test_factual_validator_warns_for_stale_source_data() -> None:
     assert report["quality_report"]["approval_status"] == "warning"
     assert "stale_source_data_detected" in report["quality_report"]["warning_reasons"]
     assert report["quality_report"]["stale_data_check"]["severity"] == "medium"
+    assert report["quality_report"]["stale_data_check"]["blocking"] is False
 
 
 def test_factual_validator_fails_for_severely_stale_source_data() -> None:
@@ -402,6 +404,7 @@ def test_factual_validator_warns_for_low_distinct_term_ratio() -> None:
     assert report["passed"] is True
     assert report["quality_report"]["approval_status"] == "warning"
     assert "low_distinct_term_ratio_detected" in report["quality_report"]["warning_reasons"]
+    assert report["quality_report"]["page_uniqueness_check"]["distinct_term_ratio"] < 0.45
 
 
 def test_factual_validator_builds_warning_taxonomy() -> None:

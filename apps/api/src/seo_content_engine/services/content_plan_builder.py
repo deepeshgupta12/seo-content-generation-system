@@ -139,10 +139,10 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current market signals on Square Yards.",
+            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
             f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
-            f"Browse resale listings in {location_label} with rates, property mix, and key buying insights on Square Yards.",
-            f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and buyer-focused data on Square Yards.",
+            f"Browse resale listings in {location_label} with rates, property mix, and grounded buying insights on Square Yards.",
+            f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
         ]
 
         canonical_pricing = {
@@ -172,7 +172,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["quarterName", "locationRate", "micromarketRate", "cityRate"],
                 "summary_instruction": (
-                    "Summarize what this table covers, what a reviewer can learn from it, "
+                    "Summarize what this table covers, why it matters to a resale buyer, "
                     "and mention the first visible row using grounded values only."
                 ),
             },
@@ -183,7 +183,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["key", "doc_count"],
                 "summary_instruction": (
-                    "Explain that this table helps reviewers understand the visible BHK mix "
+                    "Explain what this table shows about the visible BHK mix "
                     "and reference the first row with grounded values only."
                 ),
             },
@@ -194,7 +194,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
                 "summary_instruction": (
-                    "Explain that this table highlights nearby alternatives and mention the first row "
+                    "Explain how this table helps compare nearby alternatives and mention the first row "
                     "with grounded values only."
                 ),
             },
@@ -210,7 +210,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["name", "avgRate", "changePercentage"],
                     "summary_instruction": (
-                        "Explain that this table compares rate signals across covered locations "
+                        "Explain that this table compares visible rate signals across covered locations "
                         "and reference the first visible row using grounded values only."
                     ),
                 }
@@ -242,7 +242,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["status", "units", "avgPrice"],
                     "summary_instruction": (
-                        "Explain that this table shows visible readiness or status buckets and reference the first row "
+                        "Explain what visible readiness or status buckets appear here and reference the first row "
                         "with grounded values only."
                     ),
                 }
@@ -258,7 +258,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions", "productUrl"],
                     "summary_instruction": (
-                        "Explain that this table lists visible project-level signals and mention the first project row "
+                        "Explain that this table lists visible project-level transaction signals and mention the first project row "
                         "with grounded values only."
                     ),
                 }
@@ -301,7 +301,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["sale_count", "total_listings", "total_projects"],
                     "summary_instruction": (
-                        "Explain that this table gives a quick coverage snapshot of the page and reference the visible values only."
+                        "Explain that this table gives a quick page-level coverage snapshot and reference the visible values only."
                     ),
                 }
             )

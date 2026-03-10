@@ -239,7 +239,7 @@ def test_draft_repair_loop_repairs_flagged_content() -> None:
     assert draft["version"] == "v2.5"
     assert client.metadata_repair_called >= 1
     assert client.section_repair_called >= 1
-    assert client.faq_repair_called >= 1
+    assert client.faq_repair_called == 0
     assert draft["repair_passes_used"] >= 1
     assert "pre_block_draft" in draft
     assert "debug_summary" in draft

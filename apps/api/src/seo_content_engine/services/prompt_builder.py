@@ -156,6 +156,7 @@ class PromptBuilder:
             "Generate broad FAQ coverage and be more descriptive than a one-line answer. "
             "Target 8 to 12 FAQs when the plan supports it, with each answer usually 45 to 110 words. "
             "Questions should feel realistic for actual search or buyer intent. "
+            "Prefer people-also-ask style phrasing where appropriate, but keep the wording natural and specific to the page. "
             "Answers should be readable, grounded, and naturally written, not repetitive or robotic. "
             "Return only valid JSON."
         )
@@ -178,6 +179,7 @@ class PromptBuilder:
                     "target_max_faqs": 12,
                     "avoid_duplicate_questions": True,
                     "avoid_duplicate_answers": True,
+                    "prefer_people_also_ask_style_questions": True,
                 },
                 "style_rules": {
                     "tone": "natural, buyer-friendly, grounded",
@@ -207,7 +209,7 @@ class PromptBuilder:
             "Write 3 to 4 sentences maximum. "
             "The summary must be user-friendly, reviewer-friendly, and SEO-friendly without sounding robotic. "
             "It should explain what the table covers, why it matters, and reference visible row-level grounded values when useful. "
-            "Do not write generic QA/reviewer language like 'this table is included to make scanning easier'. "
+            "Do not write generic QA or reviewer-workbench language. "
             "Do not mention row counts or column counts unless it is genuinely useful. "
             "Return only valid JSON."
         )

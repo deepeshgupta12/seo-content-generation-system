@@ -296,7 +296,8 @@ def test_draft_generation_service() -> None:
     assert len(first_table["summary"]) > 40
 
     assert "## Key Data Tables" in draft["markdown_draft"]
-    assert "Reviewers can use this table to cross-check" in draft["markdown_draft"]
+    assert "This table shows the recent resale price trend" in draft["markdown_draft"]
+    assert "The grounded asking price signal for resale properties in Andheri West, Mumbai is ₹40,238." in draft["markdown_draft"]
     assert "https://www.squareyards.com/" in draft["markdown_draft"]
 
 

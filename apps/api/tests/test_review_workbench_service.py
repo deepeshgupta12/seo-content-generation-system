@@ -95,8 +95,9 @@ class DummyDraftGenerationService:
                         }
                     ],
                     "summary": (
-                        "Price Trend Snapshot presents 1 grounded row across 3 columns. "
-                        "It is included to make the structured price inputs easier to review alongside the generated narrative."
+                        "This table shows the recent resale price trend captured for the page and helps place the current asking-price signal "
+                        "in a broader local context. Currently, in the latest visible quarter, Dec 2025, the locality rate is ₹40,238, "
+                        "the micromarket rate is ₹21,180."
                     ),
                 }
             ],
@@ -181,9 +182,13 @@ class DummyDraftGenerationService:
             "publish_ready": True,
             "markdown_draft": (
                 "# Resale Properties in Andheri West, Mumbai\n\n"
+                "Browse resale listings in Andheri West, Mumbai.\n\n"
+                "## SEO Metadata\n\n"
+                "**Title:** Resale Properties in Andheri West, Mumbai | Square Yards\n"
+                "**Meta Description:** Explore resale properties in Andheri West, Mumbai on Square Yards.\n\n"
                 "## Key Data Tables\n\n"
                 "### Price Trend Snapshot\n\n"
-                "Price Trend Snapshot presents 1 grounded row across 3 columns.\n"
+                "This table shows the recent resale price trend captured for the page and helps place the current asking-price signal in a broader local context.\n"
             ),
         }
 
@@ -269,6 +274,8 @@ def test_review_workbench_service_build_session(monkeypatch) -> None:
     assert len(session["draft"]["tables"]) == 1
     assert "summary" in session["draft"]["tables"][0]
     assert len(session["draft"]["faqs"]) == 1
+    assert session["draft"]["publish_ready"] is True
+    assert "markdown_draft" in session["draft"]
 
 
 def test_review_workbench_service_update_section_body(monkeypatch) -> None:

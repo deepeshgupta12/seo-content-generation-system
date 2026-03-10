@@ -1,128 +1,240 @@
 from __future__ import annotations
 
-from seo_content_engine.services.output_formatter import OutputFormatter
+from typing import Any
 
 
 class MarkdownRenderer:
     @staticmethod
-    def _render_table(table: dict) -> str:
-        columns = table["columns"]
-        rows = table["rows"]
+    def _string(value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
 
-        lines = [f"### {table['title']}", ""]
+    @staticmethod
+    def _format_value(value: Any) -> str:
+        if value is None or value == "":
+            return "—"
+        if isinstance(value, float):
+            if value.is_integer():
+                return str(int(value))
+            return f"{value:.2f}".rstrip("0").rstrip(".")
+        return str(value)
 
-        if table.get("summary"):
-            lines.append(table["summary"])
+    @staticmethod
+    def _render_metadata(metadata: dict) -> list[str]:
+        lines: list[str] = []
+
+        title = MarkdownRenderer._string(metadata.get("title"))
+        meta_description = MarkdownRenderer._string(metadata.get("meta_description"))
+        h1 = MarkdownRenderer._string(metadata.get("h1"))
+        intro_snippet = MarkdownRenderer._string(metadata.get("intro_snippet"))
+
+        if h1:
+            lines.append(f"# {h1}")
             lines.append("")
 
-        if not rows:
-            lines.append("No structured data available.")
+        if intro_snippet:
+            lines.append(intro_snippet)
             lines.append("")
-            return "\n".join(lines)
 
-        header = "| " + " | ".join(columns) + " |"
-        separator = "| " + " | ".join(["---"] * len(columns)) + " |"
+        if title or meta_description:
+            lines.append("## SEO Metadata")
+            lines.append("")
 
-        lines.extend([header, separator])
-        for row in rows:
-            values = [str(row.get(column, "—")) for column in columns]
-            lines.append("| " + " | ".join(values) + " |")
+        if title:
+            lines.append(f"**Title:** {title}")
+        if meta_description:
+            lines.append(f"**Meta Description:** {meta_description}")
+
+        if title or meta_description:
+            lines.append("")
+
+        return lines
+
+    @staticmethod
+    def _render_sections(sections: list[dict]) -> list[str]:
+        lines: list[str] = []
+        if not sections:
+            return lines
+
+        lines.append("## Editorial Sections")
+        lines.append("")
+
+        for section in sections:
+            title = MarkdownRenderer._string(section.get("title"))
+            body = MarkdownRenderer._string(section.get("body"))
+
+            if title:
+                lines.append(f"### {title}")
+                lines.append("")
+
+            if body:
+                for paragraph in body.split("\n"):
+                    paragraph = paragraph.strip()
+                    if paragraph:
+                        lines.append(paragraph)
+                        lines.append("")
+            else:
+                lines.append("No grounded narrative available for this section.")
+                lines.append("")
+
+        return lines
+
+    @staticmethod
+    def _render_single_table(table: dict) -> list[str]:
+        lines: list[str] = []
+
+        title = MarkdownRenderer._string(table.get("title")) or "Table"
+        summary = MarkdownRenderer._string(table.get("summary"))
+        columns = table.get("columns", []) or []
+        rows = table.get("rows", []) or []
+
+        lines.append(f"### {title}")
+        lines.append("")
+
+        if summary:
+            lines.append(summary)
+            lines.append("")
+
+        if not columns:
+            lines.append("No structured columns available.")
+            lines.append("")
+            return lines
+
+        header = "| " + " | ".join(str(column) for column in columns) + " |"
+        divider = "| " + " | ".join("---" for _ in columns) + " |"
+
+        lines.append(header)
+        lines.append(divider)
+
+        if rows:
+            for row in rows:
+                lines.append(
+                    "| "
+                    + " | ".join(MarkdownRenderer._format_value(row.get(column)) for column in columns)
+                    + " |"
+                )
+        else:
+            lines.append("| " + " | ".join("—" for _ in columns) + " |")
 
         lines.append("")
-        return "\n".join(lines)
+        return lines
+
+    @staticmethod
+    def _render_tables(tables: list[dict]) -> list[str]:
+        lines: list[str] = []
+        if not tables:
+            return lines
+
+        lines.append("## Key Data Tables")
+        lines.append("")
+
+        for table in tables:
+            lines.extend(MarkdownRenderer._render_single_table(table))
+
+        return lines
+
+    @staticmethod
+    def _render_faq_answer(answer: str) -> list[str]:
+        lines: list[str] = []
+        for paragraph in answer.split("\n"):
+            paragraph = paragraph.strip()
+            if paragraph:
+                lines.append(paragraph)
+                lines.append("")
+        return lines
+
+    @staticmethod
+    def _render_faqs(faqs: list[dict]) -> list[str]:
+        lines: list[str] = []
+        if not faqs:
+            return lines
+
+        lines.append("## Frequently Asked Questions")
+        lines.append("")
+
+        for faq in faqs:
+            question = MarkdownRenderer._string(faq.get("question"))
+            answer = MarkdownRenderer._string(faq.get("answer"))
+
+            if question:
+                lines.append(f"### {question}")
+                lines.append("")
+
+            if answer:
+                lines.extend(MarkdownRenderer._render_faq_answer(answer))
+            else:
+                lines.append("No grounded answer available.")
+                lines.append("")
+
+        return lines
+
+    @staticmethod
+    def _render_link_group(title: str, links: list[Any]) -> list[str]:
+        lines: list[str] = []
+        normalized_links: list[dict] = []
+
+        for item in links or []:
+            if isinstance(item, list):
+                for nested in item:
+                    if isinstance(nested, dict):
+                        normalized_links.append(nested)
+            elif isinstance(item, dict):
+                normalized_links.append(item)
+
+        if not normalized_links:
+            return lines
+
+        lines.append(f"### {title}")
+        lines.append("")
+
+        for link in normalized_links:
+            label = MarkdownRenderer._string(
+                link.get("label") or link.get("unitType") or link.get("propertyType") or "Link"
+            )
+            url = MarkdownRenderer._string(link.get("url"))
+            if url:
+                lines.append(f"- {label}: {url}")
+            else:
+                lines.append(f"- {label}")
+
+        lines.append("")
+        return lines
+
+    @staticmethod
+    def _render_internal_links(internal_links: dict) -> list[str]:
+        lines: list[str] = []
+        if not internal_links:
+            return lines
+
+        lines.append("## Internal Links")
+        lines.append("")
+
+        title_map = {
+            "sale_unit_type_links": "Unit Type Links",
+            "sale_property_type_links": "Property Type Links",
+            "sale_quick_links": "Quick Links",
+            "nearby_locality_links": "Nearby Locality Links",
+            "top_project_links": "Top Project Links",
+            "featured_project_links": "Featured Project Links",
+        }
+
+        for key, title in title_map.items():
+            lines.extend(MarkdownRenderer._render_link_group(title, internal_links.get(key, [])))
+
+        return lines
 
     @staticmethod
     def render(draft: dict) -> str:
-        metadata = draft["metadata"]
-        sections = draft["sections"]
-        tables = draft["tables"]
-        faqs = draft["faqs"]
-        internal_links = draft["internal_links"]
-        quality_report = draft.get("quality_report", {})
+        lines: list[str] = []
 
-        lines: list[str] = [
-            f"# {metadata['h1']}",
-            "",
-            f"**Title:** {metadata['title']}",
-            "",
-            f"**Meta Description:** {metadata['meta_description']}",
-            "",
-            metadata["intro_snippet"],
-            "",
-        ]
+        lines.extend(MarkdownRenderer._render_metadata(draft.get("metadata", {})))
+        lines.extend(MarkdownRenderer._render_sections(draft.get("sections", [])))
+        lines.extend(MarkdownRenderer._render_tables(draft.get("tables", [])))
+        lines.extend(MarkdownRenderer._render_faqs(draft.get("faqs", [])))
+        lines.extend(MarkdownRenderer._render_internal_links(draft.get("internal_links", {})))
 
-        if quality_report:
-            approval_status = quality_report.get("approval_status")
-            score = quality_report.get("overall_quality_score", quality_report.get("overall_score"))
-            warnings = quality_report.get("warning_reasons", quality_report.get("warnings", []))
+        while lines and lines[-1] == "":
+            lines.pop()
 
-            lines.append("## Quality Summary")
-            lines.append("")
-            if approval_status is not None:
-                lines.append(f"**Approval Status:** {approval_status}")
-            if score is not None:
-                lines.append(f"**Overall Quality Score:** {score}")
-            if warnings:
-                lines.append("")
-                lines.append("**Warnings:**")
-                for warning in warnings:
-                    lines.append(f"- {warning}")
-            lines.append("")
-
-        if draft.get("needs_review"):
-            lines.extend(
-                [
-                    "> Review required: one or more sections, FAQs, or metadata fields were flagged by the factual validator.",
-                    "",
-                ]
-            )
-
-        for section in sections:
-            lines.append(f"## {section['title']}")
-            lines.append("")
-            lines.append(section["body"])
-            lines.append("")
-
-        if tables:
-            lines.append("## Key Data Tables")
-            lines.append("")
-            for table in tables:
-                lines.append(MarkdownRenderer._render_table(table))
-
-        if faqs:
-            lines.append("## Frequently Asked Questions")
-            lines.append("")
-            for faq in faqs:
-                lines.append(f"### {faq['question']}")
-                lines.append("")
-                lines.append(faq["answer"])
-                lines.append("")
-
-        if internal_links:
-            lines.append("## Explore More")
-            lines.append("")
-
-            for group_name, group_links in internal_links.items():
-                if not group_links:
-                    continue
-
-                lines.append(f"### {group_name.replace('_', ' ').title()}")
-                lines.append("")
-
-                if isinstance(group_links, list):
-                    for item in group_links:
-                        if isinstance(item, list):
-                            for nested in item:
-                                label = nested.get("unitType") or nested.get("propertyType") or nested.get("label")
-                                url = OutputFormatter.resolve_url(nested.get("url"))
-                                if label and url:
-                                    lines.append(f"- {label}: {url}")
-                        elif isinstance(item, dict):
-                            label = item.get("label")
-                            url = OutputFormatter.resolve_url(item.get("url"))
-                            if label and url:
-                                lines.append(f"- {label}: {url}")
-
-                lines.append("")
-
-        return "\n".join(lines).strip() + "\n"
+        return "\n".join(lines) + "\n"
