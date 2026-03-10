@@ -437,7 +437,7 @@ class ContentPlanBuilder:
             },
             {
                 "id": "property_rates_ai_signals",
-                "question_template": f"What AI-generated market signals are available for {location_label}?",
+                "question_template": f"What market strengths, challenges, and opportunities are highlighted for {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["property_rates_ai_summary"],
             },
@@ -580,14 +580,17 @@ class ContentPlanBuilder:
 
         property_rates_ai_section = {
             "id": "property_rates_ai_signals",
-            "title": "Market Signals from Property Rates AI Data",
+            "title": "Market Strengths, Challenges, and Opportunities",
             "objective": (
-                "Summarize grounded AI-generated market notes from the property-rates source, including "
-                "market snapshot text, strengths, challenges, and investment opportunity cues, without adding "
-                "unsupported facts beyond the provided source fields."
+                "Write a para-format, grounded market-summary section using only the structured "
+                "property-rates AI fields such as market snapshot, market strengths, market challenges, "
+                "and investment opportunities. The output should read like a balanced real-estate market "
+                "takeaway for a buyer or investor, not like a raw source dump or promotional copy."
             ),
             "render_type": "hybrid",
-            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+            "target_keywords": ContentPlanBuilder._top_keywords(
+                keyword_clusters.get("secondary_keywords", []), 4
+            ),
             "data_dependencies": ["property_rates_ai_summary"],
         }
 
@@ -715,15 +718,16 @@ class ContentPlanBuilder:
                     "instruction": "Use only explicit review counts, rating values, tags, and ai_summary inputs. Do not infer sentiment or desirability.",
                 }
 
-                if section["id"] == "property_rates_ai_signals":
-                    section_context["narrative_guardrails"] = {
-                        "allowed_inputs": ["property_rates_ai_summary"],
-                        "instruction": (
-                            "Use only explicit property_rates_ai_summary fields such as market snapshot overview, "
-                            "insight descriptions, market strengths, market challenges, and investment opportunities. "
-                            "Do not add any claims that are not directly supported by those source fields."
-                        ),
-                    }
+            if section["id"] == "property_rates_ai_signals":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["property_rates_ai_summary"],
+                    "instruction": (
+                        "Use only explicit property_rates_ai_summary fields. Convert them into a readable, "
+                        "balanced, para-format market summary. Keep the writing descriptive and grounded. "
+                        "Do not present the content as guaranteed upside, do not exaggerate strengths, and do not "
+                        "add claims that are not directly supported by the source fields."
+                    ),
+                }
 
             if section["id"] == "demand_and_supply_signals":
                 section_context["narrative_guardrails"] = {

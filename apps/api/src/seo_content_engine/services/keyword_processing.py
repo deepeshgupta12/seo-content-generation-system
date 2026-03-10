@@ -67,6 +67,27 @@ class KeywordProcessing:
         "properties",
         "apartment",
         "flat",
+        "how",
+        "what",
+        "which",
+        "best",
+        "good",
+        "why",
+        "where",
+    }
+
+    INFORMATIONAL_TERMS = {
+        "how",
+        "what",
+        "which",
+        "best",
+        "good",
+        "guide",
+        "market",
+        "price trend",
+        "rates",
+        "overview",
+        "comparison",
     }
 
     BHK_REGEX = re.compile(r"\b\d+(\.\d+)?\s*bhk\b|\b1\s*rk\b|\bstudio\b", re.IGNORECASE)
@@ -94,6 +115,16 @@ class KeywordProcessing:
         return None
 
     @staticmethod
+    def _extract_monthly_searches(raw_item: dict[str, Any]) -> list[dict[str, Any]]:
+        keyword_info = raw_item.get("keyword_info") or {}
+        return keyword_info.get("monthly_searches") or raw_item.get("monthly_searches") or []
+
+    @staticmethod
+    def _extract_search_volume_trend(raw_item: dict[str, Any]) -> dict[str, Any]:
+        keyword_info = raw_item.get("keyword_info") or {}
+        return keyword_info.get("search_volume_trend") or raw_item.get("search_volume_trend") or {}
+
+    @staticmethod
     def normalize_raw_item(raw_item: dict[str, Any], source: str, seed_keyword: str) -> dict[str, Any]:
         keyword_info = raw_item.get("keyword_info") or {}
         keyword_properties = raw_item.get("keyword_properties") or {}
@@ -103,8 +134,6 @@ class KeywordProcessing:
         normalized_keyword = KeywordProcessing.normalize_text(keyword)
         core_keyword = keyword_properties.get("core_keyword") or keyword
         normalized_core_keyword = KeywordProcessing.normalize_text(core_keyword)
-        monthly_searches = keyword_info.get("monthly_searches") or []
-        search_volume_trend = keyword_info.get("search_volume_trend") or {}
 
         return {
             "keyword": keyword,
@@ -113,17 +142,21 @@ class KeywordProcessing:
             "normalized_core_keyword": normalized_core_keyword,
             "source": source,
             "source_seed": seed_keyword,
+            "source_domain": raw_item.get("source_domain"),
             "search_volume": KeywordProcessing._extract_search_volume(raw_item),
-            "competition": keyword_info.get("competition"),
-            "competition_level": keyword_info.get("competition_level"),
-            "cpc": keyword_info.get("cpc"),
-            "monthly_searches": monthly_searches,
-            "search_volume_trend": search_volume_trend,
-            "keyword_difficulty": keyword_properties.get("keyword_difficulty"),
-            "detected_language": keyword_properties.get("detected_language"),
-            "words_count": keyword_properties.get("words_count"),
-            "main_intent": search_intent_info.get("main_intent"),
-            "foreign_intent": search_intent_info.get("foreign_intent") or [],
+            "competition": keyword_info.get("competition") or raw_item.get("competition"),
+            "competition_level": keyword_info.get("competition_level") or raw_item.get("competition_level"),
+            "cpc": keyword_info.get("cpc") or raw_item.get("cpc"),
+            "monthly_searches": KeywordProcessing._extract_monthly_searches(raw_item),
+            "search_volume_trend": KeywordProcessing._extract_search_volume_trend(raw_item),
+            "keyword_difficulty": keyword_properties.get("keyword_difficulty") or raw_item.get("keyword_difficulty"),
+            "detected_language": keyword_properties.get("detected_language") or raw_item.get("detected_language"),
+            "words_count": keyword_properties.get("words_count") or raw_item.get("words_count"),
+            "main_intent": search_intent_info.get("main_intent") or raw_item.get("main_intent"),
+            "foreign_intent": search_intent_info.get("foreign_intent") or raw_item.get("foreign_intent") or [],
+            "clickstream_search_volume": raw_item.get("clickstream_search_volume"),
+            "serp_top_domains": raw_item.get("serp_top_domains") or [],
+            "serp_validated": raw_item.get("serp_validated", False),
             "raw": raw_item,
         }
 
@@ -149,6 +182,53 @@ class KeywordProcessing:
                     }
 
         return historical_map
+
+    @staticmethod
+    def extract_keyword_overview_map(raw_response: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        overview_map: dict[str, dict[str, Any]] = {}
+
+        for task in raw_response.get("tasks", []) or []:
+            for result in task.get("result", []) or []:
+                for item in result.get("items", []) or []:
+                    keyword = item.get("keyword") or item.get("keyword_data", {}).get("keyword")
+                    if not keyword:
+                        continue
+
+                    keyword_info = item.get("keyword_info") or {}
+                    search_intent_info = item.get("search_intent_info") or {}
+
+                    overview_map[KeywordProcessing.normalize_text(keyword)] = {
+                        "search_volume": keyword_info.get("search_volume"),
+                        "competition": keyword_info.get("competition"),
+                        "competition_level": keyword_info.get("competition_level"),
+                        "cpc": keyword_info.get("cpc"),
+                        "monthly_searches": keyword_info.get("monthly_searches") or [],
+                        "search_volume_trend": keyword_info.get("search_volume_trend") or {},
+                        "main_intent": search_intent_info.get("main_intent"),
+                        "foreign_intent": search_intent_info.get("foreign_intent") or [],
+                    }
+
+        return overview_map
+
+    @staticmethod
+    def extract_google_ads_map(raw_response: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        ads_map: dict[str, dict[str, Any]] = {}
+
+        for task in raw_response.get("tasks", []) or []:
+            for result in task.get("result", []) or []:
+                for item in result.get("items", []) or []:
+                    keyword = item.get("keyword")
+                    if not keyword:
+                        continue
+
+                    ads_map[KeywordProcessing.normalize_text(keyword)] = {
+                        "ads_search_volume": item.get("search_volume"),
+                        "ads_cpc": item.get("cpc"),
+                        "ads_competition": item.get("competition"),
+                        "ads_monthly_searches": item.get("monthly_searches") or [],
+                    }
+
+        return ads_map
 
     @staticmethod
     def apply_historical_enrichment(
@@ -191,6 +271,81 @@ class KeywordProcessing:
         return enriched_records
 
     @staticmethod
+    def apply_keyword_overview_enrichment(
+        records: list[dict[str, Any]],
+        overview_map: dict[str, dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        enriched_records: list[dict[str, Any]] = []
+
+        for record in records:
+            key = record["normalized_keyword"]
+            overview = overview_map.get(key)
+
+            if not overview:
+                enriched_records.append(record)
+                continue
+
+            merged = dict(record)
+
+            if merged.get("search_volume") is None and overview.get("search_volume") is not None:
+                merged["search_volume"] = overview["search_volume"]
+
+            if merged.get("competition") is None and overview.get("competition") is not None:
+                merged["competition"] = overview["competition"]
+
+            if merged.get("competition_level") is None and overview.get("competition_level") is not None:
+                merged["competition_level"] = overview["competition_level"]
+
+            if merged.get("cpc") is None and overview.get("cpc") is not None:
+                merged["cpc"] = overview["cpc"]
+
+            if not merged.get("monthly_searches") and overview.get("monthly_searches"):
+                merged["monthly_searches"] = overview["monthly_searches"]
+
+            if not merged.get("search_volume_trend") and overview.get("search_volume_trend"):
+                merged["search_volume_trend"] = overview["search_volume_trend"]
+
+            if not merged.get("main_intent") and overview.get("main_intent"):
+                merged["main_intent"] = overview["main_intent"]
+
+            if not merged.get("foreign_intent") and overview.get("foreign_intent"):
+                merged["foreign_intent"] = overview["foreign_intent"]
+
+            merged["keyword_overview_enriched"] = True
+            enriched_records.append(merged)
+
+        return enriched_records
+
+    @staticmethod
+    def apply_google_ads_enrichment(
+        records: list[dict[str, Any]],
+        ads_map: dict[str, dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        enriched_records: list[dict[str, Any]] = []
+
+        for record in records:
+            key = record["normalized_keyword"]
+            ads = ads_map.get(key)
+
+            if not ads:
+                enriched_records.append(record)
+                continue
+
+            merged = dict(record)
+
+            merged["ads_search_volume"] = ads.get("ads_search_volume")
+            merged["ads_cpc"] = ads.get("ads_cpc")
+            merged["ads_competition"] = ads.get("ads_competition")
+
+            if not merged.get("monthly_searches") and ads.get("ads_monthly_searches"):
+                merged["monthly_searches"] = ads["ads_monthly_searches"]
+
+            merged["google_ads_enriched"] = True
+            enriched_records.append(merged)
+
+        return enriched_records
+
+    @staticmethod
     def _token_signature(text: str) -> tuple[str, ...]:
         tokens = re.findall(r"[a-z0-9\.]+", KeywordProcessing.normalize_text(text))
         return tuple(sorted(set(tokens)))
@@ -220,6 +375,7 @@ class KeywordProcessing:
         has_price_signal = KeywordProcessing._contains_any(combined_text, KeywordProcessing.PRICE_TERMS)
         has_ready_signal = KeywordProcessing._contains_any(combined_text, KeywordProcessing.READY_TO_MOVE_TERMS)
         faq_support_signal = KeywordProcessing._contains_any(combined_text, KeywordProcessing.QUESTION_TERMS)
+        informational_signal = KeywordProcessing._contains_any(combined_text, KeywordProcessing.INFORMATIONAL_TERMS)
 
         filter_reasons: list[str] = []
 
@@ -235,7 +391,14 @@ class KeywordProcessing:
         if has_rent_noise:
             filter_reasons.append("rent_noise")
 
-        source_priority = 30 if record["source"] == "suggestions" else 15
+        source_priority_map = {
+            "suggestions": 30,
+            "related": 18,
+            "keywords_for_site": 24,
+            "keyword_overview": 20,
+            "google_ads": 16,
+        }
+        source_priority = source_priority_map.get(record["source"], 12)
 
         score = source_priority
 
@@ -256,17 +419,25 @@ class KeywordProcessing:
         elif main_intent == "commercial":
             score += 12
         elif main_intent == "informational":
-            score += 6
+            score += 8
 
         search_volume = record.get("search_volume")
+        ads_search_volume = record.get("ads_search_volume")
+
+        effective_volume = None
         if isinstance(search_volume, (int, float)):
-            if search_volume >= 500:
+            effective_volume = int(search_volume)
+        elif isinstance(ads_search_volume, (int, float)):
+            effective_volume = int(ads_search_volume)
+
+        if isinstance(effective_volume, int):
+            if effective_volume >= 500:
                 score += 20
-            elif search_volume >= 100:
+            elif effective_volume >= 100:
                 score += 15
-            elif search_volume >= 20:
+            elif effective_volume >= 20:
                 score += 10
-            elif search_volume > 0:
+            elif effective_volume > 0:
                 score += 5
 
         if has_bhk_signal:
@@ -276,6 +447,15 @@ class KeywordProcessing:
             score += 8
 
         if has_ready_signal:
+            score += 6
+
+        if informational_signal:
+            score += 4
+
+        if record.get("serp_validated"):
+            score += 10
+
+        if record.get("source_domain"):
             score += 6
 
         words_count = record.get("words_count")
@@ -320,6 +500,7 @@ class KeywordProcessing:
                 "has_price_signal": has_price_signal,
                 "has_ready_signal": has_ready_signal,
                 "faq_support_signal": faq_support_signal,
+                "informational_signal": informational_signal,
                 "filter_reasons": filter_reasons,
                 "include": include,
                 "score": score,
@@ -340,6 +521,7 @@ class KeywordProcessing:
                 merged = dict(record)
                 merged["sources"] = [record["source"]]
                 merged["source_seeds"] = [record["source_seed"]]
+                merged["source_domains"] = [record["source_domain"]] if record.get("source_domain") else []
                 consolidated[key] = merged
                 continue
 
@@ -347,10 +529,22 @@ class KeywordProcessing:
                 merged = dict(record)
                 merged["sources"] = sorted(set(existing.get("sources", []) + [record["source"]]))
                 merged["source_seeds"] = sorted(set(existing.get("source_seeds", []) + [record["source_seed"]]))
+                merged["source_domains"] = sorted(
+                    set(existing.get("source_domains", []) + ([record["source_domain"]] if record.get("source_domain") else []))
+                )
                 consolidated[key] = merged
             else:
                 existing["sources"] = sorted(set(existing.get("sources", []) + [record["source"]]))
                 existing["source_seeds"] = sorted(set(existing.get("source_seeds", []) + [record["source_seed"]]))
+                existing["source_domains"] = sorted(
+                    set(existing.get("source_domains", []) + ([record["source_domain"]] if record.get("source_domain") else []))
+                )
+
+                if record.get("serp_validated"):
+                    existing["serp_validated"] = True
+
+                if not existing.get("ads_search_volume") and record.get("ads_search_volume") is not None:
+                    existing["ads_search_volume"] = record["ads_search_volume"]
 
         ordered = list(consolidated.values())
         ordered.sort(
@@ -358,7 +552,7 @@ class KeywordProcessing:
                 item["include"],
                 item["exact_location_match"],
                 item["score"],
-                item.get("search_volume") or 0,
+                item.get("search_volume") or item.get("ads_search_volume") or 0,
                 item["keyword"],
             ),
             reverse=True,
@@ -384,7 +578,7 @@ class KeywordProcessing:
                     item["exact_location_match"],
                     item["location_tier"] == "exact_location_match",
                     item["score"],
-                    item.get("search_volume") or 0,
+                    item.get("search_volume") or item.get("ads_search_volume") or 0,
                     -len(item["keyword"]),
                 ),
                 reverse=True,
@@ -395,7 +589,7 @@ class KeywordProcessing:
             key=lambda item: (
                 item["exact_location_match"],
                 item["score"],
-                item.get("search_volume") or 0,
+                item.get("search_volume") or item.get("ads_search_volume") or 0,
                 item["keyword"],
             ),
             reverse=True,
@@ -451,11 +645,38 @@ class KeywordProcessing:
             settings.keyword_faq_max_count,
         )
 
+        competitor_keywords = KeywordProcessing._top_keywords(
+            KeywordProcessing._dedupe_semantic_records(
+                [record for record in included if "keywords_for_site" in record.get("sources", [])]
+            ),
+            settings.keyword_competitor_max_count,
+        )
+
+        informational_keywords = KeywordProcessing._top_keywords(
+            KeywordProcessing._dedupe_semantic_records(
+                [record for record in included if record.get("informational_signal")]
+            ),
+            settings.keyword_informational_max_count,
+        )
+
+        serp_validated_keywords = KeywordProcessing._top_keywords(
+            KeywordProcessing._dedupe_semantic_records(
+                [record for record in included if record.get("serp_validated")]
+            ),
+            settings.keyword_serp_validated_max_count,
+        )
+
         metadata_keywords: list[str] = []
         if primary_keyword:
             metadata_keywords.append(primary_keyword["keyword"])
 
         for record in secondary_keywords:
+            if len(metadata_keywords) >= settings.keyword_metadata_max_count:
+                break
+            if record["keyword"] not in metadata_keywords:
+                metadata_keywords.append(record["keyword"])
+
+        for record in competitor_keywords:
             if len(metadata_keywords) >= settings.keyword_metadata_max_count:
                 break
             if record["keyword"] not in metadata_keywords:
@@ -472,6 +693,9 @@ class KeywordProcessing:
             "ready_to_move_keywords": ready_to_move_keywords,
             "long_tail_keywords": long_tail_keywords,
             "faq_keyword_candidates": faq_keyword_candidates,
+            "competitor_keywords": competitor_keywords,
+            "informational_keywords": informational_keywords,
+            "serp_validated_keywords": serp_validated_keywords,
             "metadata_keywords": metadata_keywords,
             "exact_match_keywords": exact_match_keywords,
             "loose_match_keywords": loose_match_keywords,

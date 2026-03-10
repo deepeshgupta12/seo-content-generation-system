@@ -40,6 +40,12 @@ class ReviewWorkbenchService:
     @staticmethod
     def _build_keyword_preview(keyword_intelligence: dict) -> dict:
         clusters = keyword_intelligence.get("keyword_clusters", {})
+        raw_retrieval = keyword_intelligence.get("raw_retrieval", {})
+        normalized_keywords = keyword_intelligence.get("normalized_keywords", {})
+
+        competitor_block = raw_retrieval.get("competitor_keywords", {})
+        serp_block = raw_retrieval.get("serp_validation", {})
+
         return {
             "version": keyword_intelligence.get("version"),
             "primary_keyword": clusters.get("primary_keyword"),
@@ -48,9 +54,16 @@ class ReviewWorkbenchService:
             "price_keywords": clusters.get("price_keywords", []),
             "ready_to_move_keywords": clusters.get("ready_to_move_keywords", []),
             "faq_keyword_candidates": clusters.get("faq_keyword_candidates", []),
+            "competitor_keywords": clusters.get("competitor_keywords", []),
+            "informational_keywords": clusters.get("informational_keywords", []),
+            "serp_validated_keywords": clusters.get("serp_validated_keywords", []),
             "metadata_keywords": clusters.get("metadata_keywords", []),
             "exact_match_keywords": clusters.get("exact_match_keywords", []),
             "loose_match_keywords": clusters.get("loose_match_keywords", []),
+            "total_included_keywords": normalized_keywords.get("included_count", 0),
+            "total_excluded_keywords": normalized_keywords.get("excluded_count", 0),
+            "competitor_domains": competitor_block.get("competitor_domains", []),
+            "serp_seed_keywords_checked": serp_block.get("seed_keywords_checked", []),
         }
 
     @staticmethod

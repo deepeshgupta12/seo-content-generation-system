@@ -267,48 +267,77 @@ class DraftGenerationService:
     
     @staticmethod
     def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
+        entity = content_plan.get("entity", {}) or {}
+        entity_name = entity.get("entity_name", "this location")
+        city_name = entity.get("city_name", "")
+        location_label = f"{entity_name}, {city_name}" if city_name and city_name != entity_name else entity_name
+
         property_rates_ai_summary = content_plan["data_context"].get("property_rates_ai_summary", {}) or {}
 
-        market_snapshot = property_rates_ai_summary.get("market_snapshot")
+        market_snapshot = (property_rates_ai_summary.get("market_snapshot") or "").strip()
         market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
         market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
         investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
 
-        lines: list[str] = []
+        if (
+            not market_snapshot
+            and not market_strengths
+            and not market_challenges
+            and not investment_opportunities
+        ):
+            return (
+                f"This section is reserved for structured market-summary inputs for {location_label}. "
+                f"When available, it brings together source-backed strengths, challenges, and opportunity notes "
+                f"into a balanced market overview without adding unsupported interpretation."
+            )
+
+        paragraphs: list[str] = []
 
         if market_snapshot:
-            lines.append(
-                f"The property-rates AI source for this page includes a market snapshot that currently reads: {market_snapshot}"
+            paragraphs.append(
+                f"For {location_label}, the structured property-rates AI summary describes the current resale market as follows: "
+                f"{market_snapshot} This is useful as a starting point because it gives readers a concise view of how the "
+                f"available market-summary layer frames the area based on the source data attached to the page."
             )
 
+        strengths_sentence = ""
         if market_strengths:
-            lines.append(
-                "The same source also highlights market strengths such as "
+            strengths_sentence = (
+                "The same source highlights strengths such as "
                 + ", ".join(market_strengths[:4])
-                + ". These points are presented here as source-provided signals rather than fresh editorial interpretation."
+                + "."
             )
 
+        challenges_sentence = ""
         if market_challenges:
-            lines.append(
-                "Alongside that, the source lists market challenges including "
+            challenges_sentence = (
+                "At the same time, it points to challenges including "
                 + ", ".join(market_challenges[:4])
-                + ". This helps preserve balance by reflecting both supportive and cautionary notes from the available source block."
+                + "."
             )
 
+        opportunities_sentence = ""
         if investment_opportunities:
-            lines.append(
-                "It also surfaces investment-opportunity cues such as "
+            opportunities_sentence = (
+                "It also surfaces opportunity areas such as "
                 + ", ".join(investment_opportunities[:4])
-                + ". These are included as grounded source statements only and should be read in that context."
+                + "."
             )
 
-        if not lines:
-            return (
-                "This section is reserved for the structured property-rates AI summary fields when they are present in the source data. "
-                "Where available, it summarises market snapshot notes, strengths, challenges, and opportunity cues without adding unsupported interpretation."
+        if strengths_sentence or challenges_sentence or opportunities_sentence:
+            paragraphs.append(
+                " ".join(
+                    part for part in [
+                        strengths_sentence,
+                        challenges_sentence,
+                        opportunities_sentence,
+                    ] if part
+                )
+                + " These points are included here as grounded market-summary signals from the source block, "
+                "so they should be read as descriptive cues rather than promotional claims or guaranteed outcomes."
             )
 
-        return " ".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_property_type_safe_body(content_plan: dict) -> str:
@@ -672,7 +701,7 @@ class DraftGenerationService:
         property_rates_ai_summary = content_plan.get("data_context", {}).get("property_rates_ai_summary", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
 
-        market_snapshot = property_rates_ai_summary.get("market_snapshot")
+        market_snapshot = (property_rates_ai_summary.get("market_snapshot") or "").strip()
         market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
         market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
         investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
@@ -685,22 +714,28 @@ class DraftGenerationService:
         ):
             return None
 
-        parts: list[str] = [f"For {location_label}, the property-rates AI source currently includes"]
+        parts: list[str] = []
 
         if market_snapshot:
-            parts.append("a market snapshot summary that describes the page-level market context.")
-        if market_strengths:
-            parts.append(f"visible market strengths such as {', '.join(market_strengths[:3])}.")
-        if market_challenges:
-            parts.append(f"visible market challenges such as {', '.join(market_challenges[:3])}.")
-        if investment_opportunities:
             parts.append(
-                f"and source-backed opportunity cues such as {', '.join(investment_opportunities[:3])}."
+                f"For {location_label}, the structured market-summary layer includes a snapshot that reads: {market_snapshot}"
             )
 
+        detail_parts: list[str] = []
+        if market_strengths:
+            detail_parts.append(f"strengths such as {', '.join(market_strengths[:3])}")
+        if market_challenges:
+            detail_parts.append(f"challenges such as {', '.join(market_challenges[:3])}")
+        if investment_opportunities:
+            detail_parts.append(f"opportunity cues such as {', '.join(investment_opportunities[:3])}")
+
+        if detail_parts:
+            parts.append("It also highlights " + ", ".join(detail_parts) + ".")
+
         parts.append(
-            "These fields are presented as grounded source notes only and are not expanded into unsupported editorial claims."
+            "These signals are presented as grounded market-summary notes only, so they should be read as descriptive inputs rather than promotional promises."
         )
+
         return " ".join(parts)
 
     @staticmethod
@@ -869,9 +904,11 @@ class DraftGenerationService:
         if (
             "market strengths" in lowered
             or "market challenges" in lowered
+            or "opportunities" in lowered
             or "investment opportunities" in lowered
             or "property rates ai" in lowered
             or "ai market" in lowered
+            or "market signals" in lowered
         ):
             return DraftGenerationService._faq_answer_for_property_rates_ai_signals(content_plan)
 

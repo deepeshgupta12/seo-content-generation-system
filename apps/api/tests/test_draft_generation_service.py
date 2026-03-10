@@ -79,10 +79,13 @@ class DummyOpenAIClient:
                         ),
                     },
                     {
-                        "question": "What market strengths, challenges, and opportunity cues are available for Andheri West, Mumbai?",
+                        "question": "What market strengths, challenges, and opportunities are highlighted for Andheri West, Mumbai?",
                         "answer": (
-                            "The property-rates AI source includes a market snapshot for this page along with structured market strengths, market challenges, "
-                            "and investment-opportunity cues. These inputs are presented as source-backed notes only and help readers review the available market commentary block without expanding it into unsupported editorial claims."
+                            "For Andheri West, Mumbai, the structured market-summary layer includes a snapshot that reads: "
+                            "Balanced resale market with established apartment inventory and visible end-user demand. "
+                            "It also highlights strengths such as established micro-market, challenges such as traffic pressure, "
+                            "and opportunity cues such as ready-to-move resale stock. "
+                            "These signals are presented as grounded market-summary notes only."
                         ),
                     },
                     {
@@ -151,13 +154,15 @@ class DummyOpenAIClient:
                     },
                     {
                         "id": "property_rates_ai_signals",
-                        "title": "Property Rates AI Signals",
+                        "title": "Market Strengths, Challenges, and Opportunities",
                         "body": (
-                            "The property-rates AI layer for Andheri West, Mumbai includes a market snapshot describing a balanced resale market with established apartment inventory and visible end-user demand. "
-                            "This gives readers access to the structured AI-summary block attached to the source data for this page."
+                            "For Andheri West, Mumbai, the structured property-rates AI summary describes the current resale market as follows: "
+                            "Balanced resale market with established apartment inventory and visible end-user demand. "
+                            "This gives readers a concise starting point for understanding how the attached market-summary layer frames the area."
                             "\n\n"
-                            "The same source also highlights market strengths, market challenges, and investment-opportunity cues. "
-                            "These items are surfaced here as source-backed notes only, without extending them into unsupported editorial claims."
+                            "The same source highlights strengths such as established micro-market and active resale supply, while also pointing to challenges such as traffic pressure and pricing dispersion across pockets. "
+                            "It additionally surfaces opportunity areas such as ready-to-move resale stock and well-known apartment clusters. "
+                            "These signals are included as grounded market-summary notes rather than promotional claims."
                         ),
                     },
                     {
@@ -307,9 +312,12 @@ def test_draft_generation_service() -> None:
     demand_section = next(section for section in draft["sections"] if section["id"] == "demand_and_supply_signals")
     property_type_section = next(section for section in draft["sections"] if section["id"] == "property_type_signals")
 
+    assert property_rates_ai_section["title"] == "Market Strengths, Challenges, and Opportunities"
     assert "4.23" in review_section["body"]
     assert "balanced resale market" in property_rates_ai_section["body"].lower()
-    assert "market strengths" in property_rates_ai_section["body"].lower()
+    assert "established micro-market" in property_rates_ai_section["body"].lower()
+    assert "traffic pressure" in property_rates_ai_section["body"].lower()
+    assert "ready-to-move resale stock" in property_rates_ai_section["body"].lower()
     assert "demand percent" in demand_section["body"].lower()
     assert "apartment" in property_type_section["body"].lower()
     assert draft["quality_report"]["approval_status"] in {"pass", "warning"}
@@ -318,9 +326,9 @@ def test_draft_generation_service() -> None:
     assert "page_uniqueness_check" in draft["quality_report"]
 
     property_rates_ai_faq = next(
-        faq for faq in draft["faqs"] if "market strengths" in faq["question"].lower()
+        faq for faq in draft["faqs"] if "market strengths, challenges, and opportunities" in faq["question"].lower()
     )
-    assert "source-backed notes" in property_rates_ai_faq["answer"].lower()
+    assert "grounded market-summary notes" in property_rates_ai_faq["answer"].lower()
 
     first_table = draft["tables"][0]
     assert "summary" in first_table
@@ -331,7 +339,8 @@ def test_draft_generation_service() -> None:
     assert "This table shows the recent resale price trend" in draft["markdown_draft"]
     assert "The grounded asking price signal for resale properties in Andheri West, Mumbai is ₹40,238." in draft["markdown_draft"]
     assert "balanced resale market" in draft["markdown_draft"].lower()
-    assert "market strengths" in draft["markdown_draft"].lower()
+    assert "traffic pressure" in draft["markdown_draft"].lower()
+    assert "ready-to-move resale stock" in draft["markdown_draft"].lower()
     assert "https://www.squareyards.com/" in draft["markdown_draft"]
 
 

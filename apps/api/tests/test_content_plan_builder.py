@@ -126,6 +126,11 @@ def test_content_plan_builder_for_locality() -> None:
     assert "property_type_rate_snapshot" in section_ids
     assert "nearby_alternatives" in section_ids
 
+    property_rates_ai_section = next(
+        section for section in content_plan["section_plan"] if section["id"] == "property_rates_ai_signals"
+    )
+    assert property_rates_ai_section["title"] == "Market Strengths, Challenges, and Opportunities"
+
     table_ids = {table["id"] for table in content_plan["table_plan"]}
     assert "property_types_table" in table_ids
     assert "location_rates_table" in table_ids
@@ -143,6 +148,14 @@ def test_content_plan_builder_for_locality() -> None:
     assert "ready_to_move" in faq_ids
     assert "nearby_localities" in faq_ids
     assert "property_rates_ai_signals" in faq_ids
+
+    property_rates_ai_faq = next(
+        item for item in content_plan["faq_plan"]["faq_intents"] if item["id"] == "property_rates_ai_signals"
+    )
+    assert (
+        property_rates_ai_faq["question_template"]
+        == "What market strengths, challenges, and opportunities are highlighted for Andheri West, Mumbai?"
+    )
 
     assert "property_rates_ai_summary" in content_plan["data_context"]
     assert content_plan["data_context"]["property_rates_ai_summary"]["market_snapshot"].startswith("Balanced resale market")
@@ -194,13 +207,13 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
         "top_projects": {"byTransactions": {"projects": []}},
         "review_summary": {"overview": {"avg_rating": 4.0, "review_count": 40, "rating_count": 40}},
         "ai_summary": {"locality_summary": "Large residential belt with active resale inventory."},
-            "property_rates_ai_summary": {
-                "market_snapshot": "Emerging resale belt with broad apartment supply and active ready-to-move options.",
-                "market_strengths": ["broad apartment inventory", "visible ready stock"],
-                "market_challenges": ["project-to-project pricing variation"],
-                "investment_opportunities": ["mid-budget apartment resale"],
-            },
-            "insight_rates": {"name": "Noida Extension", "avg_rate": 8450},
+        "property_rates_ai_summary": {
+            "market_snapshot": "Emerging resale belt with broad apartment supply and active ready-to-move options.",
+            "market_strengths": ["broad apartment inventory", "visible ready stock"],
+            "market_challenges": ["project-to-project pricing variation"],
+            "investment_opportunities": ["mid-budget apartment resale"],
+        },
+        "insight_rates": {"name": "Noida Extension", "avg_rate": 8450},
         "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 540, "demandPercent": 34, "supplyPercent": 36}]}},
         "listing_ranges": {"sale_listing_range": {"doc_count": 1200, "min_price": 2500000, "max_price": 22000000}},
         "cms_faq": [],
@@ -240,6 +253,11 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
     assert "demand_and_supply_signals" in section_ids
     assert "property_type_signals" in section_ids
 
+    property_rates_ai_section = next(
+        section for section in content_plan["section_plan"] if section["id"] == "property_rates_ai_signals"
+    )
+    assert property_rates_ai_section["title"] == "Market Strengths, Challenges, and Opportunities"
+
     table_ids = {table["id"] for table in content_plan["table_plan"]}
     assert "coverage_summary_table" in table_ids
     assert "price_trend_table" in table_ids
@@ -248,6 +266,14 @@ def test_content_plan_builder_for_micromarket_adds_parity_sections_and_tables() 
 
     faq_ids = {item["id"] for item in content_plan["faq_plan"]["faq_intents"]}
     assert "property_rates_ai_signals" in faq_ids
+
+    property_rates_ai_faq = next(
+        item for item in content_plan["faq_plan"]["faq_intents"] if item["id"] == "property_rates_ai_signals"
+    )
+    assert (
+        property_rates_ai_faq["question_template"]
+        == "What market strengths, challenges, and opportunities are highlighted for Noida Extension, Greater Noida?"
+    )
 
 
 def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() -> None:
@@ -296,13 +322,13 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
         "top_projects": {"byTransactions": {"projects": []}},
         "review_summary": {"overview": {"avg_rating": 4.1, "review_count": 120, "rating_count": 120}},
         "ai_summary": {"locality_summary": "City-level resale coverage across multiple residential belts."},
-            "property_rates_ai_summary": {
-                "market_snapshot": "Large city-level resale market with multiple active residential belts and varied pricing pockets.",
-                "market_strengths": ["broad city coverage", "multiple active resale zones"],
-                "market_challenges": ["wide sub-market dispersion"],
-                "investment_opportunities": ["city-wide apartment resale search"],
-            },
-            "insight_rates": {"name": "Pune", "avg_rate": 11250},
+        "property_rates_ai_summary": {
+            "market_snapshot": "Large city-level resale market with multiple active residential belts and varied pricing pockets.",
+            "market_strengths": ["broad city coverage", "multiple active resale zones"],
+            "market_challenges": ["wide sub-market dispersion"],
+            "investment_opportunities": ["city-wide apartment resale search"],
+        },
+        "insight_rates": {"name": "Pune", "avg_rate": 11250},
         "demand_supply": {"sale": {"unitType": [{"name": "2 BHK", "listing": 2200, "demandPercent": 38, "supplyPercent": 35}]}},
         "listing_ranges": {"sale_listing_range": {"doc_count": 7900, "min_price": 1800000, "max_price": 65000000}},
         "cms_faq": [],
@@ -342,6 +368,11 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
     assert "demand_and_supply_signals" in section_ids
     assert "property_type_rate_snapshot" in section_ids
 
+    property_rates_ai_section = next(
+        section for section in content_plan["section_plan"] if section["id"] == "property_rates_ai_signals"
+    )
+    assert property_rates_ai_section["title"] == "Market Strengths, Challenges, and Opportunities"
+
     table_ids = {table["id"] for table in content_plan["table_plan"]}
     assert "coverage_summary_table" in table_ids
     assert "location_rates_table" in table_ids
@@ -350,3 +381,11 @@ def test_content_plan_builder_for_city_adds_city_parity_sections_and_tables() ->
 
     faq_ids = {item["id"] for item in content_plan["faq_plan"]["faq_intents"]}
     assert "property_rates_ai_signals" in faq_ids
+
+    property_rates_ai_faq = next(
+        item for item in content_plan["faq_plan"]["faq_intents"] if item["id"] == "property_rates_ai_signals"
+    )
+    assert (
+        property_rates_ai_faq["question_template"]
+        == "What market strengths, challenges, and opportunities are highlighted for Pune?"
+    )

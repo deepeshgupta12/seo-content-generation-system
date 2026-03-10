@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     dataforseo_timeout_seconds: float = 45.0
     dataforseo_historical_keywords_limit: int = 50
 
+    dataforseo_serp_seed_limit: int = 3
+    dataforseo_serp_top_results_limit: int = 10
+    dataforseo_competitor_domain_limit: int = 3
+    dataforseo_keywords_for_site_limit: int = 30
+    dataforseo_keyword_overview_limit: int = 100
+    dataforseo_google_ads_limit: int = 100
+
     keyword_secondary_max_count: int = 10
     keyword_long_tail_max_count: int = 12
     keyword_bhk_max_count: int = 10
@@ -28,6 +35,9 @@ class Settings(BaseSettings):
     keyword_faq_max_count: int = 12
     keyword_metadata_max_count: int = 8
     keyword_metadata_exact_match_max_count: int = 5
+    keyword_competitor_max_count: int = 12
+    keyword_informational_max_count: int = 12
+    keyword_serp_validated_max_count: int = 12
 
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str = ""

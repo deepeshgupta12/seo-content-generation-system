@@ -210,6 +210,14 @@ export function ReviewWorkbenchPage() {
   const secondaryKeywords = getArray(session?.keyword_preview?.secondary_keywords);
   const priceKeywords = getArray(session?.keyword_preview?.price_keywords);
   const bhkKeywords = getArray(session?.keyword_preview?.bhk_keywords);
+  const faqKeywords = getArray(session?.keyword_preview?.faq_keyword_candidates);
+  const competitorKeywords = getArray(session?.keyword_preview?.competitor_keywords);
+  const informationalKeywords = getArray(session?.keyword_preview?.informational_keywords);
+  const serpValidatedKeywords = getArray(session?.keyword_preview?.serp_validated_keywords);
+  const competitorDomains = getStringArray(session?.keyword_preview?.competitor_domains);
+  const serpSeedKeywordsChecked = getStringArray(session?.keyword_preview?.serp_seed_keywords_checked);
+  const totalIncludedKeywords = stringifyValue(session?.keyword_preview?.total_included_keywords);
+  const totalExcludedKeywords = stringifyValue(session?.keyword_preview?.total_excluded_keywords);
 
   const warningReasons = qualityReport?.warning_reasons ?? [];
   const sectionReview = session?.section_review ?? [];
@@ -1026,6 +1034,66 @@ export function ReviewWorkbenchPage() {
                         .join(", ")
                     : "—"}
                 </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">FAQ Keywords</div>
+                <div className="detail-card__value">
+                  {faqKeywords.length
+                    ? faqKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Competitor Keywords</div>
+                <div className="detail-card__value">
+                  {competitorKeywords.length
+                    ? competitorKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Informational Keywords</div>
+                <div className="detail-card__value">
+                  {informationalKeywords.length
+                    ? informationalKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">SERP Validated Keywords</div>
+                <div className="detail-card__value">
+                  {serpValidatedKeywords.length
+                    ? serpValidatedKeywords.map((item) => stringifyValue(getRecord(item)?.keyword)).join(", ")
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Competitor Domains</div>
+                <div className="detail-card__value">
+                  {competitorDomains.length ? competitorDomains.join(", ") : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">SERP Seeds Checked</div>
+                <div className="detail-card__value">
+                  {serpSeedKeywordsChecked.length ? serpSeedKeywordsChecked.join(", ") : "—"}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Total Included Keywords</div>
+                <div className="detail-card__value">{totalIncludedKeywords}</div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Total Excluded Keywords</div>
+                <div className="detail-card__value">{totalExcludedKeywords}</div>
               </div>
             </div>
           </section>
