@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from seo_content_engine.domain.enums import ListingType
 
-ExportFormat = Literal["json", "markdown", "docx"]
+ExportFormat = Literal["json", "markdown", "docx", "html"]
 
 
 class BlueprintGenerateRequest(BaseModel):
@@ -84,7 +84,7 @@ class DraftGenerateRequest(BaseModel):
 class DraftPublishRequest(BaseModel):
     draft: dict
     export_formats: list[ExportFormat] = Field(
-        default_factory=lambda: ["json", "markdown", "docx"],
+        default_factory=lambda: ["json", "markdown", "docx", "html"],
         description="Artifacts to write for the draft",
     )
 
@@ -122,6 +122,10 @@ class ReviewSessionCreateRequest(BaseModel):
     )
     include_historical: bool = True
     persist_session: bool = True
+    primary_keyword_override: str | None = Field(
+        default=None,
+        description="Optional custom primary keyword override to use for this review session",
+    )
 
 
 class ReviewDraftRegenerateRequest(BaseModel):
@@ -180,7 +184,7 @@ class ReviewVersionRestoreRequest(BaseModel):
 class ReviewSessionExportRequest(BaseModel):
     session_id: str = Field(..., description="Review session identifier")
     export_formats: list[ExportFormat] = Field(
-        default_factory=lambda: ["json", "markdown", "docx"],
+        default_factory=lambda: ["json", "markdown", "docx", "html"],
         description="Artifacts to export for the current session draft",
     )
     persist_session: bool = True

@@ -294,6 +294,7 @@ class ContentPlanBuilder:
 
         metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity)
         title_candidates = [
+            f"{primary_keyword_text} | Square Yards",
             f"Resale Properties in {location_label} | Square Yards",
             f"{location_label} Resale Properties for Sale | Square Yards",
             f"Flats for Sale in {location_label} | Square Yards",
@@ -301,7 +302,7 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
+            f"Explore {primary_keyword_text.lower()} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
             f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
             f"Browse resale listings in {location_label} with rates, property mix, and grounded buying insights on Square Yards.",
             f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
@@ -316,7 +317,7 @@ class ContentPlanBuilder:
         return {
             "primary_keyword": primary_keyword_text,
             "supporting_keywords": metadata_keywords,
-            "recommended_h1": f"Resale Properties in {location_label}",
+            "recommended_h1": primary_keyword_text[:120],
             "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
@@ -950,7 +951,7 @@ class ContentPlanBuilder:
         )
 
         return {
-            "version": "v1.8",
+            "version": "v1.9",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],

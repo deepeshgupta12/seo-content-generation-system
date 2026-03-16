@@ -1,5 +1,5 @@
 export type ListingType = "resale";
-export type ReviewExportFormat = "json" | "markdown" | "docx";
+export type ReviewExportFormat = "json" | "markdown" | "docx" | "html";
 
 export type ReviewSessionCreateRequest = {
   main_datacenter_json_path: string;
@@ -10,6 +10,7 @@ export type ReviewSessionCreateRequest = {
   limit?: number | null;
   include_historical?: boolean;
   persist_session?: boolean;
+  primary_keyword_override?: string | null;
 };
 
 export type ReviewDraftRegenerateRequest = {
@@ -111,6 +112,7 @@ export type ReviewDraft = {
   faqs?: ReviewFaq[];
   markdown_draft?: string;
   publish_ready?: boolean;
+  needs_review?: boolean;
   quality_report?: {
     approval_status?: string;
     overall_quality_score?: number;
@@ -133,6 +135,9 @@ export type ReviewSession = {
     page_type?: string;
     listing_type?: string;
   };
+  inputs?: {
+    primary_keyword_override?: string | null;
+  };
   source_preview?: Record<string, unknown>;
   keyword_preview?: Record<string, unknown>;
   normalized?: Record<string, unknown>;
@@ -154,6 +159,7 @@ export type ReviewSession = {
       json_path?: string;
       markdown_path?: string;
       docx_path?: string;
+      html_path?: string;
     };
   };
 };

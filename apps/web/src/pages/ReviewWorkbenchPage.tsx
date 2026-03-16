@@ -156,6 +156,7 @@ export function ReviewWorkbenchPage() {
   const [ratesPath, setRatesPath] = useState(DEFAULT_RATES_PATH);
   const [includeHistorical, setIncludeHistorical] = useState(true);
   const [persistSession, setPersistSession] = useState(true);
+  const [primaryKeywordOverride, setPrimaryKeywordOverride] = useState("");
 
   const [sessionIdInput, setSessionIdInput] = useState("");
   const [session, setSession] = useState<ReviewSession | null>(null);
@@ -221,6 +222,7 @@ export function ReviewWorkbenchPage() {
       versionCount: session.version_history?.length ?? 0,
       faqCount: session.draft?.faqs?.length ?? 0,
       tableCount: session.draft?.tables?.length ?? 0,
+      primaryKeywordOverride: session.inputs?.primary_keyword_override ?? "—",
     };
   }, [session]);
 
@@ -310,6 +312,7 @@ export function ReviewWorkbenchPage() {
   function applyUpdatedSession(nextSession: ReviewSession, message: string) {
     setSession(nextSession);
     setSessionIdInput(nextSession.session_id ?? "");
+    setPrimaryKeywordOverride(nextSession.inputs?.primary_keyword_override ?? "");
     setSuccessMessage(message);
     setErrorMessage(null);
   }
@@ -326,6 +329,7 @@ export function ReviewWorkbenchPage() {
         listing_type: "resale",
         include_historical: includeHistorical,
         persist_session: persistSession,
+        primary_keyword_override: primaryKeywordOverride.trim() || null,
       });
 
       applyUpdatedSession(response.review_session, response.message);
@@ -490,7 +494,7 @@ export function ReviewWorkbenchPage() {
     try {
       const response = await exportReviewSession({
         session_id: session.session_id,
-        export_formats: ["json", "markdown", "docx"],
+        export_formats: ["json", "markdown", "docx", "html"],
         persist_session: persistSession,
       });
       applyUpdatedSession(response.review_session, response.message);
@@ -692,7 +696,7 @@ export function ReviewWorkbenchPage() {
               onClick={handleExportDraft}
               disabled={isRegeneratingDraft || isExporting}
             >
-              {isExporting ? "Exporting..." : "Export JSON / MD / DOCX"}
+              {isExporting ? "Exporting..." : "Export JSON / MD / DOCX / HTML"}
             </button>
           </div>
         ) : null}
@@ -719,6 +723,16 @@ export function ReviewWorkbenchPage() {
               className="field-input"
               value={ratesPath}
               onChange={(event) => setRatesPath(event.target.value)}
+            />
+          </label>
+
+          <label className="field">
+            <span className="field-label">Custom primary keyword override</span>
+            <input
+              className="field-input"
+              placeholder="Example: resale properties in Andheri West Mumbai"
+              value={primaryKeywordOverride}
+              onChange={(event) => setPrimaryKeywordOverride(event.target.value)}
             />
           </label>
 
@@ -844,6 +858,11 @@ export function ReviewWorkbenchPage() {
             <div className="summary-card">
               <div className="summary-card__label">Latest Version</div>
               <div className="summary-card__value">{headerSummary?.latestVersionId}</div>
+            </div>
+
+            <div className="summary-card">
+              <div className="summary-card__label">Primary Keyword Override</div>
+              <div className="summary-card__value">{headerSummary?.primaryKeywordOverride}</div>
             </div>
           </div>
         )}
@@ -1565,7 +1584,7 @@ export function ReviewWorkbenchPage() {
 
             {!latestExportPaths ? (
               <div className="empty-state">
-                No export generated yet. Click “Export JSON / MD / DOCX” to create artifacts.
+                No export generated yet. Click “Export JSON / MD / DOCX / HTML” to create artifacts.
               </div>
             ) : (
               <div className="details-grid">
@@ -1621,6 +1640,25 @@ export function ReviewWorkbenchPage() {
                         rel="noreferrer"
                       >
                         Download DOCX
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="detail-card">
+                  <div className="detail-card__label">HTML</div>
+                  <div className="detail-card__value">
+                    {latestExportPaths.html_path ?? "—"}
+                  </div>
+                  {session?.session_id ? (
+                    <div className="form-actions form-actions--top-gap">
+                      <a
+                        className="secondary-button"
+                        href={getReviewDownloadUrl(session.session_id, "html")}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download HTML
                       </a>
                     </div>
                   ) : null}

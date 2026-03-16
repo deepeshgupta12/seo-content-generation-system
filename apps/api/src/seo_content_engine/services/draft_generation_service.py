@@ -295,46 +295,32 @@ class DraftGenerationService:
 
         if market_snapshot:
             paragraphs.append(
-                f"For {location_label}, the structured property-rates AI summary describes the current resale market as follows: "
-                f"{market_snapshot} This is useful as a starting point because it gives readers a concise view of how the "
-                f"available market-summary layer frames the area based on the source data attached to the page."
+                f"The structured market snapshot for {location_label} suggests the visible resale market should be read through a measured lens rather than a promotional one. "
+                f"{market_snapshot} This is the broad framing available in the source-backed property-rates summary, and it works best as context for understanding how the locality is currently being described within the attached data."
             )
 
-        strengths_sentence = ""
         if market_strengths:
-            strengths_sentence = (
-                "The same source highlights strengths such as "
-                + ", ".join(market_strengths[:4])
-                + "."
-            )
-
-        challenges_sentence = ""
-        if market_challenges:
-            challenges_sentence = (
-                "At the same time, it points to challenges including "
-                + ", ".join(market_challenges[:4])
-                + "."
-            )
-
-        opportunities_sentence = ""
-        if investment_opportunities:
-            opportunities_sentence = (
-                "It also surfaces opportunity areas such as "
-                + ", ".join(investment_opportunities[:4])
-                + "."
-            )
-
-        if strengths_sentence or challenges_sentence or opportunities_sentence:
+            strengths_text = ", ".join(market_strengths[:4])
             paragraphs.append(
-                " ".join(
-                    part for part in [
-                        strengths_sentence,
-                        challenges_sentence,
-                        opportunities_sentence,
-                    ] if part
-                )
-                + " These points are included here as grounded market-summary signals from the source block, "
-                "so they should be read as descriptive cues rather than promotional claims or guaranteed outcomes."
+                f"On the positive side, the same summary surfaces strengths such as {strengths_text}. "
+                f"Taken together, these points indicate where the locality appears comparatively stable, active, or attractive within the current market narrative. "
+                f"They should still be read as descriptive source signals, not as blanket endorsements."
+            )
+
+        if market_challenges:
+            challenges_text = ", ".join(market_challenges[:4])
+            paragraphs.append(
+                f"The summary also leaves room for caution by highlighting challenges such as {challenges_text}. "
+                f"That matters because it prevents the section from sounding one-sided and gives buyers or investors a more balanced reading of the locality. "
+                f"These challenges are not predictions, but they do flag the friction points currently visible in the structured input."
+            )
+
+        if investment_opportunities:
+            opportunities_text = ", ".join(investment_opportunities[:4])
+            paragraphs.append(
+                f"Where the source identifies opportunity areas, it points to themes such as {opportunities_text}. "
+                f"In practical terms, these cues can help a reader understand where the locality may deserve closer attention, especially when comparing multiple nearby markets or project clusters. "
+                f"Even here, the wording should be treated as grounded market context rather than guaranteed upside."
             )
 
         return "\n\n".join(paragraphs)
@@ -1464,5 +1450,6 @@ class DraftGenerationService:
         sanitized["debug_summary"] = final_debug_summary
         sanitized["quality_report"] = sanitized.get("quality_report", final_debug_summary)
         sanitized["publish_ready"] = sanitized["quality_report"].get("approval_status") != "fail"
+        sanitized["needs_review"] = not bool(validation_report.get("passed"))
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
         return sanitized

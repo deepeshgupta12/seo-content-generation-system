@@ -34,6 +34,7 @@ def create_review_session(payload: ReviewSessionCreateRequest) -> ReviewSessionR
             limit=payload.limit,
             include_historical=payload.include_historical,
             persist_session=payload.persist_session,
+            primary_keyword_override=payload.primary_keyword_override,
         )
         return ReviewSessionResponse(
             success=True,
@@ -207,7 +208,7 @@ def export_review_session(payload: ReviewSessionExportRequest) -> ReviewExportRe
 def download_review_export(session_id: str, format_name: str):
     try:
         export_format = format_name.lower().strip()
-        if export_format not in {"json", "markdown", "docx"}:
+        if export_format not in {"json", "markdown", "docx", "html"}:
             raise ValueError(f"Unsupported export format: {format_name}")
 
         file_path = ReviewWorkbenchService.export_and_get_file_path(
@@ -222,6 +223,7 @@ def download_review_export(session_id: str, format_name: str):
             "json": "application/json",
             "markdown": "text/markdown",
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "html": "text/html",
         }
         download_name = path_obj.name
 

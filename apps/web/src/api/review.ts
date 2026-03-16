@@ -84,7 +84,7 @@ export async function exportReviewSession(
 
 export function getReviewDownloadUrl(
   sessionId: string,
-  format: "json" | "markdown" | "docx",
+  format: "json" | "markdown" | "docx" | "html",
 ): string {
   return `${env.apiBaseUrl}/v1/review/session/${sessionId}/download/${format}`;
 }

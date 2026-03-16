@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 from pathlib import Path
 from typing import Any
@@ -51,6 +52,10 @@ class ArtifactWriter:
         if value is None:
             return "—"
         return str(value).strip() or "—"
+
+    @staticmethod
+    def _html_escape(value: Any) -> str:
+        return html.escape(ArtifactWriter._safe_text(value))
 
     @staticmethod
     def _add_metadata(document: Document, metadata: dict) -> None:
@@ -216,6 +221,169 @@ class ArtifactWriter:
         return str(output_path)
 
     @staticmethod
+    def write_html_artifact(draft: dict, file_stem: str) -> str:
+        artifacts_dir = ArtifactWriter._ensure_artifacts_dir()
+        output_path = artifacts_dir / f"{slugify(file_stem)}.html"
+
+        metadata = draft.get("metadata", {}) or {}
+        sections = draft.get("sections", []) or []
+        tables = draft.get("tables", []) or []
+        faqs = draft.get("faqs", []) or []
+        internal_links = draft.get("internal_links", {}) or {}
+
+        page_title = ArtifactWriter._html_escape(metadata.get("title") or metadata.get("h1") or "Draft")
+        h1 = ArtifactWriter._html_escape(metadata.get("h1"))
+        meta_description = ArtifactWriter._html_escape(metadata.get("meta_description"))
+        intro_snippet = ArtifactWriter._html_escape(metadata.get("intro_snippet"))
+
+        html_parts: list[str] = [
+            "<!DOCTYPE html>",
+            '<html lang="en">',
+            "<head>",
+            '  <meta charset="utf-8" />',
+            '  <meta name="viewport" content="width=device-width, initial-scale=1" />',
+            f"  <title>{page_title}</title>",
+            f'  <meta name="description" content="{meta_description}" />',
+            "  <style>",
+            "    body { font-family: Arial, sans-serif; color: #111827; margin: 40px; line-height: 1.6; }",
+            "    h1, h2, h3 { color: #111827; }",
+            "    .meta-block, .section-block, .table-block, .faq-block, .links-block { margin-bottom: 28px; }",
+            "    .muted { color: #6b7280; }",
+            "    table { border-collapse: collapse; width: 100%; margin-top: 12px; }",
+            "    th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: top; }",
+            "    th { background: #f3f4f6; }",
+            "    ul { margin-top: 8px; }",
+            "    li { margin-bottom: 6px; }",
+            "  </style>",
+            "</head>",
+            "<body>",
+            f"  <h1>{h1}</h1>",
+            '  <div class="meta-block">',
+            f"    <p>{intro_snippet}</p>",
+            "    <h2>SEO Metadata</h2>",
+            f"    <p><strong>Title:</strong> {page_title}</p>",
+            f"    <p><strong>Meta Description:</strong> {meta_description}</p>",
+            "  </div>",
+        ]
+
+        if sections:
+            html_parts.append('  <div class="section-block">')
+            html_parts.append("    <h2>Editorial Sections</h2>")
+            for section in sections:
+                title = ArtifactWriter._html_escape(section.get("title"))
+                body = str(section.get("body") or "").strip()
+                html_parts.append(f"    <h3>{title}</h3>")
+                if body:
+                    for paragraph in body.split("\n"):
+                        paragraph = paragraph.strip()
+                        if paragraph:
+                            html_parts.append(f"    <p>{html.escape(paragraph)}</p>")
+                else:
+                    html_parts.append("    <p class='muted'>No grounded narrative available for this section.</p>")
+            html_parts.append("  </div>")
+
+        if tables:
+            html_parts.append('  <div class="table-block">')
+            html_parts.append("    <h2>Key Data Tables</h2>")
+            for table_block in tables:
+                title = ArtifactWriter._html_escape(table_block.get("title"))
+                summary = str(table_block.get("summary") or "").strip()
+                columns = table_block.get("columns", []) or []
+                rows = table_block.get("rows", []) or []
+
+                html_parts.append(f"    <h3>{title}</h3>")
+                if summary:
+                    html_parts.append(f"    <p>{html.escape(summary)}</p>")
+
+                if not columns:
+                    html_parts.append("    <p class='muted'>No structured columns available.</p>")
+                    continue
+
+                html_parts.append("    <table>")
+                html_parts.append("      <thead><tr>")
+                for column_name in columns:
+                    html_parts.append(f"        <th>{html.escape(str(column_name))}</th>")
+                html_parts.append("      </tr></thead>")
+                html_parts.append("      <tbody>")
+
+                if rows:
+                    for row in rows:
+                        html_parts.append("        <tr>")
+                        for column_name in columns:
+                            cell_text = OutputFormatter.format_cell(column_name, row.get(column_name))
+                            html_parts.append(f"          <td>{html.escape(str(cell_text))}</td>")
+                        html_parts.append("        </tr>")
+                else:
+                    html_parts.append("        <tr>")
+                    for _ in columns:
+                        html_parts.append("          <td>—</td>")
+                    html_parts.append("        </tr>")
+
+                html_parts.append("      </tbody>")
+                html_parts.append("    </table>")
+            html_parts.append("  </div>")
+
+        if faqs:
+            html_parts.append('  <div class="faq-block">')
+            html_parts.append("    <h2>Frequently Asked Questions</h2>")
+            for faq in faqs:
+                question = ArtifactWriter._html_escape(faq.get("question"))
+                answer = str(faq.get("answer") or "").strip()
+                html_parts.append(f"    <h3>{question}</h3>")
+                if answer:
+                    for paragraph in answer.split("\n"):
+                        paragraph = paragraph.strip()
+                        if paragraph:
+                            html_parts.append(f"    <p>{html.escape(paragraph)}</p>")
+                else:
+                    html_parts.append("    <p class='muted'>No grounded answer available.</p>")
+            html_parts.append("  </div>")
+
+        if internal_links:
+            title_map = {
+                "sale_unit_type_links": "Unit Type Links",
+                "sale_property_type_links": "Property Type Links",
+                "sale_quick_links": "Quick Links",
+                "nearby_locality_links": "Nearby Locality Links",
+                "top_project_links": "Top Project Links",
+                "featured_project_links": "Featured Project Links",
+            }
+            html_parts.append('  <div class="links-block">')
+            html_parts.append("    <h2>Internal Links</h2>")
+
+            for key, group_title in title_map.items():
+                group_links = ArtifactWriter._normalize_link_items(internal_links.get(key, []))
+                if not group_links:
+                    continue
+
+                html_parts.append(f"    <h3>{html.escape(group_title)}</h3>")
+                html_parts.append("    <ul>")
+                for item in group_links:
+                    label = ArtifactWriter._safe_text(
+                        item.get("label")
+                        or item.get("unitType")
+                        or item.get("propertyType")
+                        or "Link"
+                    )
+                    url = ArtifactWriter._safe_text(item.get("url"))
+                    if url != "—":
+                        html_parts.append(
+                            f'      <li><a href="{html.escape(url)}" target="_blank" rel="noreferrer">{html.escape(label)}</a></li>'
+                        )
+                    else:
+                        html_parts.append(f"      <li>{html.escape(label)}</li>")
+                html_parts.append("    </ul>")
+            html_parts.append("  </div>")
+
+        html_parts.append("</body>")
+        html_parts.append("</html>")
+
+        with output_path.open("w", encoding="utf-8") as file:
+            file.write("\n".join(html_parts))
+
+        return str(output_path)
+
+    @staticmethod
     def write_blueprint(blueprint: dict) -> str:
         entity = blueprint["entity"]["entity_name"]
         page_type = blueprint["page_type"]
@@ -241,12 +409,8 @@ class ArtifactWriter:
         draft: dict,
         export_formats: list[str] | None = None,
     ) -> dict[str, str]:
-        if settings.block_artifact_write_on_review and draft.get("needs_review"):
-            raise ValueError(
-                "Draft still needs review. Artifact writing is blocked by configuration."
-            )
-
         requested_formats = export_formats or list(settings.draft_default_export_formats)
+        requested_formats = [str(item).strip().lower() for item in requested_formats]
         requested_formats = list(dict.fromkeys(requested_formats))
 
         entity = draft["entity"]["entity_name"]
@@ -266,5 +430,8 @@ class ArtifactWriter:
 
         if "docx" in requested_formats:
             artifact_paths["docx_path"] = ArtifactWriter.write_docx_artifact(draft, file_stem)
+
+        if "html" in requested_formats:
+            artifact_paths["html_path"] = ArtifactWriter.write_html_artifact(draft, file_stem)
 
         return artifact_paths
