@@ -122,10 +122,36 @@ class ReviewSessionCreateRequest(BaseModel):
     )
     include_historical: bool = True
     persist_session: bool = True
-    primary_keyword_override: str | None = Field(
+    primary_keyword_overrides: list[str] | None = Field(
         default=None,
-        description="Optional custom primary keyword override to use for this review session",
+        description="Optional custom primary keyword overrides to use for this review session",
     )
+
+    @field_validator("primary_keyword_overrides")
+    @classmethod
+    def validate_primary_keyword_overrides(
+        cls,
+        value: list[str] | None,
+    ) -> list[str] | None:
+        if value is None:
+            return None
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+
+        for item in value:
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+
+            signature = cleaned.lower()
+            if signature in seen:
+                continue
+
+            seen.add(signature)
+            deduped.append(cleaned)
+
+        return deduped or None
 
 
 class ReviewDraftRegenerateRequest(BaseModel):

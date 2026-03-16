@@ -17,42 +17,82 @@ from seo_content_engine.services.source_loader import SourceLoader
 
 class ReviewWorkbenchService:
     @staticmethod
-    def _apply_primary_keyword_override(
+    def _normalize_primary_keyword_overrides(
+        primary_keyword_overrides: list[str] | None,
+    ) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for item in primary_keyword_overrides or []:
+            cleaned = str(item or "").strip()
+            if not cleaned:
+                continue
+
+            signature = cleaned.lower()
+            if signature in seen:
+                continue
+
+            seen.add(signature)
+            normalized.append(cleaned)
+
+        return normalized
+
+    @staticmethod
+    def _apply_primary_keyword_overrides(
         keyword_intelligence: dict,
-        primary_keyword_override: str | None,
+        primary_keyword_overrides: list[str] | None,
     ) -> dict:
-        if not primary_keyword_override or not primary_keyword_override.strip():
+        normalized_overrides = ReviewWorkbenchService._normalize_primary_keyword_overrides(
+            primary_keyword_overrides
+        )
+        if not normalized_overrides:
             return keyword_intelligence
 
         updated = deepcopy(keyword_intelligence)
-        override_value = primary_keyword_override.strip()
-
         clusters = updated.setdefault("keyword_clusters", {})
+
+        primary_keyword_value = normalized_overrides[0]
         clusters["primary_keyword"] = {
-            "keyword": override_value,
+            "keyword": primary_keyword_value,
             "source": "review_session_override",
             "is_override": True,
         }
+        clusters["primary_keyword_overrides"] = normalized_overrides
 
         exact_match_keywords = list(clusters.get("exact_match_keywords", []) or [])
-        if not any(
-            isinstance(item, dict) and (item.get("keyword") or "").strip().lower() == override_value.lower()
+        existing_exact_signatures = {
+            (item.get("keyword") or "").strip().lower()
             for item in exact_match_keywords
-        ):
-            exact_match_keywords.insert(
-                0,
+            if isinstance(item, dict)
+        }
+
+        override_records: list[dict] = []
+        for keyword in normalized_overrides:
+            if keyword.lower() in existing_exact_signatures:
+                continue
+
+            override_records.append(
                 {
-                    "keyword": override_value,
+                    "keyword": keyword,
                     "source": "review_session_override",
                     "is_override": True,
-                },
+                }
             )
-        clusters["exact_match_keywords"] = exact_match_keywords
+
+        clusters["exact_match_keywords"] = override_records + exact_match_keywords
 
         metadata_keywords = list(clusters.get("metadata_keywords", []) or [])
-        if override_value not in metadata_keywords:
-            metadata_keywords.insert(0, override_value)
-        clusters["metadata_keywords"] = metadata_keywords
+        existing_metadata_signatures = {item.strip().lower() for item in metadata_keywords if isinstance(item, str)}
+
+        merged_metadata_keywords = list(normalized_overrides)
+        for keyword in metadata_keywords:
+            if not isinstance(keyword, str):
+                continue
+            if keyword.strip().lower() in {item.lower() for item in normalized_overrides}:
+                continue
+            merged_metadata_keywords.append(keyword)
+
+        clusters["metadata_keywords"] = merged_metadata_keywords
 
         return updated
 
@@ -92,6 +132,7 @@ class ReviewWorkbenchService:
         return {
             "version": keyword_intelligence.get("version"),
             "primary_keyword": clusters.get("primary_keyword"),
+            "primary_keyword_overrides": clusters.get("primary_keyword_overrides", []),
             "secondary_keywords": clusters.get("secondary_keywords", []),
             "bhk_keywords": clusters.get("bhk_keywords", []),
             "price_keywords": clusters.get("price_keywords", []),
@@ -112,8 +153,6 @@ class ReviewWorkbenchService:
             "relevant_overlap_keywords": competitor_intelligence.get("relevant_overlap_keywords", []),
         }
     
-    
-
     @staticmethod
     def _build_section_review_payload(draft: dict) -> list[dict]:
         validation_report = draft.get("validation_report", {})
@@ -274,7 +313,7 @@ class ReviewWorkbenchService:
         limit: int | None = None,
         include_historical: bool = True,
         persist_session: bool = True,
-        primary_keyword_override: str | None = None,
+        primary_keyword_overrides: list[str] | None = None,
     ) -> dict:
         normalized = EntityNormalizer.normalize_from_paths(
             main_datacenter_json_path=main_datacenter_json_path,
@@ -291,9 +330,9 @@ class ReviewWorkbenchService:
             include_historical=include_historical,
         )
 
-        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_override(
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
             keyword_intelligence,
-            primary_keyword_override,
+            primary_keyword_overrides,
         )
 
         content_plan = ContentPlanBuilder.build(
@@ -325,7 +364,9 @@ class ReviewWorkbenchService:
                 "language_name": language_name,
                 "limit": limit,
                 "include_historical": include_historical,
-                "primary_keyword_override": primary_keyword_override,
+                "primary_keyword_overrides": ReviewWorkbenchService._normalize_primary_keyword_overrides(
+                    primary_keyword_overrides
+                ),
             },
             "entity": normalized.get("entity", {}),
             "source_preview": ReviewWorkbenchService._build_source_preview(normalized),
@@ -362,9 +403,9 @@ class ReviewWorkbenchService:
     ) -> tuple[dict, dict]:
         session = ReviewSessionStore.load_session(session_id)
 
-        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_override(
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
             session["keyword_intelligence"],
-            session.get("inputs", {}).get("primary_keyword_override"),
+            session.get("inputs", {}).get("primary_keyword_overrides"),
         )
 
         regenerated_draft = DraftGenerationService.generate(
@@ -404,9 +445,9 @@ class ReviewWorkbenchService:
     ) -> tuple[dict, dict]:
         session = ReviewSessionStore.load_session(session_id)
 
-        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_override(
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
             session["keyword_intelligence"],
-            session.get("inputs", {}).get("primary_keyword_override"),
+            session.get("inputs", {}).get("primary_keyword_overrides"),
         )
 
         regenerated_draft = DraftGenerationService.generate(

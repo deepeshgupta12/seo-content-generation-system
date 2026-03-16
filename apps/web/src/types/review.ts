@@ -10,7 +10,7 @@ export type ReviewSessionCreateRequest = {
   limit?: number | null;
   include_historical?: boolean;
   persist_session?: boolean;
-  primary_keyword_override?: string | null;
+  primary_keyword_overrides?: string[] | null;
 };
 
 export type ReviewDraftRegenerateRequest = {
@@ -136,7 +136,7 @@ export type ReviewSession = {
     listing_type?: string;
   };
   inputs?: {
-    primary_keyword_override?: string | null;
+    primary_keyword_overrides?: string[] | null;
   };
   source_preview?: Record<string, unknown>;
   keyword_preview?: Record<string, unknown>;

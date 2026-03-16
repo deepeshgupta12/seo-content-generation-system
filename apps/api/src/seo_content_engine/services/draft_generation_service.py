@@ -266,18 +266,53 @@ class DraftGenerationService:
         return " ".join(lines)
     
     @staticmethod
+    def _clean_market_signal_items(items: list[str], limit: int = 4) -> list[str]:
+        cleaned: list[str] = []
+
+        for item in items or []:
+            text = str(item or "").strip()
+            if not text:
+                continue
+
+            text = " ".join(text.split())
+            text = text.rstrip(" .;,:")
+            if not text:
+                continue
+
+            cleaned.append(text)
+            if len(cleaned) >= limit:
+                break
+
+        return cleaned
+
+    @staticmethod
     def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
         entity = content_plan.get("entity", {}) or {}
         entity_name = entity.get("entity_name", "this location")
         city_name = entity.get("city_name", "")
-        location_label = f"{entity_name}, {city_name}" if city_name and city_name != entity_name else entity_name
+        location_label = (
+            f"{entity_name}, {city_name}"
+            if city_name and city_name != entity_name
+            else entity_name
+        )
 
-        property_rates_ai_summary = content_plan["data_context"].get("property_rates_ai_summary", {}) or {}
+        property_rates_ai_summary = (
+            content_plan.get("data_context", {}).get("property_rates_ai_summary", {}) or {}
+        )
 
-        market_snapshot = (property_rates_ai_summary.get("market_snapshot") or "").strip()
-        market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
-        market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
-        investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
+        market_snapshot = str(property_rates_ai_summary.get("market_snapshot") or "").strip()
+        market_strengths = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("market_strengths", []) or [],
+            limit=4,
+        )
+        market_challenges = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("market_challenges", []) or [],
+            limit=4,
+        )
+        investment_opportunities = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("investment_opportunities", []) or [],
+            limit=4,
+        )
 
         if (
             not market_snapshot
@@ -286,42 +321,47 @@ class DraftGenerationService:
             and not investment_opportunities
         ):
             return (
-                f"This section is reserved for structured market-summary inputs for {location_label}. "
-                f"When available, it brings together source-backed strengths, challenges, and opportunity notes "
-                f"into a balanced market overview without adding unsupported interpretation."
+                f"No structured market-summary inputs are currently available for {location_label} "
+                f"in the property-rates source block for this page."
             )
 
         paragraphs: list[str] = []
 
         if market_snapshot:
             paragraphs.append(
-                f"The structured market snapshot for {location_label} suggests the visible resale market should be read through a measured lens rather than a promotional one. "
-                f"{market_snapshot} This is the broad framing available in the source-backed property-rates summary, and it works best as context for understanding how the locality is currently being described within the attached data."
+                f"For {location_label}, the property-rates summary includes the following market snapshot: "
+                f"{market_snapshot}"
             )
 
+        grouped_lines: list[str] = []
+
         if market_strengths:
-            strengths_text = ", ".join(market_strengths[:4])
-            paragraphs.append(
-                f"On the positive side, the same summary surfaces strengths such as {strengths_text}. "
-                f"Taken together, these points indicate where the locality appears comparatively stable, active, or attractive within the current market narrative. "
-                f"They should still be read as descriptive source signals, not as blanket endorsements."
+            grouped_lines.append(
+                "The same source lists the following strengths: "
+                + "; ".join(market_strengths)
+                + "."
             )
 
         if market_challenges:
-            challenges_text = ", ".join(market_challenges[:4])
-            paragraphs.append(
-                f"The summary also leaves room for caution by highlighting challenges such as {challenges_text}. "
-                f"That matters because it prevents the section from sounding one-sided and gives buyers or investors a more balanced reading of the locality. "
-                f"These challenges are not predictions, but they do flag the friction points currently visible in the structured input."
+            grouped_lines.append(
+                "It also lists the following challenges: "
+                + "; ".join(market_challenges)
+                + "."
             )
 
         if investment_opportunities:
-            opportunities_text = ", ".join(investment_opportunities[:4])
-            paragraphs.append(
-                f"Where the source identifies opportunity areas, it points to themes such as {opportunities_text}. "
-                f"In practical terms, these cues can help a reader understand where the locality may deserve closer attention, especially when comparing multiple nearby markets or project clusters. "
-                f"Even here, the wording should be treated as grounded market context rather than guaranteed upside."
+            grouped_lines.append(
+                "The opportunity notes currently surfaced in the source are: "
+                + "; ".join(investment_opportunities)
+                + "."
             )
+
+        if grouped_lines:
+            grouped_lines.append(
+                "These points are presented here as source-provided market notes only, "
+                "without additional interpretation, recommendation, or forward-looking claims."
+            )
+            paragraphs.append(" ".join(grouped_lines))
 
         return "\n\n".join(paragraphs)
 
@@ -477,14 +517,48 @@ class DraftGenerationService:
             return DraftGenerationService._build_property_type_rate_snapshot_safe_body(content_plan)
 
         return None
+    
+    @staticmethod
+    def _enforce_strict_section_bodies(
+        content_plan: dict,
+        sections: list[dict],
+    ) -> list[dict]:
+        strict_section_ids = {"property_rates_ai_signals"}
+        updated_sections: list[dict] = []
+
+        for section in sections:
+            updated = dict(section)
+            section_id = updated.get("id")
+
+            if section_id in strict_section_ids:
+                safe_body = DraftGenerationService._build_safe_section_body(
+                    content_plan,
+                    section_id,
+                )
+                if safe_body is not None:
+                    updated["body"] = safe_body
+
+            updated_sections.append(updated)
+
+        return updated_sections
 
     @staticmethod
     def _fallback_section_if_needed(content_plan: dict, section: dict, validation: dict) -> dict:
+        section_id = section.get("id", "")
         issues = validation.get("issues", [])
+
+        if section_id == "property_rates_ai_signals":
+            safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
+            if safe_body is None:
+                return section
+
+            updated = dict(section)
+            updated["body"] = safe_body
+            return updated
+
         if not issues:
             return section
 
-        section_id = section.get("id", "")
         safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
         if safe_body is None:
             return section
@@ -1395,6 +1469,7 @@ class DraftGenerationService:
 
         sections = DraftGenerationService._generate_sections(content_plan, client)
         sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
+        sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
 
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
@@ -1416,8 +1491,14 @@ class DraftGenerationService:
         repair_passes = 0
         while not validation_report["passed"] and repair_passes < settings.draft_repair_max_passes:
             metadata = DraftGenerationService._repair_metadata(content_plan, draft["metadata"], validation_report, client)
-            sections = DraftGenerationService._repair_sections(content_plan, draft["sections"], validation_report, client)
+            sections = DraftGenerationService._repair_sections(
+                content_plan,
+                draft["sections"],
+                validation_report,
+                client,
+            )
             sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
+            sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
             faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
 

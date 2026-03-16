@@ -48,6 +48,25 @@ function getStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => stringifyValue(item)) : [];
 }
 
+function parseKeywordOverridesInput(value: string): string[] {
+  const parts = value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of parts) {
+    const signature = item.toLowerCase();
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    deduped.push(item);
+  }
+
+  return deduped;
+}
+
 function ValidationBadge({ passed }: { passed: boolean | undefined }) {
   return (
     <span className={`badge ${passed ? "badge--success" : "badge--warning"}`}>
@@ -222,7 +241,10 @@ export function ReviewWorkbenchPage() {
       versionCount: session.version_history?.length ?? 0,
       faqCount: session.draft?.faqs?.length ?? 0,
       tableCount: session.draft?.tables?.length ?? 0,
-      primaryKeywordOverride: session.inputs?.primary_keyword_override ?? "—",
+      primaryKeywordOverrides:
+        session.inputs?.primary_keyword_overrides?.length
+          ? session.inputs.primary_keyword_overrides.join(", ")
+          : "—",
     };
   }, [session]);
 
@@ -235,6 +257,9 @@ export function ReviewWorkbenchPage() {
   const pricingSummary = getRecord(session?.source_preview?.pricing_summary);
 
   const primaryKeyword = getRecord(session?.keyword_preview?.primary_keyword);
+  const primaryKeywordOverrides = getStringArray(
+    session?.keyword_preview?.primary_keyword_overrides,
+  );
   const secondaryKeywords = getArray(session?.keyword_preview?.secondary_keywords);
   const priceKeywords = getArray(session?.keyword_preview?.price_keywords);
   const bhkKeywords = getArray(session?.keyword_preview?.bhk_keywords);
@@ -312,7 +337,9 @@ export function ReviewWorkbenchPage() {
   function applyUpdatedSession(nextSession: ReviewSession, message: string) {
     setSession(nextSession);
     setSessionIdInput(nextSession.session_id ?? "");
-    setPrimaryKeywordOverride(nextSession.inputs?.primary_keyword_override ?? "");
+    setPrimaryKeywordOverride(
+      nextSession.inputs?.primary_keyword_overrides?.join("\n") ?? "",
+    );
     setSuccessMessage(message);
     setErrorMessage(null);
   }
@@ -329,7 +356,9 @@ export function ReviewWorkbenchPage() {
         listing_type: "resale",
         include_historical: includeHistorical,
         persist_session: persistSession,
-        primary_keyword_override: primaryKeywordOverride.trim() || null,
+        primary_keyword_overrides: parseKeywordOverridesInput(primaryKeywordOverride).length
+          ? parseKeywordOverridesInput(primaryKeywordOverride)
+          : null,
       });
 
       applyUpdatedSession(response.review_session, response.message);
@@ -727,10 +756,11 @@ export function ReviewWorkbenchPage() {
           </label>
 
           <label className="field">
-            <span className="field-label">Custom primary keyword override</span>
-            <input
-              className="field-input"
-              placeholder="Example: resale properties in Andheri West Mumbai"
+            <span className="field-label">Custom primary keyword overrides</span>
+            <textarea
+              className="field-textarea"
+              rows={4}
+              placeholder={`One keyword per line or comma-separated\nExample:\nresale properties in Andheri West Mumbai\nflats for sale in Andheri West Mumbai`}
               value={primaryKeywordOverride}
               onChange={(event) => setPrimaryKeywordOverride(event.target.value)}
             />
@@ -861,8 +891,8 @@ export function ReviewWorkbenchPage() {
             </div>
 
             <div className="summary-card">
-              <div className="summary-card__label">Primary Keyword Override</div>
-              <div className="summary-card__value">{headerSummary?.primaryKeywordOverride}</div>
+              <div className="summary-card__label">Primary Keyword Overrides</div>
+              <div className="summary-card__value">{headerSummary?.primaryKeywordOverrides}</div>
             </div>
           </div>
         )}
@@ -1122,6 +1152,13 @@ export function ReviewWorkbenchPage() {
                 <div className="detail-card__label">Primary Keyword</div>
                 <div className="detail-card__value">
                   {stringifyValue(primaryKeyword?.keyword)}
+                </div>
+              </div>
+
+              <div className="detail-card">
+                <div className="detail-card__label">Primary Keyword Overrides</div>
+                <div className="detail-card__value">
+                  <KeywordChipList items={primaryKeywordOverrides} />
                 </div>
               </div>
 

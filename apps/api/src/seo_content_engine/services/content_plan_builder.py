@@ -745,10 +745,12 @@ class ContentPlanBuilder:
             "id": "property_rates_ai_signals",
             "title": "Market Strengths, Challenges, and Opportunities",
             "objective": (
-                "Write a para-format, grounded market-summary section using only the structured "
-                "property-rates AI fields such as market snapshot, market strengths, market challenges, "
-                "and investment opportunities. The output should read like a balanced real-estate market "
-                "takeaway for a buyer or investor, not like a raw source dump or promotional copy."
+                "Write a tightly grounded market-summary section using only the structured "
+                "property-rates AI fields: market snapshot, market strengths, market challenges, "
+                "and investment opportunities. The output must remain descriptive and restrained. "
+                "Do not infer market quality, stability, attractiveness, momentum, upside, or buyer fit. "
+                "Do not translate source inputs into advisory language. Present them as source-backed "
+                "market notes in clean paragraph form."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(
@@ -885,10 +887,11 @@ class ContentPlanBuilder:
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["property_rates_ai_summary"],
                     "instruction": (
-                        "Use only explicit property_rates_ai_summary fields. Convert them into a readable, "
-                        "balanced, para-format market summary. Keep the writing descriptive and grounded. "
-                        "Do not present the content as guaranteed upside, do not exaggerate strengths, and do not "
-                        "add claims that are not directly supported by the source fields."
+                        "Use only explicit property_rates_ai_summary fields. "
+                        "Do not infer sentiment, stability, attractiveness, growth quality, momentum, or investment merit. "
+                        "Do not convert source inputs into interpretation-heavy prose. "
+                        "Summarize the snapshot and listed strengths, challenges, and opportunity notes as source-backed labels only. "
+                        "Keep the wording restrained, paragraph-based, and human-readable."
                     ),
                 }
 

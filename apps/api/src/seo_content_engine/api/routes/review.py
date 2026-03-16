@@ -34,7 +34,7 @@ def create_review_session(payload: ReviewSessionCreateRequest) -> ReviewSessionR
             limit=payload.limit,
             include_historical=payload.include_historical,
             persist_session=payload.persist_session,
-            primary_keyword_override=payload.primary_keyword_override,
+            primary_keyword_overrides=payload.primary_keyword_overrides,
         )
         return ReviewSessionResponse(
             success=True,
