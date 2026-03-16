@@ -97,6 +97,100 @@ class ContentPlanBuilder:
         return selected[: settings.keyword_metadata_max_count]
 
     @staticmethod
+    def _extract_keyword_text(record: dict | None) -> str | None:
+        if not isinstance(record, dict):
+            return None
+
+        keyword = str(record.get("keyword") or "").strip()
+        return keyword or None
+
+    @staticmethod
+    def _primary_keyword_variants(keyword_clusters: dict, entity: dict) -> list[str]:
+        location_label = ContentPlanBuilder._display_location(entity)
+
+        variants: list[str] = []
+        seen: set[str] = set()
+
+        primary_keyword = ContentPlanBuilder._extract_keyword_text(
+            keyword_clusters.get("primary_keyword")
+        )
+        override_keywords = keyword_clusters.get("primary_keyword_overrides", []) or []
+        exact_match_keywords = keyword_clusters.get("exact_match_keywords", []) or []
+
+        candidates: list[str] = []
+        if primary_keyword:
+            candidates.append(primary_keyword)
+
+        for item in override_keywords:
+            cleaned = str(item or "").strip()
+            if cleaned:
+                candidates.append(cleaned)
+
+        for record in exact_match_keywords:
+            keyword = ContentPlanBuilder._extract_keyword_text(record)
+            if keyword:
+                candidates.append(keyword)
+
+        for keyword in candidates:
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            variants.append(keyword)
+
+        if not variants:
+            variants.append(f"resale properties in {location_label}")
+
+        return variants[:5]
+
+    @staticmethod
+    def _body_keyword_priority(keyword_clusters: dict, entity: dict) -> list[str]:
+        prioritized: list[str] = []
+        seen: set[str] = set()
+
+        for keyword in ContentPlanBuilder._primary_keyword_variants(keyword_clusters, entity):
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            prioritized.append(keyword)
+
+        for record in keyword_clusters.get("secondary_keywords", []) or []:
+            keyword = ContentPlanBuilder._extract_keyword_text(record)
+            if not keyword:
+                continue
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            prioritized.append(keyword)
+            if len(prioritized) >= 8:
+                break
+
+        return prioritized
+
+    @staticmethod
+    def _metadata_keyword_priority(keyword_clusters: dict, entity: dict) -> list[str]:
+        prioritized: list[str] = []
+        seen: set[str] = set()
+
+        for keyword in ContentPlanBuilder._primary_keyword_variants(keyword_clusters, entity):
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            prioritized.append(keyword)
+
+        for keyword in ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity):
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            prioritized.append(keyword)
+
+        return prioritized[: settings.keyword_metadata_max_count]
+
+    @staticmethod
     def _extract_rera_context(normalized: dict) -> dict[str, Any] | None:
         possible_sources = [
             normalized.get("rera"),
@@ -287,24 +381,36 @@ class ContentPlanBuilder:
         entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
         location_label = ContentPlanBuilder._display_location(entity)
 
-        primary_keyword = keyword_clusters.get("primary_keyword")
-        primary_keyword_text = (
-            primary_keyword["keyword"] if primary_keyword else f"resale properties in {location_label}"
+        primary_keyword_variants = ContentPlanBuilder._primary_keyword_variants(
+            keyword_clusters,
+            entity,
+        )
+        primary_keyword_text = primary_keyword_variants[0]
+        secondary_primary_keyword = (
+            primary_keyword_variants[1]
+            if len(primary_keyword_variants) > 1
+            else f"resale properties in {location_label}"
+        )
+        tertiary_primary_keyword = (
+            primary_keyword_variants[2]
+            if len(primary_keyword_variants) > 2
+            else f"flats for sale in {location_label}"
         )
 
-        metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity)
+        metadata_keywords = ContentPlanBuilder._metadata_keyword_priority(keyword_clusters, entity)
+
         title_candidates = [
             f"{primary_keyword_text} | Square Yards",
-            f"Resale Properties in {location_label} | Square Yards",
+            f"{secondary_primary_keyword} | Square Yards",
             f"{location_label} Resale Properties for Sale | Square Yards",
-            f"Flats for Sale in {location_label} | Square Yards",
+            f"{tertiary_primary_keyword} | Square Yards",
             f"Property for Sale in {location_label} | Resale Listings | Square Yards",
         ]
 
         description_candidates = [
             f"Explore {primary_keyword_text.lower()} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
-            f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
-            f"Browse resale listings in {location_label} with rates, property mix, and grounded buying insights on Square Yards.",
+            f"Find {secondary_primary_keyword.lower()} with price trends, inventory mix, and nearby area insights on Square Yards.",
+            f"Browse {tertiary_primary_keyword.lower()} with rates, property mix, and grounded buying insights on Square Yards.",
             f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
         ]
 
@@ -316,7 +422,9 @@ class ContentPlanBuilder:
 
         return {
             "primary_keyword": primary_keyword_text,
+            "primary_keyword_variants": primary_keyword_variants,
             "supporting_keywords": metadata_keywords,
+            "metadata_keyword_priority": metadata_keywords,
             "recommended_h1": primary_keyword_text[:120],
             "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
             "title_candidates": title_candidates,
@@ -850,8 +958,22 @@ class ContentPlanBuilder:
         return current
 
     @staticmethod
-    def _build_section_generation_context(section_plan: list[dict], normalized: dict, entity: dict) -> dict[str, dict]:
+    def _build_section_generation_context(
+        section_plan: list[dict],
+        normalized: dict,
+        entity: dict,
+        keyword_clusters: dict,
+    ) -> dict[str, dict]:
         context_map: dict[str, dict] = {}
+
+        primary_keyword_variants = ContentPlanBuilder._primary_keyword_variants(
+            keyword_clusters,
+            entity,
+        )
+        body_keyword_priority = ContentPlanBuilder._body_keyword_priority(
+            keyword_clusters,
+            entity,
+        )
 
         for section in section_plan:
             section_context: dict[str, Any] = {"entity": entity}
@@ -868,6 +990,17 @@ class ContentPlanBuilder:
                 "prefer_paragraphs_over_bullets": True,
                 "avoid_template_like_phrasing": True,
                 "avoid_repetition": True,
+            }
+
+            section_context["keyword_usage_plan"] = {
+                "primary_keyword": primary_keyword_variants[0] if primary_keyword_variants else None,
+                "primary_keyword_variants": primary_keyword_variants,
+                "body_keyword_priority": body_keyword_priority,
+                "instruction": (
+                    "Use the main primary keyword naturally in the hero section. "
+                    "Where suitable, use one alternate primary keyword variant naturally in an early body section. "
+                    "Do not stuff keywords or repeat the same keyword phrasing across every section."
+                ),
             }
 
             if section["id"] == "price_trends_and_rates":
@@ -962,6 +1095,19 @@ class ContentPlanBuilder:
             "metadata_plan": ContentPlanBuilder._build_metadata_plan(entity, keyword_clusters, raw_source_meta),
             "keyword_strategy": {
                 "primary_keyword": keyword_clusters.get("primary_keyword"),
+                "primary_keyword_overrides": keyword_clusters.get("primary_keyword_overrides", []),
+                "primary_keyword_variants": ContentPlanBuilder._primary_keyword_variants(
+                    keyword_clusters,
+                    entity,
+                ),
+                "metadata_keyword_priority": ContentPlanBuilder._metadata_keyword_priority(
+                    keyword_clusters,
+                    entity,
+                ),
+                "body_keyword_priority": ContentPlanBuilder._body_keyword_priority(
+                    keyword_clusters,
+                    entity,
+                ),
                 "secondary_keywords": keyword_clusters.get("secondary_keywords", []),
                 "bhk_keywords": keyword_clusters.get("bhk_keywords", []),
                 "price_keywords": keyword_clusters.get("price_keywords", []),
@@ -979,6 +1125,7 @@ class ContentPlanBuilder:
                 section_plan,
                 normalized,
                 entity,
+                keyword_clusters,
             ),
             "table_plan": table_plan,
             "comparison_plan": ContentPlanBuilder._build_comparison_plan(normalized),

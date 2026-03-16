@@ -82,13 +82,13 @@ class ReviewWorkbenchService:
         clusters["exact_match_keywords"] = override_records + exact_match_keywords
 
         metadata_keywords = list(clusters.get("metadata_keywords", []) or [])
-        existing_metadata_signatures = {item.strip().lower() for item in metadata_keywords if isinstance(item, str)}
+        override_signatures = {item.lower() for item in normalized_overrides}
 
         merged_metadata_keywords = list(normalized_overrides)
         for keyword in metadata_keywords:
             if not isinstance(keyword, str):
                 continue
-            if keyword.strip().lower() in {item.lower() for item in normalized_overrides}:
+            if keyword.strip().lower() in override_signatures:
                 continue
             merged_metadata_keywords.append(keyword)
 

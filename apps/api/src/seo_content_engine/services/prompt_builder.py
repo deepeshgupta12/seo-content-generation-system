@@ -14,7 +14,8 @@ class PromptBuilder:
             "Avoid phrases like premium, most sought-after, excellent connectivity, strong demand, investment potential, luxury, prime destination. "
             "The output should still sound natural, readable, and SEO-friendly. "
             "Write metadata that feels human, specific, and useful without becoming promotional or making unsupported claims. "
-            "Use the primary keyword naturally, and use supporting keywords only when they fit cleanly. "
+            "Use the resolved primary keyword naturally, and where helpful, use one alternate primary keyword variant naturally across the title, H1, or meta description. "
+            "Do not force all primary keyword variants into every field. "
             "Avoid keyword stuffing, repetitive phrasing, and robotic search-optimized wording. "
             "If a fact is not explicitly present in the input, do not mention it. "
             "Return only valid JSON."
@@ -25,6 +26,8 @@ class PromptBuilder:
             "metadata_plan": content_plan["metadata_plan"],
             "keyword_strategy": {
                 "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
+                "primary_keyword_variants": content_plan["keyword_strategy"].get("primary_keyword_variants", []),
+                "metadata_keyword_priority": content_plan["keyword_strategy"].get("metadata_keyword_priority", []),
                 "metadata_keywords": content_plan["metadata_plan"]["supporting_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
             },
@@ -34,6 +37,7 @@ class PromptBuilder:
                 "strict_grounding": True,
                 "seo_rules": {
                     "use_primary_keyword_naturally": True,
+                    "use_alternate_primary_keyword_variant_when_helpful": True,
                     "avoid_keyword_stuffing": True,
                     "meta_description_should_be_descriptive": True,
                     "write_for_humans_first": True,
@@ -77,6 +81,9 @@ class PromptBuilder:
             "Do not infer what the signals suggest beyond the source text. "
             "Do not describe the locality as stable, attractive, active, promising, dynamic, or similar unless that wording is explicitly present in the source input. "
             "Do not introduce advisory language, recommendation language, or forward-looking market conclusions. "
+            "Use the main primary keyword naturally in the hero intro. "
+            "If alternate primary keyword variants are provided, use at most one alternate variant naturally in an early body section when it fits cleanly. "
+            "Do not repeat the same primary keyword phrase across every section. "
             "Keep the section human-readable, but source-bound. "
             "Write in a natural, human, descriptive style with 2 to 4 short paragraphs per section when the data allows. "
             "Each section should feel SEO-friendly and readable, not robotic or overly templated, while remaining fully grounded. "
@@ -103,6 +110,8 @@ class PromptBuilder:
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "keyword_strategy": {
                 "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
+                "primary_keyword_variants": content_plan["keyword_strategy"].get("primary_keyword_variants", []),
+                "body_keyword_priority": content_plan["keyword_strategy"].get("body_keyword_priority", []),
                 "secondary_keywords": content_plan["keyword_strategy"]["secondary_keywords"],
                 "bhk_keywords": content_plan["keyword_strategy"]["bhk_keywords"],
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
@@ -126,6 +135,9 @@ class PromptBuilder:
                     "property_type_sections_must_use_explicit_property_type_inputs_only": True,
                     "market_strengths_section_must_feel_human_written": True,
                     "market_strengths_section_must_not_read_like_raw_source_dump": True,
+                    "hero_must_use_primary_keyword_naturally": True,
+                    "allow_one_alternate_primary_keyword_variant_in_early_body": True,
+                    "avoid_repeating_same_primary_keyword_in_every_section": True,
                     "min_target_words_per_section": 90,
                     "max_target_words_per_section": 220,
                     "write_like_human_editorial_copy": True,
@@ -172,17 +184,24 @@ class PromptBuilder:
             "Target 8 to 12 FAQs when the plan supports it, with each answer usually 45 to 110 words. "
             "Questions should feel realistic for actual search or buyer intent. "
             "Prefer people-also-ask style phrasing where appropriate, but keep the wording natural and specific to the page. "
+            "If multiple primary keyword variants are provided, you may vary some FAQ question phrasing using those variants naturally. "
+            "Do not force every variant into the FAQ set. "
             "Answers should be readable, grounded, and naturally written, not repetitive or robotic. "
             "You may use competitor-derived planning signals only to expand FAQ coverage and prioritize realistic buyer questions. "
             "Never copy competitor phrasing, claims, or FAQ wording. "
             "Return only valid JSON."
-            )
+        )
 
         user_payload = {
             "entity": content_plan["entity"],
             "faq_plan": content_plan["faq_plan"],
             "data_context": content_plan["data_context"],
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
+            "keyword_strategy": {
+                "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
+                "primary_keyword_variants": content_plan["keyword_strategy"].get("primary_keyword_variants", []),
+                "body_keyword_priority": content_plan["keyword_strategy"].get("body_keyword_priority", []),
+            },
             "competitor_intelligence": {
                 "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
                 "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
@@ -198,6 +217,7 @@ class PromptBuilder:
                     "exclude_non_canonical_pricing_metrics_from_price_answers": True,
                     "prefer_broader_coverage": True,
                     "prefer_descriptive_answers": True,
+                    "allow_some_keyword_variant_question_phrasing": True,
                     "target_min_faqs": 8,
                     "target_max_faqs": 12,
                     "avoid_duplicate_questions": True,
