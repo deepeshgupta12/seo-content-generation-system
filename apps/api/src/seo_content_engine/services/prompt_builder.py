@@ -73,6 +73,11 @@ class PromptBuilder:
             "Do not say demand is strong, weak, healthy, rising, falling, or favorable unless that exact interpretation is explicitly provided. "
             "For property-type sections, only summarize explicit property-type names, counts, rates, status buckets, and grounded distributions from the input. "
             "Do not rank, recommend, or interpret which property type is better. "
+            "For the section id 'property_rates_ai_signals', write in restrained editorial prose using only the provided snapshot, strengths, challenges, and opportunity notes. "
+            "Do not infer what the signals suggest beyond the source text. "
+            "Do not describe the locality as stable, attractive, active, promising, dynamic, or similar unless that wording is explicitly present in the source input. "
+            "Do not introduce advisory language, recommendation language, or forward-looking market conclusions. "
+            "Keep the section human-readable, but source-bound. "
             "Write in a natural, human, descriptive style with 2 to 4 short paragraphs per section when the data allows. "
             "Each section should feel SEO-friendly and readable, not robotic or overly templated, while remaining fully grounded. "
             "Use natural transitions and vary sentence openings. "
@@ -82,7 +87,7 @@ class PromptBuilder:
             "You may use competitor-derived planning signals only for structural inspiration such as section emphasis, section depth, and hierarchy. "
             "Never copy competitor phrasing, claims, or FAQ wording. "
             "Return only valid JSON."
-            )
+        )
 
         sections = [
             section
@@ -103,12 +108,12 @@ class PromptBuilder:
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
                 "ready_to_move_keywords": content_plan["keyword_strategy"]["ready_to_move_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
-            "competitor_intelligence": {
-                "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
-                "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
-                "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
-            },
-            "planning_signals": content_plan.get("planning_signals", {}),
+                "competitor_intelligence": {
+                    "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
+                    "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
+                    "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
+                },
+                "planning_signals": content_plan.get("planning_signals", {}),
             },
             "requirements": {
                 "strict_grounding": True,
@@ -119,6 +124,8 @@ class PromptBuilder:
                     "review_sections_must_use_explicit_review_inputs_only": True,
                     "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
                     "property_type_sections_must_use_explicit_property_type_inputs_only": True,
+                    "market_strengths_section_must_feel_human_written": True,
+                    "market_strengths_section_must_not_read_like_raw_source_dump": True,
                     "min_target_words_per_section": 90,
                     "max_target_words_per_section": 220,
                     "write_like_human_editorial_copy": True,
@@ -269,6 +276,10 @@ class PromptBuilder:
             "For review-related sections, only use explicit rating, review-count, review-tag, or AI-summary inputs if present. "
             "For demand-supply sections, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
             "For property-type sections, only use explicit property-type, status, rate, and distribution inputs if present. "
+            "For the section id 'property_rates_ai_signals', the rewrite must remain tightly source-bound. "
+            "Do not interpret what the strengths, challenges, or opportunity notes mean. "
+            "Do not introduce advisory, promotional, or forward-looking language. "
+            "Present the snapshot and listed points in restrained paragraph form only. "
             "Make the rewrite sound natural and descriptive, but still grounded. "
             "Keep the rewritten section distinct from other sections and avoid robotic phrasing. "
             "Do not introduce any fact that is not present in the provided grounded data. "
@@ -294,6 +305,7 @@ class PromptBuilder:
                 "review_sections_must_use_explicit_review_inputs_only": True,
                 "demand_supply_sections_must_use_explicit_inputs_only": True,
                 "property_type_sections_must_use_explicit_inputs_only": True,
+                "property_rates_ai_signals_must_feel_human_written": True,
                 "keep_human_descriptive_style": True,
                 "avoid_repetition": True,
             },

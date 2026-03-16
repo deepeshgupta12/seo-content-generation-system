@@ -1,61 +1,157 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from seo_content_engine.domain.enums import ListingType
 
+ExportFormat = Literal["json", "markdown", "docx", "html"]
+
 
 class BlueprintGenerateRequest(BaseModel):
-    main_datacenter_json_path: str = Field(..., description="Absolute or relative path to main datacenter JSON")
-    property_rates_json_path: str = Field(..., description="Absolute or relative path to property rates JSON")
+    main_datacenter_json_path: str = Field(
+        ..., description="Absolute or relative path to main datacenter JSON"
+    )
+    property_rates_json_path: str = Field(
+        ..., description="Absolute or relative path to property rates JSON"
+    )
     listing_type: ListingType = ListingType.RESALE
     write_artifact: bool = True
 
 
 class KeywordIntelligenceRequest(BaseModel):
-    main_datacenter_json_path: str = Field(..., description="Absolute or relative path to main datacenter JSON")
-    property_rates_json_path: str = Field(..., description="Absolute or relative path to property rates JSON")
+    main_datacenter_json_path: str = Field(
+        ..., description="Absolute or relative path to main datacenter JSON"
+    )
+    property_rates_json_path: str = Field(
+        ..., description="Absolute or relative path to property rates JSON"
+    )
     listing_type: ListingType = ListingType.RESALE
-    location_name: str | None = Field(default=None, description="Override DataForSEO location_name")
-    language_name: str | None = Field(default=None, description="Override DataForSEO language_name")
-    limit: int | None = Field(default=None, ge=1, le=100, description="Max keyword rows to request")
+    location_name: str | None = Field(
+        default=None, description="Override DataForSEO location_name"
+    )
+    language_name: str | None = Field(
+        default=None, description="Override DataForSEO language_name"
+    )
+    limit: int | None = Field(
+        default=None, ge=1, le=100, description="Max keyword rows to request"
+    )
     include_historical: bool = True
     write_artifact: bool = True
 
 
 class ContentPlanGenerateRequest(BaseModel):
-    main_datacenter_json_path: str = Field(..., description="Absolute or relative path to main datacenter JSON")
-    property_rates_json_path: str = Field(..., description="Absolute or relative path to property rates JSON")
+    main_datacenter_json_path: str = Field(
+        ..., description="Absolute or relative path to main datacenter JSON"
+    )
+    property_rates_json_path: str = Field(
+        ..., description="Absolute or relative path to property rates JSON"
+    )
     listing_type: ListingType = ListingType.RESALE
-    location_name: str | None = Field(default=None, description="Override DataForSEO location_name")
-    language_name: str | None = Field(default=None, description="Override DataForSEO language_name")
-    limit: int | None = Field(default=None, ge=1, le=100, description="Max keyword rows to request")
+    location_name: str | None = Field(
+        default=None, description="Override DataForSEO location_name"
+    )
+    language_name: str | None = Field(
+        default=None, description="Override DataForSEO language_name"
+    )
+    limit: int | None = Field(
+        default=None, ge=1, le=100, description="Max keyword rows to request"
+    )
     include_historical: bool = True
     write_artifact: bool = True
 
 
 class DraftGenerateRequest(BaseModel):
-    main_datacenter_json_path: str = Field(..., description="Absolute or relative path to main datacenter JSON")
-    property_rates_json_path: str = Field(..., description="Absolute or relative path to property rates JSON")
+    main_datacenter_json_path: str = Field(
+        ..., description="Absolute or relative path to main datacenter JSON"
+    )
+    property_rates_json_path: str = Field(
+        ..., description="Absolute or relative path to property rates JSON"
+    )
     listing_type: ListingType = ListingType.RESALE
-    location_name: str | None = Field(default=None, description="Override DataForSEO location_name")
-    language_name: str | None = Field(default=None, description="Override DataForSEO language_name")
-    limit: int | None = Field(default=None, ge=1, le=100, description="Max keyword rows to request")
+    location_name: str | None = Field(
+        default=None, description="Override DataForSEO location_name"
+    )
+    language_name: str | None = Field(
+        default=None, description="Override DataForSEO language_name"
+    )
+    limit: int | None = Field(
+        default=None, ge=1, le=100, description="Max keyword rows to request"
+    )
     include_historical: bool = True
     write_artifact: bool = False
 
 
 class DraftPublishRequest(BaseModel):
     draft: dict
+    export_formats: list[ExportFormat] = Field(
+        default_factory=lambda: ["json", "markdown", "docx", "html"],
+        description="Artifacts to write for the draft",
+    )
+
+    @field_validator("export_formats")
+    @classmethod
+    def validate_export_formats(cls, value: list[ExportFormat]) -> list[ExportFormat]:
+        if not value:
+            raise ValueError("At least one export format must be provided.")
+        deduped: list[ExportFormat] = []
+        seen: set[str] = set()
+        for item in value:
+            if item in seen:
+                continue
+            seen.add(item)
+            deduped.append(item)
+        return deduped
 
 
 class ReviewSessionCreateRequest(BaseModel):
-    main_datacenter_json_path: str = Field(..., description="Absolute or relative path to main datacenter JSON")
-    property_rates_json_path: str = Field(..., description="Absolute or relative path to property rates JSON")
+    main_datacenter_json_path: str = Field(
+        ..., description="Absolute or relative path to main datacenter JSON"
+    )
+    property_rates_json_path: str = Field(
+        ..., description="Absolute or relative path to property rates JSON"
+    )
     listing_type: ListingType = ListingType.RESALE
-    location_name: str | None = Field(default=None, description="Override DataForSEO location_name")
-    language_name: str | None = Field(default=None, description="Override DataForSEO language_name")
-    limit: int | None = Field(default=None, ge=1, le=100, description="Max keyword rows to request")
+    location_name: str | None = Field(
+        default=None, description="Override DataForSEO location_name"
+    )
+    language_name: str | None = Field(
+        default=None, description="Override DataForSEO language_name"
+    )
+    limit: int | None = Field(
+        default=None, ge=1, le=100, description="Max keyword rows to request"
+    )
     include_historical: bool = True
     persist_session: bool = True
+    primary_keyword_overrides: list[str] | None = Field(
+        default=None,
+        description="Optional custom primary keyword overrides to use for this review session",
+    )
+
+    @field_validator("primary_keyword_overrides")
+    @classmethod
+    def validate_primary_keyword_overrides(
+        cls,
+        value: list[str] | None,
+    ) -> list[str] | None:
+        if value is None:
+            return None
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+
+        for item in value:
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+
+            signature = cleaned.lower()
+            if signature in seen:
+                continue
+
+            seen.add(signature)
+            deduped.append(cleaned)
+
+        return deduped or None
 
 
 class ReviewDraftRegenerateRequest(BaseModel):
@@ -109,3 +205,26 @@ class ReviewVersionRestoreRequest(BaseModel):
         default="restore_version",
         description="Mutation label to record in version history",
     )
+
+
+class ReviewSessionExportRequest(BaseModel):
+    session_id: str = Field(..., description="Review session identifier")
+    export_formats: list[ExportFormat] = Field(
+        default_factory=lambda: ["json", "markdown", "docx", "html"],
+        description="Artifacts to export for the current session draft",
+    )
+    persist_session: bool = True
+
+    @field_validator("export_formats")
+    @classmethod
+    def validate_export_formats(cls, value: list[ExportFormat]) -> list[ExportFormat]:
+        if not value:
+            raise ValueError("At least one export format must be provided.")
+        deduped: list[ExportFormat] = []
+        seen: set[str] = set()
+        for item in value:
+            if item in seen:
+                continue
+            seen.add(item)
+            deduped.append(item)
+        return deduped

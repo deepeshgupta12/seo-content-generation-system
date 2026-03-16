@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,7 +49,31 @@ class Settings(BaseSettings):
     squareyards_base_url: str = "https://www.squareyards.com"
 
     draft_repair_max_passes: int = 2
-    block_artifact_write_on_review: bool = True
+    block_artifact_write_on_review: bool = False
+    draft_default_export_formats: list[str] = ["json", "markdown", "docx", "html"]
+
+    @field_validator("draft_default_export_formats")
+    @classmethod
+    def validate_draft_default_export_formats(cls, value: list[str]) -> list[str]:
+        allowed = {"json", "markdown", "docx", "html"}
+        if not value:
+            return ["json", "markdown", "docx", "html"]
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for item in value:
+            lowered = str(item).strip().lower()
+            if lowered not in allowed:
+                raise ValueError(
+                    "draft_default_export_formats supports only: json, markdown, docx, html"
+                )
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            normalized.append(lowered)
+
+        return normalized
 
     model_config = SettingsConfigDict(
         env_file=".env",

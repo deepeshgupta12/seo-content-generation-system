@@ -47,6 +47,13 @@ a {
   text-decoration: none;
 }
 
+a.secondary-button,
+a.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 button,
 input,
 textarea {

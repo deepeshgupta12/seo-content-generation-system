@@ -294,6 +294,7 @@ class ContentPlanBuilder:
 
         metadata_keywords = ContentPlanBuilder._select_metadata_keywords(keyword_clusters, entity)
         title_candidates = [
+            f"{primary_keyword_text} | Square Yards",
             f"Resale Properties in {location_label} | Square Yards",
             f"{location_label} Resale Properties for Sale | Square Yards",
             f"Flats for Sale in {location_label} | Square Yards",
@@ -301,7 +302,7 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore resale properties in {location_label} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
+            f"Explore {primary_keyword_text.lower()} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
             f"Find flats and resale properties in {location_label} with price trends, inventory mix, and nearby area insights on Square Yards.",
             f"Browse resale listings in {location_label} with rates, property mix, and grounded buying insights on Square Yards.",
             f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
@@ -316,7 +317,7 @@ class ContentPlanBuilder:
         return {
             "primary_keyword": primary_keyword_text,
             "supporting_keywords": metadata_keywords,
-            "recommended_h1": f"Resale Properties in {location_label}",
+            "recommended_h1": primary_keyword_text[:120],
             "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
@@ -744,10 +745,12 @@ class ContentPlanBuilder:
             "id": "property_rates_ai_signals",
             "title": "Market Strengths, Challenges, and Opportunities",
             "objective": (
-                "Write a para-format, grounded market-summary section using only the structured "
-                "property-rates AI fields such as market snapshot, market strengths, market challenges, "
-                "and investment opportunities. The output should read like a balanced real-estate market "
-                "takeaway for a buyer or investor, not like a raw source dump or promotional copy."
+                "Write a tightly grounded market-summary section using only the structured "
+                "property-rates AI fields: market snapshot, market strengths, market challenges, "
+                "and investment opportunities. The output must remain descriptive and restrained. "
+                "Do not infer market quality, stability, attractiveness, momentum, upside, or buyer fit. "
+                "Do not translate source inputs into advisory language. Present them as source-backed "
+                "market notes in clean paragraph form."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(
@@ -884,10 +887,11 @@ class ContentPlanBuilder:
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["property_rates_ai_summary"],
                     "instruction": (
-                        "Use only explicit property_rates_ai_summary fields. Convert them into a readable, "
-                        "balanced, para-format market summary. Keep the writing descriptive and grounded. "
-                        "Do not present the content as guaranteed upside, do not exaggerate strengths, and do not "
-                        "add claims that are not directly supported by the source fields."
+                        "Use only explicit property_rates_ai_summary fields. "
+                        "Do not infer sentiment, stability, attractiveness, growth quality, momentum, or investment merit. "
+                        "Do not convert source inputs into interpretation-heavy prose. "
+                        "Summarize the snapshot and listed strengths, challenges, and opportunity notes as source-backed labels only. "
+                        "Keep the wording restrained, paragraph-based, and human-readable."
                     ),
                 }
 
@@ -950,7 +954,7 @@ class ContentPlanBuilder:
         )
 
         return {
-            "version": "v1.8",
+            "version": "v1.9",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],

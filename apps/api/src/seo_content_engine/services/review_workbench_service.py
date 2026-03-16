@@ -8,6 +8,7 @@ from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
 from seo_content_engine.services.draft_generation_service import DraftGenerationService
 from seo_content_engine.services.factual_validator import FactualValidator
 from seo_content_engine.services.keyword_intelligence_service import KeywordIntelligenceService
+from seo_content_engine.services.draft_publish_service import DraftPublishService
 from seo_content_engine.services.markdown_renderer import MarkdownRenderer
 from seo_content_engine.services.normalizer import EntityNormalizer
 from seo_content_engine.services.review_session_store import ReviewSessionStore
@@ -15,6 +16,86 @@ from seo_content_engine.services.source_loader import SourceLoader
 
 
 class ReviewWorkbenchService:
+    @staticmethod
+    def _normalize_primary_keyword_overrides(
+        primary_keyword_overrides: list[str] | None,
+    ) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for item in primary_keyword_overrides or []:
+            cleaned = str(item or "").strip()
+            if not cleaned:
+                continue
+
+            signature = cleaned.lower()
+            if signature in seen:
+                continue
+
+            seen.add(signature)
+            normalized.append(cleaned)
+
+        return normalized
+
+    @staticmethod
+    def _apply_primary_keyword_overrides(
+        keyword_intelligence: dict,
+        primary_keyword_overrides: list[str] | None,
+    ) -> dict:
+        normalized_overrides = ReviewWorkbenchService._normalize_primary_keyword_overrides(
+            primary_keyword_overrides
+        )
+        if not normalized_overrides:
+            return keyword_intelligence
+
+        updated = deepcopy(keyword_intelligence)
+        clusters = updated.setdefault("keyword_clusters", {})
+
+        primary_keyword_value = normalized_overrides[0]
+        clusters["primary_keyword"] = {
+            "keyword": primary_keyword_value,
+            "source": "review_session_override",
+            "is_override": True,
+        }
+        clusters["primary_keyword_overrides"] = normalized_overrides
+
+        exact_match_keywords = list(clusters.get("exact_match_keywords", []) or [])
+        existing_exact_signatures = {
+            (item.get("keyword") or "").strip().lower()
+            for item in exact_match_keywords
+            if isinstance(item, dict)
+        }
+
+        override_records: list[dict] = []
+        for keyword in normalized_overrides:
+            if keyword.lower() in existing_exact_signatures:
+                continue
+
+            override_records.append(
+                {
+                    "keyword": keyword,
+                    "source": "review_session_override",
+                    "is_override": True,
+                }
+            )
+
+        clusters["exact_match_keywords"] = override_records + exact_match_keywords
+
+        metadata_keywords = list(clusters.get("metadata_keywords", []) or [])
+        existing_metadata_signatures = {item.strip().lower() for item in metadata_keywords if isinstance(item, str)}
+
+        merged_metadata_keywords = list(normalized_overrides)
+        for keyword in metadata_keywords:
+            if not isinstance(keyword, str):
+                continue
+            if keyword.strip().lower() in {item.lower() for item in normalized_overrides}:
+                continue
+            merged_metadata_keywords.append(keyword)
+
+        clusters["metadata_keywords"] = merged_metadata_keywords
+
+        return updated
+
     @staticmethod
     def _now_iso() -> str:
         return datetime.now(UTC).isoformat()
@@ -51,6 +132,7 @@ class ReviewWorkbenchService:
         return {
             "version": keyword_intelligence.get("version"),
             "primary_keyword": clusters.get("primary_keyword"),
+            "primary_keyword_overrides": clusters.get("primary_keyword_overrides", []),
             "secondary_keywords": clusters.get("secondary_keywords", []),
             "bhk_keywords": clusters.get("bhk_keywords", []),
             "price_keywords": clusters.get("price_keywords", []),
@@ -70,7 +152,7 @@ class ReviewWorkbenchService:
             "relevant_informational_keywords": competitor_intelligence.get("relevant_informational_keywords", []),
             "relevant_overlap_keywords": competitor_intelligence.get("relevant_overlap_keywords", []),
         }
-
+    
     @staticmethod
     def _build_section_review_payload(draft: dict) -> list[dict]:
         validation_report = draft.get("validation_report", {})
@@ -201,6 +283,19 @@ class ReviewWorkbenchService:
         updated.setdefault("version_history", []).append(version_entry)
         updated["latest_version_id"] = version_entry["version_id"]
         return updated
+    
+    @staticmethod
+    def _attach_export_artifacts(
+        session: dict,
+        artifact_paths: dict[str, str],
+    ) -> dict:
+        updated = deepcopy(session)
+        updated["latest_exports"] = {
+            "artifact_paths": artifact_paths,
+            "exported_at": ReviewWorkbenchService._now_iso(),
+        }
+        updated["updated_at"] = ReviewWorkbenchService._now_iso()
+        return updated
 
     @staticmethod
     def _persist_if_needed(session: dict, persist_session: bool) -> None:
@@ -218,6 +313,7 @@ class ReviewWorkbenchService:
         limit: int | None = None,
         include_historical: bool = True,
         persist_session: bool = True,
+        primary_keyword_overrides: list[str] | None = None,
     ) -> dict:
         normalized = EntityNormalizer.normalize_from_paths(
             main_datacenter_json_path=main_datacenter_json_path,
@@ -232,6 +328,11 @@ class ReviewWorkbenchService:
             language_name=language_name,
             limit=limit,
             include_historical=include_historical,
+        )
+
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
+            keyword_intelligence,
+            primary_keyword_overrides,
         )
 
         content_plan = ContentPlanBuilder.build(
@@ -263,6 +364,9 @@ class ReviewWorkbenchService:
                 "language_name": language_name,
                 "limit": limit,
                 "include_historical": include_historical,
+                "primary_keyword_overrides": ReviewWorkbenchService._normalize_primary_keyword_overrides(
+                    primary_keyword_overrides
+                ),
             },
             "entity": normalized.get("entity", {}),
             "source_preview": ReviewWorkbenchService._build_source_preview(normalized),
@@ -298,12 +402,30 @@ class ReviewWorkbenchService:
         action_label: str = "full_regenerate",
     ) -> tuple[dict, dict]:
         session = ReviewSessionStore.load_session(session_id)
+
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
+            session["keyword_intelligence"],
+            session.get("inputs", {}).get("primary_keyword_overrides"),
+        )
+
         regenerated_draft = DraftGenerationService.generate(
             normalized=session["normalized"],
-            keyword_intelligence=session["keyword_intelligence"],
+            keyword_intelligence=keyword_intelligence,
         )
+
+        updated_session = deepcopy(session)
+        updated_session["keyword_intelligence"] = keyword_intelligence
+        updated_session["content_plan"] = ContentPlanBuilder.build(
+            normalized=updated_session["normalized"],
+            keyword_intelligence=keyword_intelligence,
+        )
+        updated_session["keyword_preview"] = ReviewWorkbenchService._build_keyword_preview(
+            keyword_intelligence,
+            updated_session["content_plan"],
+        )
+
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
-            session,
+            updated_session,
             regenerated_draft,
             action_type=action_label,
         )
@@ -322,9 +444,15 @@ class ReviewWorkbenchService:
         action_label: str = "section_regenerate",
     ) -> tuple[dict, dict]:
         session = ReviewSessionStore.load_session(session_id)
+
+        keyword_intelligence = ReviewWorkbenchService._apply_primary_keyword_overrides(
+            session["keyword_intelligence"],
+            session.get("inputs", {}).get("primary_keyword_overrides"),
+        )
+
         regenerated_draft = DraftGenerationService.generate(
             normalized=session["normalized"],
-            keyword_intelligence=session["keyword_intelligence"],
+            keyword_intelligence=keyword_intelligence,
         )
 
         existing_sections = {
@@ -353,8 +481,19 @@ class ReviewWorkbenchService:
             pass_name="section_regenerate_recompute",
         )
 
+        updated_session = deepcopy(session)
+        updated_session["keyword_intelligence"] = keyword_intelligence
+        updated_session["content_plan"] = ContentPlanBuilder.build(
+            normalized=updated_session["normalized"],
+            keyword_intelligence=keyword_intelligence,
+        )
+        updated_session["keyword_preview"] = ReviewWorkbenchService._build_keyword_preview(
+            keyword_intelligence,
+            updated_session["content_plan"],
+        )
+
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
-            session,
+            updated_session,
             merged_draft,
             action_type=action_label,
         )
@@ -478,3 +617,48 @@ class ReviewWorkbenchService:
             action_type=action_label,
             extra={"restored_from_version_id": version_id},
         )
+    
+    @staticmethod
+    def export_session(
+        *,
+        session_id: str,
+        export_formats: list[str] | None = None,
+        persist_session: bool = True,
+    ) -> tuple[dict, dict[str, str]]:
+        session = ReviewSessionStore.load_session(session_id)
+        artifact_paths = DraftPublishService.publish_draft(
+            draft=session["draft"],
+            export_formats=export_formats,
+        )
+        updated_session = ReviewWorkbenchService._attach_export_artifacts(
+            session,
+            artifact_paths,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, artifact_paths
+
+    @staticmethod
+    def export_and_get_file_path(
+        *,
+        session_id: str,
+        export_format: str,
+    ) -> str:
+        _, artifact_paths = ReviewWorkbenchService.export_session(
+            session_id=session_id,
+            export_formats=[export_format],
+            persist_session=True,
+        )
+
+        key_map = {
+            "json": "json_path",
+            "markdown": "markdown_path",
+            "docx": "docx_path",
+            "html": "html_path",
+        }
+        path_key = key_map[export_format]
+        file_path = artifact_paths.get(path_key)
+        if not file_path:
+            raise FileNotFoundError(
+                f"Export path not found for format '{export_format}'."
+            )
+        return file_path

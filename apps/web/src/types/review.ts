@@ -1,4 +1,5 @@
 export type ListingType = "resale";
+export type ReviewExportFormat = "json" | "markdown" | "docx" | "html";
 
 export type ReviewSessionCreateRequest = {
   main_datacenter_json_path: string;
@@ -9,6 +10,7 @@ export type ReviewSessionCreateRequest = {
   limit?: number | null;
   include_historical?: boolean;
   persist_session?: boolean;
+  primary_keyword_overrides?: string[] | null;
 };
 
 export type ReviewDraftRegenerateRequest = {
@@ -47,6 +49,12 @@ export type ReviewVersionRestoreRequest = {
   version_id: string;
   persist_session?: boolean;
   action_label?: string;
+};
+
+export type ReviewSessionExportRequest = {
+  session_id: string;
+  export_formats?: ReviewExportFormat[];
+  persist_session?: boolean;
 };
 
 export type ReviewTable = {
@@ -104,6 +112,7 @@ export type ReviewDraft = {
   faqs?: ReviewFaq[];
   markdown_draft?: string;
   publish_ready?: boolean;
+  needs_review?: boolean;
   quality_report?: {
     approval_status?: string;
     overall_quality_score?: number;
@@ -126,6 +135,9 @@ export type ReviewSession = {
     page_type?: string;
     listing_type?: string;
   };
+  inputs?: {
+    primary_keyword_overrides?: string[] | null;
+  };
   source_preview?: Record<string, unknown>;
   keyword_preview?: Record<string, unknown>;
   normalized?: Record<string, unknown>;
@@ -141,6 +153,15 @@ export type ReviewSession = {
   section_review?: ReviewSectionReview[];
   version_history?: ReviewVersionHistoryItem[];
   latest_version_id?: string;
+  latest_exports?: {
+    exported_at?: string;
+    artifact_paths?: {
+      json_path?: string;
+      markdown_path?: string;
+      docx_path?: string;
+      html_path?: string;
+    };
+  };
 };
 
 export type ReviewSessionResponse = {
@@ -154,4 +175,11 @@ export type ReviewMutationResponse = {
   message: string;
   review_session: ReviewSession;
   mutation_summary: Record<string, unknown>;
+};
+
+export type ReviewExportResponse = {
+  success: boolean;
+  message: string;
+  review_session: ReviewSession;
+  artifact_paths: Record<string, string>;
 };

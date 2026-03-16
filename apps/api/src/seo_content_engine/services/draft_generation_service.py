@@ -266,18 +266,53 @@ class DraftGenerationService:
         return " ".join(lines)
     
     @staticmethod
+    def _clean_market_signal_items(items: list[str], limit: int = 4) -> list[str]:
+        cleaned: list[str] = []
+
+        for item in items or []:
+            text = str(item or "").strip()
+            if not text:
+                continue
+
+            text = " ".join(text.split())
+            text = text.rstrip(" .;,:")
+            if not text:
+                continue
+
+            cleaned.append(text)
+            if len(cleaned) >= limit:
+                break
+
+        return cleaned
+
+    @staticmethod
     def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
         entity = content_plan.get("entity", {}) or {}
         entity_name = entity.get("entity_name", "this location")
         city_name = entity.get("city_name", "")
-        location_label = f"{entity_name}, {city_name}" if city_name and city_name != entity_name else entity_name
+        location_label = (
+            f"{entity_name}, {city_name}"
+            if city_name and city_name != entity_name
+            else entity_name
+        )
 
-        property_rates_ai_summary = content_plan["data_context"].get("property_rates_ai_summary", {}) or {}
+        property_rates_ai_summary = (
+            content_plan.get("data_context", {}).get("property_rates_ai_summary", {}) or {}
+        )
 
-        market_snapshot = (property_rates_ai_summary.get("market_snapshot") or "").strip()
-        market_strengths = property_rates_ai_summary.get("market_strengths", []) or []
-        market_challenges = property_rates_ai_summary.get("market_challenges", []) or []
-        investment_opportunities = property_rates_ai_summary.get("investment_opportunities", []) or []
+        market_snapshot = str(property_rates_ai_summary.get("market_snapshot") or "").strip()
+        market_strengths = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("market_strengths", []) or [],
+            limit=4,
+        )
+        market_challenges = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("market_challenges", []) or [],
+            limit=4,
+        )
+        investment_opportunities = DraftGenerationService._clean_market_signal_items(
+            property_rates_ai_summary.get("investment_opportunities", []) or [],
+            limit=4,
+        )
 
         if (
             not market_snapshot
@@ -286,56 +321,47 @@ class DraftGenerationService:
             and not investment_opportunities
         ):
             return (
-                f"This section is reserved for structured market-summary inputs for {location_label}. "
-                f"When available, it brings together source-backed strengths, challenges, and opportunity notes "
-                f"into a balanced market overview without adding unsupported interpretation."
+                f"No structured market-summary inputs are currently available for {location_label} "
+                f"in the property-rates source block for this page."
             )
 
         paragraphs: list[str] = []
 
         if market_snapshot:
             paragraphs.append(
-                f"For {location_label}, the structured property-rates AI summary describes the current resale market as follows: "
-                f"{market_snapshot} This is useful as a starting point because it gives readers a concise view of how the "
-                f"available market-summary layer frames the area based on the source data attached to the page."
+                f"For {location_label}, the property-rates summary includes the following market snapshot: "
+                f"{market_snapshot}"
             )
 
-        strengths_sentence = ""
+        grouped_lines: list[str] = []
+
         if market_strengths:
-            strengths_sentence = (
-                "The same source highlights strengths such as "
-                + ", ".join(market_strengths[:4])
+            grouped_lines.append(
+                "The same source lists the following strengths: "
+                + "; ".join(market_strengths)
                 + "."
             )
 
-        challenges_sentence = ""
         if market_challenges:
-            challenges_sentence = (
-                "At the same time, it points to challenges including "
-                + ", ".join(market_challenges[:4])
+            grouped_lines.append(
+                "It also lists the following challenges: "
+                + "; ".join(market_challenges)
                 + "."
             )
 
-        opportunities_sentence = ""
         if investment_opportunities:
-            opportunities_sentence = (
-                "It also surfaces opportunity areas such as "
-                + ", ".join(investment_opportunities[:4])
+            grouped_lines.append(
+                "The opportunity notes currently surfaced in the source are: "
+                + "; ".join(investment_opportunities)
                 + "."
             )
 
-        if strengths_sentence or challenges_sentence or opportunities_sentence:
-            paragraphs.append(
-                " ".join(
-                    part for part in [
-                        strengths_sentence,
-                        challenges_sentence,
-                        opportunities_sentence,
-                    ] if part
-                )
-                + " These points are included here as grounded market-summary signals from the source block, "
-                "so they should be read as descriptive cues rather than promotional claims or guaranteed outcomes."
+        if grouped_lines:
+            grouped_lines.append(
+                "These points are presented here as source-provided market notes only, "
+                "without additional interpretation, recommendation, or forward-looking claims."
             )
+            paragraphs.append(" ".join(grouped_lines))
 
         return "\n\n".join(paragraphs)
 
@@ -491,14 +517,48 @@ class DraftGenerationService:
             return DraftGenerationService._build_property_type_rate_snapshot_safe_body(content_plan)
 
         return None
+    
+    @staticmethod
+    def _enforce_strict_section_bodies(
+        content_plan: dict,
+        sections: list[dict],
+    ) -> list[dict]:
+        strict_section_ids = {"property_rates_ai_signals"}
+        updated_sections: list[dict] = []
+
+        for section in sections:
+            updated = dict(section)
+            section_id = updated.get("id")
+
+            if section_id in strict_section_ids:
+                safe_body = DraftGenerationService._build_safe_section_body(
+                    content_plan,
+                    section_id,
+                )
+                if safe_body is not None:
+                    updated["body"] = safe_body
+
+            updated_sections.append(updated)
+
+        return updated_sections
 
     @staticmethod
     def _fallback_section_if_needed(content_plan: dict, section: dict, validation: dict) -> dict:
+        section_id = section.get("id", "")
         issues = validation.get("issues", [])
+
+        if section_id == "property_rates_ai_signals":
+            safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
+            if safe_body is None:
+                return section
+
+            updated = dict(section)
+            updated["body"] = safe_body
+            return updated
+
         if not issues:
             return section
 
-        section_id = section.get("id", "")
         safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
         if safe_body is None:
             return section
@@ -1409,6 +1469,7 @@ class DraftGenerationService:
 
         sections = DraftGenerationService._generate_sections(content_plan, client)
         sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
+        sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
 
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
@@ -1430,8 +1491,14 @@ class DraftGenerationService:
         repair_passes = 0
         while not validation_report["passed"] and repair_passes < settings.draft_repair_max_passes:
             metadata = DraftGenerationService._repair_metadata(content_plan, draft["metadata"], validation_report, client)
-            sections = DraftGenerationService._repair_sections(content_plan, draft["sections"], validation_report, client)
+            sections = DraftGenerationService._repair_sections(
+                content_plan,
+                draft["sections"],
+                validation_report,
+                client,
+            )
             sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
+            sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
             faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
 
@@ -1464,5 +1531,6 @@ class DraftGenerationService:
         sanitized["debug_summary"] = final_debug_summary
         sanitized["quality_report"] = sanitized.get("quality_report", final_debug_summary)
         sanitized["publish_ready"] = sanitized["quality_report"].get("approval_status") != "fail"
+        sanitized["needs_review"] = not bool(validation_report.get("passed"))
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
         return sanitized
