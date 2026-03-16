@@ -1,4 +1,5 @@
 export type ListingType = "resale";
+export type ReviewExportFormat = "json" | "markdown" | "docx";
 
 export type ReviewSessionCreateRequest = {
   main_datacenter_json_path: string;
@@ -47,6 +48,12 @@ export type ReviewVersionRestoreRequest = {
   version_id: string;
   persist_session?: boolean;
   action_label?: string;
+};
+
+export type ReviewSessionExportRequest = {
+  session_id: string;
+  export_formats?: ReviewExportFormat[];
+  persist_session?: boolean;
 };
 
 export type ReviewTable = {
@@ -141,6 +148,14 @@ export type ReviewSession = {
   section_review?: ReviewSectionReview[];
   version_history?: ReviewVersionHistoryItem[];
   latest_version_id?: string;
+  latest_exports?: {
+    exported_at?: string;
+    artifact_paths?: {
+      json_path?: string;
+      markdown_path?: string;
+      docx_path?: string;
+    };
+  };
 };
 
 export type ReviewSessionResponse = {
@@ -154,4 +169,11 @@ export type ReviewMutationResponse = {
   message: string;
   review_session: ReviewSession;
   mutation_summary: Record<string, unknown>;
+};
+
+export type ReviewExportResponse = {
+  success: boolean;
+  message: string;
+  review_session: ReviewSession;
+  artifact_paths: Record<string, string>;
 };

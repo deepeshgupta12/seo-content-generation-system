@@ -1,11 +1,14 @@
+import { env } from "../config/env";
 import { apiRequest } from "./http";
 import type {
   ReviewDraftRegenerateRequest,
+  ReviewExportResponse,
   ReviewMetadataUpdateRequest,
   ReviewMutationResponse,
   ReviewSectionRegenerateRequest,
   ReviewSectionUpdateRequest,
   ReviewSessionCreateRequest,
+  ReviewSessionExportRequest,
   ReviewSessionResponse,
   ReviewVersionRestoreRequest,
 } from "../types/review";
@@ -68,4 +71,20 @@ export async function restoreVersion(
     method: "POST",
     body: payload,
   });
+}
+
+export async function exportReviewSession(
+  payload: ReviewSessionExportRequest,
+): Promise<ReviewExportResponse> {
+  return apiRequest<ReviewExportResponse>("/v1/review/session/export", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function getReviewDownloadUrl(
+  sessionId: string,
+  format: "json" | "markdown" | "docx",
+): string {
+  return `${env.apiBaseUrl}/v1/review/session/${sessionId}/download/${format}`;
 }

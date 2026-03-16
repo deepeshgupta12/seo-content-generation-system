@@ -48,3 +48,10 @@ class ReviewMutationResponse(BaseModel):
     message: str
     review_session: dict[str, Any]
     mutation_summary: dict[str, Any]
+
+
+class ReviewExportResponse(BaseModel):
+    success: bool
+    message: str
+    review_session: dict[str, Any]
+    artifact_paths: dict[str, str]

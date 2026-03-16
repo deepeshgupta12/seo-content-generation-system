@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from seo_content_engine.schemas.requests import (
     ReviewDraftRegenerateRequest,
@@ -6,9 +9,14 @@ from seo_content_engine.schemas.requests import (
     ReviewSectionRegenerateRequest,
     ReviewSectionUpdateRequest,
     ReviewSessionCreateRequest,
+    ReviewSessionExportRequest,
     ReviewVersionRestoreRequest,
 )
-from seo_content_engine.schemas.responses import ReviewMutationResponse, ReviewSessionResponse
+from seo_content_engine.schemas.responses import (
+    ReviewExportResponse,
+    ReviewMutationResponse,
+    ReviewSessionResponse,
+)
 from seo_content_engine.services.review_workbench_service import ReviewWorkbenchService
 
 router = APIRouter(prefix="/v1/review", tags=["review"])
@@ -164,6 +172,63 @@ def restore_review_version(payload: ReviewVersionRestoreRequest) -> ReviewMutati
             message="Review version restored successfully",
             review_session=review_session,
             mutation_summary=mutation_summary,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/session/export", response_model=ReviewExportResponse)
+def export_review_session(payload: ReviewSessionExportRequest) -> ReviewExportResponse:
+    try:
+        review_session, artifact_paths = ReviewWorkbenchService.export_session(
+            session_id=payload.session_id,
+            export_formats=payload.export_formats,
+            persist_session=payload.persist_session,
+        )
+        return ReviewExportResponse(
+            success=True,
+            message="Review session exported successfully",
+            review_session=review_session,
+            artifact_paths=artifact_paths,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/session/{session_id}/download/{format_name}")
+def download_review_export(session_id: str, format_name: str):
+    try:
+        export_format = format_name.lower().strip()
+        if export_format not in {"json", "markdown", "docx"}:
+            raise ValueError(f"Unsupported export format: {format_name}")
+
+        file_path = ReviewWorkbenchService.export_and_get_file_path(
+            session_id=session_id,
+            export_format=export_format,
+        )
+        path_obj = Path(file_path)
+        if not path_obj.exists():
+            raise FileNotFoundError(f"Exported file not found: {file_path}")
+
+        media_type_map = {
+            "json": "application/json",
+            "markdown": "text/markdown",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }
+        download_name = path_obj.name
+
+        return FileResponse(
+            path=str(path_obj),
+            media_type=media_type_map[export_format],
+            filename=download_name,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

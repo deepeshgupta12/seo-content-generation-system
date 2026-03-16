@@ -8,6 +8,7 @@ from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
 from seo_content_engine.services.draft_generation_service import DraftGenerationService
 from seo_content_engine.services.factual_validator import FactualValidator
 from seo_content_engine.services.keyword_intelligence_service import KeywordIntelligenceService
+from seo_content_engine.services.draft_publish_service import DraftPublishService
 from seo_content_engine.services.markdown_renderer import MarkdownRenderer
 from seo_content_engine.services.normalizer import EntityNormalizer
 from seo_content_engine.services.review_session_store import ReviewSessionStore
@@ -200,6 +201,19 @@ class ReviewWorkbenchService:
         )
         updated.setdefault("version_history", []).append(version_entry)
         updated["latest_version_id"] = version_entry["version_id"]
+        return updated
+    
+    @staticmethod
+    def _attach_export_artifacts(
+        session: dict,
+        artifact_paths: dict[str, str],
+    ) -> dict:
+        updated = deepcopy(session)
+        updated["latest_exports"] = {
+            "artifact_paths": artifact_paths,
+            "exported_at": ReviewWorkbenchService._now_iso(),
+        }
+        updated["updated_at"] = ReviewWorkbenchService._now_iso()
         return updated
 
     @staticmethod
@@ -478,3 +492,47 @@ class ReviewWorkbenchService:
             action_type=action_label,
             extra={"restored_from_version_id": version_id},
         )
+    
+    @staticmethod
+    def export_session(
+        *,
+        session_id: str,
+        export_formats: list[str] | None = None,
+        persist_session: bool = True,
+    ) -> tuple[dict, dict[str, str]]:
+        session = ReviewSessionStore.load_session(session_id)
+        artifact_paths = DraftPublishService.publish_draft(
+            draft=session["draft"],
+            export_formats=export_formats,
+        )
+        updated_session = ReviewWorkbenchService._attach_export_artifacts(
+            session,
+            artifact_paths,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, artifact_paths
+
+    @staticmethod
+    def export_and_get_file_path(
+        *,
+        session_id: str,
+        export_format: str,
+    ) -> str:
+        _, artifact_paths = ReviewWorkbenchService.export_session(
+            session_id=session_id,
+            export_formats=[export_format],
+            persist_session=True,
+        )
+
+        key_map = {
+            "json": "json_path",
+            "markdown": "markdown_path",
+            "docx": "docx_path",
+        }
+        path_key = key_map[export_format]
+        file_path = artifact_paths.get(path_key)
+        if not file_path:
+            raise FileNotFoundError(
+                f"Export path not found for format '{export_format}'."
+            )
+        return file_path

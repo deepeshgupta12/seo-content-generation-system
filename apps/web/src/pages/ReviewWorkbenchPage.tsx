@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createReviewSession,
+  exportReviewSession,
+  getReviewDownloadUrl,
   getReviewSession,
   regenerateDraft,
   regenerateSection,
@@ -9,6 +11,7 @@ import {
   updateMetadata,
   updateSection,
 } from "../api/review";
+
 import type {
   ReviewFaq,
   ReviewSectionReview,
@@ -161,6 +164,7 @@ export function ReviewWorkbenchPage() {
   const [isFetching, setIsFetching] = useState(false);
   const [isRegeneratingDraft, setIsRegeneratingDraft] = useState(false);
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeSectionActionId, setActiveSectionActionId] = useState<string | null>(null);
   const [activeRestoreVersionId, setActiveRestoreVersionId] = useState<string | null>(null);
 
@@ -291,6 +295,7 @@ export function ReviewWorkbenchPage() {
   const versionHistory = session?.version_history ?? [];
   const tables = session?.draft?.tables ?? [];
   const faqs = session?.draft?.faqs ?? [];
+  const latestExportPaths = session?.latest_exports?.artifact_paths;
 
   const validationSummary = getRecord(session?.validation_report);
   const metadataChecks = getRecord(session?.validation_report?.metadata_checks);
@@ -476,6 +481,28 @@ export function ReviewWorkbenchPage() {
     }
   }
 
+  async function handleExportDraft() {
+    if (!session?.session_id) return;
+
+    setIsExporting(true);
+    resetBanners();
+
+    try {
+      const response = await exportReviewSession({
+        session_id: session.session_id,
+        export_formats: ["json", "markdown", "docx"],
+        persist_session: persistSession,
+      });
+      applyUpdatedSession(response.review_session, response.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export review session";
+      setErrorMessage(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function renderValidationPanel() {
     if (!session) {
       return <div className="empty-state">No validation report available yet.</div>;
@@ -654,9 +681,18 @@ export function ReviewWorkbenchPage() {
               className="primary-button"
               type="button"
               onClick={handleRegenerateDraft}
-              disabled={isRegeneratingDraft}
+              disabled={isRegeneratingDraft || isExporting}
             >
               {isRegeneratingDraft ? "Regenerating..." : "Regenerate full draft"}
+            </button>
+
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleExportDraft}
+              disabled={isRegeneratingDraft || isExporting}
+            >
+              {isExporting ? "Exporting..." : "Export JSON / MD / DOCX"}
             </button>
           </div>
         ) : null}
@@ -1522,6 +1558,84 @@ export function ReviewWorkbenchPage() {
             )}
           </section>
 
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Export artifacts</h2>
+            </div>
+
+            {!latestExportPaths ? (
+              <div className="empty-state">
+                No export generated yet. Click “Export JSON / MD / DOCX” to create artifacts.
+              </div>
+            ) : (
+              <div className="details-grid">
+                <div className="detail-card">
+                  <div className="detail-card__label">JSON</div>
+                  <div className="detail-card__value">
+                    {latestExportPaths.json_path ?? "—"}
+                  </div>
+                  {session?.session_id ? (
+                    <div className="form-actions form-actions--top-gap">
+                      <a
+                        className="secondary-button"
+                        href={getReviewDownloadUrl(session.session_id, "json")}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download JSON
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="detail-card">
+                  <div className="detail-card__label">Markdown</div>
+                  <div className="detail-card__value">
+                    {latestExportPaths.markdown_path ?? "—"}
+                  </div>
+                  {session?.session_id ? (
+                    <div className="form-actions form-actions--top-gap">
+                      <a
+                        className="secondary-button"
+                        href={getReviewDownloadUrl(session.session_id, "markdown")}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download Markdown
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="detail-card">
+                  <div className="detail-card__label">DOCX</div>
+                  <div className="detail-card__value">
+                    {latestExportPaths.docx_path ?? "—"}
+                  </div>
+                  {session?.session_id ? (
+                    <div className="form-actions form-actions--top-gap">
+                      <a
+                        className="secondary-button"
+                        href={getReviewDownloadUrl(session.session_id, "docx")}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download DOCX
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="detail-card">
+                  <div className="detail-card__label">Exported At</div>
+                  <div className="detail-card__value">
+                    {session?.latest_exports?.exported_at ?? "—"}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+          
           <section className="panel">
             <div className="panel-header panel-header--row">
               <h2>Raw review session payload</h2>

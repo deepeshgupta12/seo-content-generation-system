@@ -7,6 +7,7 @@ from seo_content_engine.api.routes.keywords import router as keywords_router
 from seo_content_engine.api.routes.review import router as review_router
 from seo_content_engine.core.config import settings
 from seo_content_engine.core.logging import configure_logging
+from seo_content_engine.api.routes.draft import router as draft_router
 
 configure_logging()
 
@@ -27,3 +28,4 @@ app.include_router(health_router)
 app.include_router(generation_router)
 app.include_router(keywords_router)
 app.include_router(review_router)
+app.include_router(draft_router)
