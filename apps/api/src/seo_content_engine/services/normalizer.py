@@ -33,6 +33,55 @@ class EntityNormalizer:
             EntityType.LOCALITY: PageType.RESALE_LOCALITY,
         }
         return mapping[entity_type]
+    
+    @staticmethod
+    def _extract_specific_property_type_from_url(url: str | None) -> str | None:
+        if not url or not isinstance(url, str):
+            return None
+
+        lowered = url.strip().lower()
+        if not lowered:
+            return None
+
+        property_type_aliases = {
+            "Apartment": ["apartment", "apartments", "flat", "flats"],
+            "Builder Floor": ["builder-floor", "builder floor", "builder-floors", "builder floors"],
+            "Villa": ["villa", "villas"],
+            "Plot": ["plot", "plots"],
+            "House": ["house", "houses", "independent-house", "independent house"],
+            "Penthouse": ["penthouse", "penthouses"],
+            "Studio": ["studio", "studios"],
+            "Office Space": ["office-space", "office space", "office-spaces", "office spaces"],
+            "Shop": ["shop", "shops"],
+            "Warehouse": ["warehouse", "warehouses"],
+            "Showroom": ["showroom", "showrooms"],
+        }
+
+        for canonical, aliases in property_type_aliases.items():
+            if any(alias in lowered for alias in aliases):
+                return canonical
+
+        return None
+
+    @staticmethod
+    def _infer_page_property_type_context(
+        overview_url: str | None,
+        property_rates_url: str | None,
+    ) -> dict[str, Any]:
+        for candidate_url in [overview_url, property_rates_url]:
+            detected = EntityNormalizer._extract_specific_property_type_from_url(candidate_url)
+            if detected:
+                return {
+                    "scope": "specific",
+                    "property_type": detected,
+                    "source_url": candidate_url,
+                }
+
+        return {
+            "scope": "all",
+            "property_type": None,
+            "source_url": overview_url or property_rates_url,
+        }
 
     @staticmethod
     def _extract_review_summary(rating_review: dict[str, Any]) -> dict[str, Any]:
@@ -387,6 +436,11 @@ class EntityNormalizer:
                 or details.get("name")
             )
             entity_name = details.get("name") or city_name
+            page_property_type_context = EntityNormalizer._infer_page_property_type_context(
+                root.get("url"),
+                details.get("diUrl"),
+            )
+            entity_name = details.get("name") or city_name
 
             entity = compact_dict(
                 {
@@ -399,6 +453,8 @@ class EntityNormalizer:
                     "city_id": details.get("cityId") or root.get("beatsCityId") or city_data.get("beatsCityId"),
                     "beats_city_id": root.get("beatsCityId") or city_data.get("beatsCityId"),
                     "dotcom_city_id": root.get("dotcomCityId") or city_data.get("dotcomCityId"),
+                    "page_property_type_scope": page_property_type_context.get("scope"),
+                    "page_property_type": page_property_type_context.get("property_type"),
                     "latitude": city_data.get("latitude"),
                     "longitude": city_data.get("longitude"),
                     "overview_url": root.get("url"),
@@ -425,6 +481,10 @@ class EntityNormalizer:
             nearby = EntityNormalizer._city_nearby_from_rates(rates_root, city_name)
 
         else:
+            page_property_type_context = EntityNormalizer._infer_page_property_type_context(
+                locality_data.get("overviewUrl") or root.get("url"),
+                details.get("diUrl"),
+            )
             entity = compact_dict(
                 {
                     "entity_type": entity_type.value,
@@ -438,6 +498,8 @@ class EntityNormalizer:
                     "micromarket_id": details.get("microMarketId") or locality_data.get("microMarketId"),
                     "beats_locality_id": locality_data.get("beatsLocalityId"),
                     "dotcom_locality_id": locality_data.get("dotcomLocalityId"),
+                    "page_property_type_scope": page_property_type_context.get("scope"),
+                    "page_property_type": page_property_type_context.get("property_type"),
                     "latitude": overview.get("latitude") or locality_data.get("sublocalityLatitude"),
                     "longitude": overview.get("longitude") or locality_data.get("sublocalityLongitude"),
                     "pincode": overview.get("pincode"),
@@ -543,6 +605,7 @@ class EntityNormalizer:
             "cms_faq": normalized_cms_faq,
             "featured_projects": normalized_featured_projects,
             "projects_by_status": projects_by_status,
+            "page_property_type_context": page_property_type_context,
             "raw_source_meta": {
                 "main_message": main_data.get("message"),
                 "rates_message": rates_data.get("message"),

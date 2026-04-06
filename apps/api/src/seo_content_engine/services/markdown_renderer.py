@@ -215,7 +215,6 @@ class MarkdownRenderer:
             "sale_property_type_links": "Property Type Links",
             "sale_quick_links": "Quick Links",
             "nearby_locality_links": "Nearby Locality Links",
-            "top_project_links": "Top Project Links",
             "featured_project_links": "Featured Project Links",
         }
 

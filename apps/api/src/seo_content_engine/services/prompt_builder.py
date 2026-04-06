@@ -75,20 +75,21 @@ class PromptBuilder:
             "Do not infer sentiment, satisfaction, desirability, or quality beyond the input. "
             "For demand and supply sections, only summarize explicit counts, percentages, unit-type splits, listing ranges, and availability values from the input. "
             "Do not say demand is strong, weak, healthy, rising, falling, or favorable unless that exact interpretation is explicitly provided. "
-            "For property-type sections, only summarize explicit property-type names, counts, rates, status buckets, and grounded distributions from the input. "
-            "Do not rank, recommend, or interpret which property type is better. "
+            "For property-type sections, only summarize explicit residential property-type names, counts, rates, and grounded distributions from the input. "
+            "If the page context is for one specific residential property type, stay focused on that type only. "
+            "Do not mix residential and commercial property types in the same narrative. "
+            "Do not use status-bucket commentary in property-type sections. "
             "For the section id 'property_rates_ai_signals', write in restrained editorial prose using only the provided snapshot, strengths, challenges, and opportunity notes. "
+            "Break that section clearly into Strengths, Challenges, and Opportunities. "
             "Do not infer what the signals suggest beyond the source text. "
-            "Do not describe the locality as stable, attractive, active, promising, dynamic, or similar unless that wording is explicitly present in the source input. "
             "Do not introduce advisory language, recommendation language, or forward-looking market conclusions. "
-            "Use the main primary keyword naturally in the hero intro. "
-            "If alternate primary keyword variants are provided, use at most one alternate variant naturally in an early body section when it fits cleanly. "
+            "If alternate primary keyword variants are provided, use at most one alternate variant naturally in one additional section where it fits cleanly. "
             "Do not repeat the same primary keyword phrase across every section. "
             "Keep the section human-readable, but source-bound. "
             "Write in a natural, human, descriptive style with 2 to 4 short paragraphs per section when the data allows. "
             "Each section should feel SEO-friendly and readable, not robotic or overly templated, while remaining fully grounded. "
             "Use natural transitions and vary sentence openings. "
-            "Do not write generic filler like 'this page provides' or 'users can explore' unless it is necessary and specific. "
+            "Do not write generic filler. "
             "Make each section meaningfully different from the others. "
             "Prefer explanatory prose that helps a real buyer understand the visible data on the page. "
             "You may use competitor-derived planning signals only for structural inspiration such as section emphasis, section depth, and hierarchy. "
@@ -115,7 +116,6 @@ class PromptBuilder:
                 "secondary_keywords": content_plan["keyword_strategy"]["secondary_keywords"],
                 "bhk_keywords": content_plan["keyword_strategy"]["bhk_keywords"],
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
-                "ready_to_move_keywords": content_plan["keyword_strategy"]["ready_to_move_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
                 "competitor_intelligence": {
                     "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
@@ -132,11 +132,11 @@ class PromptBuilder:
                     "exclude_non_canonical_pricing_metrics_from_prose": True,
                     "review_sections_must_use_explicit_review_inputs_only": True,
                     "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
-                    "property_type_sections_must_use_explicit_property_type_inputs_only": True,
-                    "market_strengths_section_must_feel_human_written": True,
-                    "market_strengths_section_must_not_read_like_raw_source_dump": True,
-                    "hero_must_use_primary_keyword_naturally": True,
-                    "allow_one_alternate_primary_keyword_variant_in_early_body": True,
+                    "property_type_sections_must_use_residential_inputs_only": True,
+                    "market_strengths_section_must_be_split_cleanly": True,
+                    "specific_property_type_pages_must_stay_type_specific": True,
+                    "avoid_mixing_residential_and_commercial_types": True,
+                    "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
                     "avoid_repeating_same_primary_keyword_in_every_section": True,
                     "min_target_words_per_section": 90,
                     "max_target_words_per_section": 220,

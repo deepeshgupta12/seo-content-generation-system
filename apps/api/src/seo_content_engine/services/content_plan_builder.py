@@ -44,6 +44,49 @@ class ContentPlanBuilder:
         if entity_name.lower() == city_name.lower():
             return entity_name
         return f"{entity_name}, {city_name}"
+    
+    @staticmethod
+    def _page_property_type_context(normalized: dict, entity: dict) -> dict[str, Any]:
+        context = normalized.get("page_property_type_context", {}) or {}
+        return {
+            "scope": context.get("scope") or entity.get("page_property_type_scope") or "all",
+            "property_type": context.get("property_type") or entity.get("page_property_type"),
+            "source_url": context.get("source_url"),
+        }
+
+    @staticmethod
+    def _has_review_signals(normalized: dict) -> bool:
+        review_summary = normalized.get("review_summary", {}) or {}
+        ai_summary = normalized.get("ai_summary", {}) or {}
+        overview = review_summary.get("overview", {}) or {}
+
+        return bool(
+            overview.get("avg_rating") is not None
+            or overview.get("review_count") is not None
+            or overview.get("rating_count") is not None
+            or (review_summary.get("positive_tags") or [])
+            or (review_summary.get("negative_tags") or [])
+            or ai_summary.get("locality_summary")
+        )
+
+    @staticmethod
+    def _build_city_zone_segmentation(pricing_summary: dict) -> dict[str, Any]:
+        location_rates = pricing_summary.get("location_rates", []) or []
+        valid_rows = [item for item in location_rates if isinstance(item, dict) and item.get("name") and item.get("avgRate") is not None]
+
+        if len(valid_rows) < 2:
+            return {}
+
+        sorted_rows = sorted(valid_rows, key=lambda item: item.get("avgRate") or 0, reverse=True)
+        premium_zone = sorted_rows[0]
+        value_zone = sorted_rows[-1]
+
+        return {
+            "premium_zone": premium_zone.get("name"),
+            "premium_zone_rate": premium_zone.get("avgRate"),
+            "value_zone": value_zone.get("name"),
+            "value_zone_rate": value_zone.get("avgRate"),
+        }
 
     @staticmethod
     def _metadata_whitelist_filter(keywords: list[str], entity: dict) -> list[str]:
@@ -231,7 +274,7 @@ class ContentPlanBuilder:
         mapping = {
             "pricing": ["price_trends_and_rates"],
             "bhk": ["bhk_and_inventory_mix"],
-            "ready_to_move": ["status_and_readiness"],
+            "ready_to_move": [],
             "locality_navigation": (
                 ["nearby_alternatives"] if page_type == PageType.RESALE_LOCALITY
                 else ["locality_coverage"] if page_type == PageType.RESALE_MICROMARKET
@@ -239,7 +282,7 @@ class ContentPlanBuilder:
             ),
             "reviews": ["review_and_rating_signals"],
             "listing_discovery": ["market_snapshot", "property_type_signals"],
-            "informational": ["buyer_guidance", "faq_section"],
+            "informational": ["faq_section"],
         }
         return mapping.get(theme, [])
 
@@ -248,7 +291,7 @@ class ContentPlanBuilder:
         mapping = {
             "pricing": ["pricing", "price_range"],
             "bhk": ["bhk_availability"],
-            "ready_to_move": ["ready_to_move"],
+            "ready_to_move": [],
             "locality_navigation": ["nearby_localities"],
             "reviews": ["review_signals"],
             "listing_discovery": ["inventory", "property_type_signals"],
@@ -261,7 +304,7 @@ class ContentPlanBuilder:
         mapping = {
             "pricing": ["price_trend_table", "location_rates_table"],
             "bhk": ["sale_unit_type_distribution_table"],
-            "ready_to_move": ["property_status_table"],
+            "ready_to_move": [],
             "locality_navigation": ["nearby_localities_table"],
             "listing_discovery": ["property_types_table", "coverage_summary_table"],
         }
@@ -481,8 +524,8 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["name", "avgRate", "changePercentage"],
                     "summary_instruction": (
-                        "Explain that this table compares visible rate signals across covered locations "
-                        "and reference the first visible row using grounded values only."
+                        "For city pages, treat these as city zones or micromarkets rather than locality rows. "
+                        "Explain what the table covers and reference the first visible row using grounded values only."
                     ),
                 }
             )
@@ -497,68 +540,8 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["propertyType", "avgPrice", "changePercent"],
                     "summary_instruction": (
-                        "Explain what property-type pricing signals are visible here and mention the first row "
-                        "with grounded values only."
-                    ),
-                }
-            )
-
-        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
-        if property_status:
-            tables.append(
-                {
-                    "id": "property_status_table",
-                    "title": "Property Status Snapshot",
-                    "source_data_path": "pricing_summary.property_status",
-                    "render_type": "deterministic",
-                    "columns": ["status", "units", "avgPrice"],
-                    "summary_instruction": (
-                        "Explain what visible readiness or status buckets appear here and reference the first row "
-                        "with grounded values only."
-                    ),
-                }
-            )
-
-        top_projects = normalized.get("top_projects", {})
-        if top_projects.get("byTransactions", {}).get("projects"):
-            tables.append(
-                {
-                    "id": "top_projects_table",
-                    "title": "Top Projects by Transactions",
-                    "source_data_path": "top_projects.byTransactions.projects",
-                    "render_type": "deterministic",
-                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions", "productUrl"],
-                    "summary_instruction": (
-                        "Explain that this table lists visible project-level transaction signals and mention the first project row "
-                        "with grounded values only."
-                    ),
-                }
-            )
-        elif top_projects.get("byListingRates", {}).get("projects"):
-            tables.append(
-                {
-                    "id": "top_projects_table",
-                    "title": "Top Projects by Listing Rates",
-                    "source_data_path": "top_projects.byListingRates.projects",
-                    "render_type": "deterministic",
-                    "columns": ["projectName", "currentRate", "changePercentage"],
-                    "summary_instruction": (
-                        "Explain that this table lists project-level rate signals and mention the first project row "
-                        "with grounded values only."
-                    ),
-                }
-            )
-        elif top_projects.get("byValue", {}).get("projects"):
-            tables.append(
-                {
-                    "id": "top_projects_table",
-                    "title": "Top Projects by Value",
-                    "source_data_path": "top_projects.byValue.projects",
-                    "render_type": "deterministic",
-                    "columns": ["projectName", "currentRate", "saleRentValue", "noOfTransactions", "productUrl"],
-                    "summary_instruction": (
-                        "Explain that this table highlights project-level value signals and mention the first project row "
-                        "with grounded values only."
+                        "Explain the visible residential property-type pricing signals here and mention the first row "
+                        "using grounded values only."
                     ),
                 }
             )
@@ -607,36 +590,12 @@ class ContentPlanBuilder:
                 }
             )
 
-        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
-        if property_status:
-            opportunities.append(
-                {
-                    "id": "status_readiness_comparison",
-                    "title": "Ready-to-Move and Status Comparison",
-                    "comparison_type": "tabular",
-                    "enabled": True,
-                    "source_paths": ["pricing_summary.property_status"],
-                }
-            )
-
         return opportunities
 
     @staticmethod
     def _build_internal_links_plan(normalized: dict) -> dict:
         links = normalized["links"]
         nearby_localities = normalized["nearby_localities"]
-
-        top_project_links: list[dict] = []
-        for bucket_key in ["byTransactions", "byListingRates", "byValue"]:
-            projects = normalized.get("top_projects", {}).get(bucket_key, {}).get("projects", [])
-            for project in projects:
-                if project.get("projectName") and project.get("productUrl"):
-                    top_project_links.append(
-                        {
-                            "label": project["projectName"],
-                            "url": project["productUrl"],
-                        }
-                    )
 
         featured_project_links: list[dict] = []
         for project in normalized.get("featured_projects", []) or []:
@@ -660,7 +619,6 @@ class ContentPlanBuilder:
                 for item in nearby_localities
                 if item.get("name") and item.get("url")
             ],
-            "top_project_links": top_project_links,
             "featured_project_links": featured_project_links,
         }
 
@@ -689,22 +647,10 @@ class ContentPlanBuilder:
                 "data_dependencies": ["distributions.sale_unit_type_distribution"],
             },
             {
-                "id": "ready_to_move",
-                "question_template": f"Are ready-to-move resale properties available in {location_label}?",
-                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("ready_to_move_keywords", []), 4),
-                "data_dependencies": ["pricing_summary.property_status"],
-            },
-            {
                 "id": "nearby_localities",
                 "question_template": f"Which nearby localities can buyers also consider around {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["nearby_localities"],
-            },
-            {
-                "id": "review_signals",
-                "question_template": f"What review and rating signals are available for {location_label}?",
-                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
-                "data_dependencies": ["review_summary", "ai_summary"],
             },
             {
                 "id": "property_rates_ai_signals",
@@ -732,6 +678,17 @@ class ContentPlanBuilder:
             },
         ]
 
+        if ContentPlanBuilder._has_review_signals(normalized):
+            faq_intents.insert(
+                4,
+                {
+                    "id": "review_signals",
+                    "question_template": f"What review and rating signals are available for {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                    "data_dependencies": ["review_summary", "ai_summary"],
+                },
+            )
+
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
         if rera_context:
             faq_intents.append(
@@ -751,26 +708,20 @@ class ContentPlanBuilder:
     @staticmethod
     def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
         location_label = ContentPlanBuilder._display_location(entity)
-        property_status = normalized.get("pricing_summary", {}).get("property_status", [])
+        has_review_signals = ContentPlanBuilder._has_review_signals(normalized)
 
         common_sections = [
             {
-                "id": "hero_intro",
-                "title": f"Resale Property Overview in {location_label}",
-                "objective": "Write a human, descriptive opening that establishes resale intent, location context, and visible inventory without overclaiming.",
-                "render_type": "generative",
-                "target_keywords": [keyword_clusters.get("primary_keyword", {}).get("keyword")]
-                if keyword_clusters.get("primary_keyword")
-                else [],
-                "data_dependencies": ["entity", "listing_summary", "pricing_summary"],
-            },
-            {
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
-                "objective": "Summarize visible resale inventory, listing activity, and current on-page market context in a grounded but readable way.",
+                "objective": (
+                    "Summarize the visible resale inventory in a grounded and readable way. "
+                    "If this page is for a specific residential property type, talk only about that property type. "
+                    "If this page is a generic property-for-sale page, summarize only the relevant residential property types visible in the source data."
+                ),
                 "render_type": "generative",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 5),
-                "data_dependencies": ["listing_summary", "pricing_summary"],
+                "data_dependencies": ["listing_summary", "pricing_summary", "distributions", "page_property_type_context"],
             },
             {
                 "id": "price_trends_and_rates",
@@ -796,14 +747,6 @@ class ContentPlanBuilder:
                 ],
             },
             {
-                "id": "buyer_guidance",
-                "title": "What Buyers Can Explore Here",
-                "objective": "Give grounded exploratory guidance using only visible inventory, page links, and pricing context.",
-                "render_type": "generative",
-                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 5),
-                "data_dependencies": ["listing_summary", "pricing_summary", "links"],
-            },
-            {
                 "id": "faq_section",
                 "title": "Frequently Asked Questions",
                 "objective": "Answer a broader set of grounded buying, inventory, price, supply, and nearby-location questions.",
@@ -827,7 +770,7 @@ class ContentPlanBuilder:
                 "objective": "Guide users to relevant listing, unit-type, property-type, project, and nearby-area pages.",
                 "render_type": "deterministic",
                 "target_keywords": [],
-                "data_dependencies": ["links", "nearby_localities", "top_projects", "featured_projects"],
+                "data_dependencies": ["links", "nearby_localities", "featured_projects"],
             },
         ]
 
@@ -855,10 +798,8 @@ class ContentPlanBuilder:
             "objective": (
                 "Write a tightly grounded market-summary section using only the structured "
                 "property-rates AI fields: market snapshot, market strengths, market challenges, "
-                "and investment opportunities. The output must remain descriptive and restrained. "
-                "Do not infer market quality, stability, attractiveness, momentum, upside, or buyer fit. "
-                "Do not translate source inputs into advisory language. Present them as source-backed "
-                "market notes in clean paragraph form."
+                "and investment opportunities. Break the output clearly into Strengths, Challenges, "
+                "and Opportunities. Keep it concise, readable, and source-bound."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(
@@ -879,25 +820,34 @@ class ContentPlanBuilder:
         property_type_signals_section = {
             "id": "property_type_signals",
             "title": "Property Type Signals",
-            "objective": "Describe visible property-type and mix inputs without ranking or recommending any property type.",
+            "objective": (
+                "Describe visible residential property-type and mix inputs in a non-technical, buyer-readable way. "
+                "If this page is for a specific residential property type, stay focused on that property type only. "
+                "Do not mix residential and commercial categories. Do not use status-bucket commentary here."
+            ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": [
                 "pricing_summary.property_types",
-                "pricing_summary.property_status",
                 "distributions.sale_property_type_distribution",
+                "page_property_type_context",
             ],
         }
 
         property_type_rate_snapshot_section = {
             "id": "property_type_rate_snapshot",
             "title": "Property Type Rate Snapshot",
-            "objective": "Explain visible property-type and location-level rate inputs in a descriptive, grounded format.",
+            "objective": (
+                "Explain visible residential property-type and location-level rate inputs in a more readable and less technical way. "
+                "Align the narrative with the page intent. Avoid raw field-language such as listed value input or change input."
+            ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": [
                 "pricing_summary.property_types",
                 "pricing_summary.location_rates",
+                "pricing_summary.micromarket_rates",
+                "page_property_type_context",
             ],
         }
 
@@ -913,37 +863,31 @@ class ContentPlanBuilder:
         city_specific = {
             "id": "micromarket_coverage",
             "title": "Key Resale Zones Across the City",
-            "objective": "Describe how visible resale opportunities are distributed across city-level zones using grounded city coverage signals.",
-            "render_type": "generative",
-            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
-            "data_dependencies": ["listing_summary", "links", "pricing_summary.location_rates", "nearby_localities"],
-        }
-
-        readiness_section = {
-            "id": "status_and_readiness",
-            "title": "Status and Readiness Snapshot",
-            "objective": "Summarize visible status buckets such as ready-to-move using grounded property-status inputs only.",
+            "objective": (
+                "Describe how visible resale opportunities are distributed across city-level zones using grounded city coverage signals. "
+                "Where clear pricing tiers are visible, add a simple buyer segmentation layer such as higher-budget zones versus relatively lower visible rate zones, "
+                "without making unsupported investment claims."
+            ),
             "render_type": "hybrid",
-            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("ready_to_move_keywords", []), 5),
-            "data_dependencies": ["pricing_summary.property_status"],
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+            "data_dependencies": ["listing_summary", "pricing_summary.location_rates", "nearby_localities"],
         }
 
         sections = list(common_sections)
-        sections.insert(4, review_signals_section)
-        sections.insert(5, property_rates_ai_section)
-        sections.insert(6, demand_supply_section)
-        sections.insert(7, property_type_signals_section)
-        sections.insert(8, property_type_rate_snapshot_section)
+        sections.insert(3, property_rates_ai_section)
+        sections.insert(4, demand_supply_section)
+        sections.insert(5, property_type_signals_section)
+        sections.insert(6, property_type_rate_snapshot_section)
 
-        if property_status:
-            sections.insert(4, readiness_section)
+        if has_review_signals:
+            sections.insert(3, review_signals_section)
 
         if page_type == PageType.RESALE_LOCALITY:
-            return sections[:4] + [locality_specific] + sections[4:]
+            return sections[:3] + [locality_specific] + sections[3:]
         if page_type == PageType.RESALE_MICROMARKET:
-            return sections[:2] + [micromarket_specific] + sections[2:]
+            return sections[:1] + [micromarket_specific] + sections[1:]
         if page_type == PageType.RESALE_CITY:
-            return sections[:2] + [city_specific] + sections[2:]
+            return sections[:1] + [city_specific] + sections[1:]
 
         return sections
 
@@ -974,6 +918,13 @@ class ContentPlanBuilder:
             keyword_clusters,
             entity,
         )
+        page_property_type_context = ContentPlanBuilder._page_property_type_context(
+            normalized,
+            entity,
+        )
+        buyer_segmentation = ContentPlanBuilder._build_city_zone_segmentation(
+            normalized.get("pricing_summary", {}) or {}
+        )
 
         for section in section_plan:
             section_context: dict[str, Any] = {"entity": entity}
@@ -997,11 +948,26 @@ class ContentPlanBuilder:
                 "primary_keyword_variants": primary_keyword_variants,
                 "body_keyword_priority": body_keyword_priority,
                 "instruction": (
-                    "Use the main primary keyword naturally in the hero section. "
-                    "Where suitable, use one alternate primary keyword variant naturally in an early body section. "
+                    "Use the main primary keyword naturally in an early section. "
+                    "Where suitable, use one alternate primary keyword variant naturally in one other early section. "
                     "Do not stuff keywords or repeat the same keyword phrasing across every section."
                 ),
             }
+
+            section_context["page_property_type_context"] = page_property_type_context
+
+            if buyer_segmentation:
+                section_context["buyer_segmentation"] = buyer_segmentation
+
+            if section["id"] == "market_snapshot":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["listing_summary", "pricing_summary", "distributions", "page_property_type_context"],
+                    "instruction": (
+                        "If page_property_type_context.scope is specific, talk only about that residential property type. "
+                        "If the page scope is all, summarize only the relevant residential property types visible in source data. "
+                        "Do not mix residential and commercial types in the same narrative."
+                    ),
+                }
 
             if section["id"] == "price_trends_and_rates":
                 section_context["narrative_guardrails"] = {
@@ -1021,10 +987,9 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["property_rates_ai_summary"],
                     "instruction": (
                         "Use only explicit property_rates_ai_summary fields. "
-                        "Do not infer sentiment, stability, attractiveness, growth quality, momentum, or investment merit. "
-                        "Do not convert source inputs into interpretation-heavy prose. "
-                        "Summarize the snapshot and listed strengths, challenges, and opportunity notes as source-backed labels only. "
-                        "Keep the wording restrained, paragraph-based, and human-readable."
+                        "Break the response into a short snapshot followed by Strengths, Challenges, and Opportunities. "
+                        "Keep the wording concise, readable, and source-bound. "
+                        "Do not dump every raw input into one long paragraph."
                     ),
                 }
 
@@ -1034,15 +999,43 @@ class ContentPlanBuilder:
                     "instruction": "Use only explicit counts, percentages, availability, and listing-range values. Do not interpret market strength.",
                 }
 
-            if section["id"] in {"property_type_signals", "property_type_rate_snapshot"}:
+            if section["id"] == "property_type_signals":
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": [
                         "pricing_summary.property_types",
-                        "pricing_summary.property_status",
-                        "pricing_summary.location_rates",
                         "distributions.sale_property_type_distribution",
+                        "page_property_type_context",
                     ],
-                    "instruction": "Use only explicit property-type, location-rate, status, price, and mix inputs. Do not recommend or rank property types.",
+                    "instruction": (
+                        "Use only explicit residential property-type, rate, and mix inputs. "
+                        "If the page is specific to one residential property type, stay focused on that type only. "
+                        "Do not mix in commercial categories. Do not use status commentary here."
+                    ),
+                }
+
+            if section["id"] == "property_type_rate_snapshot":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": [
+                        "pricing_summary.property_types",
+                        "pricing_summary.location_rates",
+                        "pricing_summary.micromarket_rates",
+                        "page_property_type_context",
+                    ],
+                    "instruction": (
+                        "Use only explicit residential property-type and location-rate inputs. "
+                        "Avoid technical field language like input, avgPrice field, or changePercent field. "
+                        "Align the narrative with the page type and keep it readable."
+                    ),
+                }
+
+            if section["id"] == "micromarket_coverage":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["pricing_summary.location_rates", "buyer_segmentation"],
+                    "instruction": (
+                        "For city pages, explain covered zones using the visible location-rate rows. "
+                        "Where clear tiers exist, add a simple buyer segmentation layer such as higher-budget zones versus relatively lower visible rate zones. "
+                        "Do not add unsupported investment or growth claims."
+                    ),
                 }
 
             context_map[section["id"]] = section_context
@@ -1149,6 +1142,7 @@ class ContentPlanBuilder:
                 "cms_faq": normalized.get("cms_faq"),
                 "featured_projects": normalized.get("featured_projects"),
                 "projects_by_status": normalized.get("projects_by_status"),
+                "page_property_type_context": normalized.get("page_property_type_context", {}),
                 "rera_context": rera_context,
             },
             "source_meta": {
