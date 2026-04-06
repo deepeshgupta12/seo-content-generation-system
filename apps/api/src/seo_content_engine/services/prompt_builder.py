@@ -8,16 +8,18 @@ class PromptBuilder:
     def metadata_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate SEO metadata for Square Yards resale listing pages. "
-            "You must stay grounded in the provided data and keyword plan. "
-            "Do not invent facts, amenities, connectivity claims, demand claims, popularity claims, investment claims, or numbers. "
-            "Use the canonical page pricing metric only when referencing price: asking price. "
-            "Avoid phrases like premium, most sought-after, excellent connectivity, strong demand, investment potential, luxury, prime destination. "
-            "The output should still sound natural, readable, and SEO-friendly. "
-            "Write metadata that feels human, specific, and useful without becoming promotional or making unsupported claims. "
-            "Use the resolved primary keyword naturally, and where helpful, use one alternate primary keyword variant naturally across the title, H1, or meta description. "
-            "Do not force all primary keyword variants into every field. "
-            "Avoid keyword stuffing, repetitive phrasing, and robotic search-optimized wording. "
-            "If a fact is not explicitly present in the input, do not mention it. "
+            "Stay fully grounded in the provided data and keyword plan. "
+            "Do not invent facts, amenities, demand claims, popularity claims, investment claims, or numbers. "
+            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "Write like a strong human editor, not like an SEO template engine. "
+            "Avoid unsupported phrases such as premium, most sought-after, excellent connectivity, strong demand, luxury, prime destination, investment potential, fast-growing, high-potential. "
+            "Avoid generic filler such as helps buyers understand, offers a wide range, provides useful insights, helps set expectations, or gives a clear picture. "
+            "Avoid robotic phrasing, stacked keyword strings, and repetitive search language. "
+            "Use the primary keyword naturally. Use at most one alternate primary keyword variant only if it improves readability. "
+            "The title should read like a clean, high-trust search result. "
+            "The meta description should sound useful and page-specific, not generic. "
+            "The H1 should be clear and natural. "
+            "The intro snippet should feel like a genuine opening line for the page, not a metadata echo. "
             "Return only valid JSON."
         )
 
@@ -44,9 +46,10 @@ class PromptBuilder:
                     "avoid_clickbait": True,
                 },
                 "style_rules": {
-                    "tone": "natural, grounded, clear, SEO-friendly",
+                    "tone": "natural, grounded, clear, human, SEO-friendly",
                     "avoid_robotic_patterns": True,
                     "avoid_repetition": True,
+                    "avoid_internal_language": True,
                     "keep_brand_safe": True,
                 },
                 "output_schema": {
@@ -63,37 +66,27 @@ class PromptBuilder:
     @staticmethod
     def sections_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
-            "You generate grounded section copy for Square Yards resale property pages. "
+            "You generate grounded editorial sections for Square Yards resale pages. "
             "Use only the provided section-level grounded context and section plan. "
-            "Never invent numbers or unsupported claims. "
-            "Do not mention connectivity, amenities, appreciation, investment potential, market strength, popularity, luxury positioning, or buyer suitability unless explicitly present in the input. "
-            "Do not use adjectives like premium, excellent, prime, sought-after, fast-growing, high-demand. "
-            "When discussing price, use only the canonical page pricing metric: asking price. "
+            "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
+            "If price is mentioned, use only the canonical page pricing metric: asking price. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
-            "If such metrics exist in broader source data, treat them as non-narrative context and do not write them in the section body. "
-            "For review or rating sections, only summarize explicit review counts, average rating, tag signals, and AI summaries if provided. "
-            "Do not infer sentiment, satisfaction, desirability, or quality beyond the input. "
-            "For demand and supply sections, only summarize explicit counts, percentages, unit-type splits, listing ranges, and availability values from the input. "
-            "Do not say demand is strong, weak, healthy, rising, falling, or favorable unless that exact interpretation is explicitly provided. "
-            "For property-type sections, only summarize explicit residential property-type names, counts, rates, and grounded distributions from the input. "
-            "If the page context is for one specific residential property type, stay focused on that type only. "
-            "Do not mix residential and commercial property types in the same narrative. "
-            "Do not use status-bucket commentary in property-type sections. "
-            "For the section id 'property_rates_ai_signals', write in restrained editorial prose using only the provided snapshot, strengths, challenges, and opportunity notes. "
-            "Break that section clearly into Strengths, Challenges, and Opportunities. "
-            "Do not infer what the signals suggest beyond the source text. "
-            "Do not introduce advisory language, recommendation language, or forward-looking market conclusions. "
-            "If alternate primary keyword variants are provided, use at most one alternate variant naturally in one additional section where it fits cleanly. "
-            "Do not repeat the same primary keyword phrase across every section. "
-            "Keep the section human-readable, but source-bound. "
-            "Write in a natural, human, descriptive style with 2 to 4 short paragraphs per section when the data allows. "
-            "Each section should feel SEO-friendly and readable, not robotic or overly templated, while remaining fully grounded. "
-            "Use natural transitions and vary sentence openings. "
-            "Do not write generic filler. "
-            "Make each section meaningfully different from the others. "
-            "Prefer explanatory prose that helps a real buyer understand the visible data on the page. "
-            "You may use competitor-derived planning signals only for structural inspiration such as section emphasis, section depth, and hierarchy. "
-            "Never copy competitor phrasing, claims, or FAQ wording. "
+            "For review sections, use only explicit review counts, ratings, tag signals, and AI summary text if provided. "
+            "For demand and supply sections, use only explicit counts, percentages, unit-type splits, listing ranges, and availability values. "
+            "For property-type sections, stay within explicit residential property-type names, counts, rates, and grounded distributions. "
+            "If the page is for one specific residential property type, stay tightly focused on that type. "
+            "Do not mix residential and commercial property types. "
+            "For the section id 'property_rates_ai_signals', remain tightly source-bound. Present the snapshot and the listed strengths, challenges, and opportunities without adding advice, interpretation, forecast, or conclusion. "
+            "Each section must answer one distinct buyer-facing question. "
+            "Use visible data as evidence, not as the entire prose structure. "
+            "Do not write in the pattern metric -> restatement -> generic closing sentence. "
+            "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, currently represented on the page, visible row, grounded layer, or structured snapshot unless they appear in the source text itself. "
+            "Do not use generic endings such as this helps buyers understand, this gives a useful picture, this helps set expectations, or this gives context. "
+            "Write for a real buyer, not for an internal reviewer. "
+            "Use 2 to 4 short paragraphs where the data allows. "
+            "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
+            "Use keywords naturally and sparingly. "
+            "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
             "Return only valid JSON."
         )
 
@@ -118,9 +111,15 @@ class PromptBuilder:
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
                 "competitor_intelligence": {
-                    "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
-                    "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
-                    "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
+                    "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_competitor_keywords", []
+                    ),
+                    "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_informational_keywords", []
+                    ),
+                    "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_overlap_keywords", []
+                    ),
                 },
                 "planning_signals": content_plan.get("planning_signals", {}),
             },
@@ -133,7 +132,6 @@ class PromptBuilder:
                     "review_sections_must_use_explicit_review_inputs_only": True,
                     "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
                     "property_type_sections_must_use_residential_inputs_only": True,
-                    "market_strengths_section_must_be_split_cleanly": True,
                     "specific_property_type_pages_must_stay_type_specific": True,
                     "avoid_mixing_residential_and_commercial_types": True,
                     "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
@@ -145,12 +143,14 @@ class PromptBuilder:
                     "avoid_template_like_openings": True,
                     "avoid_cross_section_repetition": True,
                     "use_keywords_naturally": True,
+                    "each_section_must_have_one_clear_takeaway": True,
                 },
                 "style_rules": {
                     "tone": "human, descriptive, grounded, SEO-friendly",
-                    "reader_goal": "help a buyer understand visible resale data on the page",
+                    "reader_goal": "help a buyer understand the actual resale picture on the page",
                     "avoid_filler": True,
                     "avoid_marketing_hype": True,
+                    "avoid_internal_workbench_language": True,
                     "prefer_specific_grounded_sentences": True,
                 },
                 "output_schema": {
@@ -170,25 +170,21 @@ class PromptBuilder:
     @staticmethod
     def faq_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
-            "You generate FAQ answers for Square Yards resale listing pages. "
+            "You generate grounded FAQ answers for Square Yards resale listing pages. "
             "Use only the provided FAQ plan and grounded data context. "
-            "Answer directly, avoid fluff, and do not invent numbers or claims. "
-            "When referencing price, prefer the canonical page pricing metric: asking price. "
-            "For review-related FAQs, use only explicit rating, review-count, review-tag, or AI-summary inputs if present. "
-            "Do not infer quality, trust, or desirability. "
-            "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, or listing ranges if present. "
-            "Do not add market interpretation beyond explicit data. "
-            "For property-type FAQs, use only explicit property-type, status, or rate inputs if present. "
-            "Do not recommend one property type over another. "
-            "Generate broad FAQ coverage and be more descriptive than a one-line answer. "
-            "Target 8 to 12 FAQs when the plan supports it, with each answer usually 45 to 110 words. "
-            "Questions should feel realistic for actual search or buyer intent. "
-            "Prefer people-also-ask style phrasing where appropriate, but keep the wording natural and specific to the page. "
-            "If multiple primary keyword variants are provided, you may vary some FAQ question phrasing using those variants naturally. "
-            "Do not force every variant into the FAQ set. "
-            "Answers should be readable, grounded, and naturally written, not repetitive or robotic. "
-            "You may use competitor-derived planning signals only to expand FAQ coverage and prioritize realistic buyer questions. "
-            "Never copy competitor phrasing, claims, or FAQ wording. "
+            "Do not invent numbers or claims. "
+            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
+            "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, and listing ranges. "
+            "For property-type FAQs, use only explicit property-type, status, or rate inputs. "
+            "Answer in a strong AEO style: begin with a direct answer sentence, then add one short explanatory paragraph if useful. "
+            "Each answer should feel like a real response to a real buyer query, not like a rewritten section summary. "
+            "Do not simply repeat inventory counts unless the question is explicitly about quantity. "
+            "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, or currently represented on the page. "
+            "Do not use generic filler such as helps buyers understand, gives a clear picture, or helps set expectations. "
+            "Questions should feel like realistic search or buyer questions. "
+            "Use keyword variants only when natural. "
+            "You may use competitor-derived planning signals only to expand coverage and prioritize realistic questions. Never copy wording. "
             "Return only valid JSON."
         )
 
@@ -203,9 +199,15 @@ class PromptBuilder:
                 "body_keyword_priority": content_plan["keyword_strategy"].get("body_keyword_priority", []),
             },
             "competitor_intelligence": {
-                "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_competitor_keywords", []),
-                "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_informational_keywords", []),
-                "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get("relevant_overlap_keywords", []),
+                "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get(
+                    "relevant_competitor_keywords", []
+                ),
+                "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get(
+                    "relevant_informational_keywords", []
+                ),
+                "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get(
+                    "relevant_overlap_keywords", []
+                ),
             },
             "planning_signals": content_plan.get("planning_signals", {}),
             "requirements": {
@@ -223,12 +225,14 @@ class PromptBuilder:
                     "avoid_duplicate_questions": True,
                     "avoid_duplicate_answers": True,
                     "prefer_people_also_ask_style_questions": True,
+                    "direct_answer_first": True,
                 },
                 "style_rules": {
                     "tone": "natural, buyer-friendly, grounded",
                     "prefer_clear_explanations": True,
                     "avoid_one_line_answers_when_context_exists": True,
                     "avoid_keyword_stuffing": True,
+                    "avoid_internal_language": True,
                 },
                 "output_schema": {
                     "faqs": [
@@ -253,15 +257,14 @@ class PromptBuilder:
             "You generate a short human-readable summary for a grounded Square Yards data table. "
             "Use only the visible table title, columns, rows, and entity context provided. "
             "Do not invent trends, interpretations, recommendations, or unsupported market claims. "
-            "Write 3 to 4 sentences maximum. "
-            "The summary must be user-friendly, reviewer-friendly, and SEO-friendly without sounding robotic. "
-            "It should explain what the table covers, why it matters, and reference visible row-level grounded values when useful. "
-            "Do not write generic QA or reviewer-workbench language. "
-            "Do not mention row counts or column counts unless it is genuinely useful. "
-            "You may use competitor-derived planning signals only to decide what to emphasize structurally in the summary. "
-            "Never copy competitor wording or claims. "
+            "Write 2 to 3 sentences maximum. "
+            "Explain what the table helps the user compare or understand. "
+            "If useful, mention one visible row-level value naturally. "
+            "Do not use reviewer language, QA language, or phrases such as visible dataset, structured source data, visible row, or source-backed values. "
+            "Do not just narrate the first row unless it supports the table purpose. "
+            "You may use competitor-derived planning signals only to decide emphasis. Never copy wording. "
             "Return only valid JSON."
-            )
+        )
 
         user_payload = {
             "entity": entity,
@@ -271,8 +274,8 @@ class PromptBuilder:
                 "strict_grounding": True,
                 "style_rules": {
                     "tone": "natural, informative, concise",
-                    "min_sentences": 3,
-                    "max_sentences": 4,
+                    "min_sentences": 2,
+                    "max_sentences": 3,
                     "avoid_robotic_patterns": True,
                     "avoid_generic_review_workbench_language": True,
                     "avoid_market_hype": True,
@@ -289,20 +292,15 @@ class PromptBuilder:
     def repair_section_prompt(content_plan: dict, section: dict, validation: dict) -> tuple[str, str]:
         system_prompt = (
             "You repair a previously generated Square Yards section. "
-            "Be surgical. Keep the same section id, section purpose, and grounded meaning. "
-            "Only rewrite the body. Remove unsupported claims, forbidden adjectives, and invalid numbers. "
+            "Be surgical. Keep the same section id, title, and purpose. Rewrite only the body. "
+            "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, repeated structure, and internal system language. "
             "If price is mentioned, use only the canonical asking price metric. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
-            "For review-related sections, only use explicit rating, review-count, review-tag, or AI-summary inputs if present. "
-            "For demand-supply sections, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
-            "For property-type sections, only use explicit property-type, status, rate, and distribution inputs if present. "
-            "For the section id 'property_rates_ai_signals', the rewrite must remain tightly source-bound. "
-            "Do not interpret what the strengths, challenges, or opportunity notes mean. "
-            "Do not introduce advisory, promotional, or forward-looking language. "
-            "Present the snapshot and listed points in restrained paragraph form only. "
-            "Make the rewrite sound natural and descriptive, but still grounded. "
-            "Keep the rewritten section distinct from other sections and avoid robotic phrasing. "
-            "Do not introduce any fact that is not present in the provided grounded data. "
+            "For review-related sections, use only explicit review, rating, tag, or AI-summary inputs. "
+            "For demand-supply sections, use only explicit counts, percentages, unit-type splits, and listing-range inputs. "
+            "For property-type sections, use only explicit property-type, status, rate, and distribution inputs. "
+            "For the section id 'property_rates_ai_signals', remain tightly source-bound and do not interpret the signals. "
+            "Write like a polished human editor, not like an internal analyst. "
             "Return only valid JSON."
         )
 
@@ -328,6 +326,7 @@ class PromptBuilder:
                 "property_rates_ai_signals_must_feel_human_written": True,
                 "keep_human_descriptive_style": True,
                 "avoid_repetition": True,
+                "avoid_internal_language": True,
             },
             "output_schema": {
                 "id": "string",
@@ -342,15 +341,14 @@ class PromptBuilder:
     def repair_faq_prompt(content_plan: dict, faq: dict, validation: dict) -> tuple[str, str]:
         system_prompt = (
             "You repair a previously generated Square Yards FAQ answer. "
-            "Be surgical. Keep the same question. Only rewrite the answer. "
-            "Remove unsupported claims, forbidden adjectives, and invalid numbers. "
+            "Be surgical. Keep the same question. Rewrite only the answer. "
+            "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, and internal system language. "
             "If price is mentioned, use only the canonical asking price metric. "
-            "For review-related FAQs, only use explicit rating, review-count, review-tag, or AI-summary inputs if present. "
-            "For demand-supply FAQs, only use explicit counts, percentages, unit-type splits, or listing-range inputs if present. "
-            "For property-type FAQs, only use explicit property-type, status, or rate inputs if present. "
-            "Keep the answer more descriptive than a single sentence when the grounded inputs allow it. "
-            "Do not introduce any fact that is not present in the grounded data. "
-            "Avoid robotic phrasing and repetitive wording. "
+            "For review FAQs, use only explicit review, rating, tag, or AI-summary inputs. "
+            "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, or listing-range inputs. "
+            "For property-type FAQs, use only explicit property-type, status, or rate inputs. "
+            "Answer directly first, then explain briefly if useful. "
+            "Do not rewrite the answer as a generic page summary. "
             "Return only valid JSON."
         )
 
@@ -371,6 +369,7 @@ class PromptBuilder:
                 "property_type_faqs_must_use_explicit_inputs_only": True,
                 "prefer_descriptive_grounded_answer": True,
                 "avoid_repetition": True,
+                "avoid_internal_language": True,
             },
             "output_schema": {
                 "question": "string",
@@ -390,11 +389,10 @@ class PromptBuilder:
         system_prompt = (
             "You repair previously generated Square Yards metadata. "
             "Be surgical. Preserve the field structure and rewrite only the fields that need fixing. "
-            "Remove unsupported claims, forbidden adjectives, and invalid numbers. "
+            "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic phrasing, and keyword stuffing. "
             "If price is mentioned, use only the canonical asking price metric. "
             "Do not introduce facts beyond the grounded data. "
-            "Keep the result natural and SEO-friendly. "
-            "Avoid stiff, repetitive, or stuffed keyword phrasing. "
+            "Keep the result polished, specific, and human. "
             "Return only valid JSON."
         )
 
@@ -411,6 +409,7 @@ class PromptBuilder:
                 "avoid_non_canonical_pricing_terms": True,
                 "keep_human_and_seo_friendly": True,
                 "avoid_keyword_stuffing": True,
+                "avoid_internal_language": True,
             },
             "output_schema": {
                 "title": "string",

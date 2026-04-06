@@ -25,9 +25,8 @@ class TableRenderer:
     ) -> str:
         if not rows:
             return (
-                f"{title} is currently empty for this page. "
-                "No grounded rows were available in the structured source data for this table. "
-                "Once the underlying inputs are available, this section can help summarize the visible dataset in a more usable format."
+                f"{title} is empty for this page right now. "
+                "When data is available, it will help users review the related pricing or inventory details more quickly."
             )
 
         first_row = rows[0]
@@ -41,61 +40,47 @@ class TableRenderer:
 
         preview_clause = ""
         if first_non_empty_parts:
-            preview_clause = " In the first visible row, " + ", ".join(first_non_empty_parts[:3]) + "."
+            preview_clause = " For example, the first row shows " + ", ".join(first_non_empty_parts[:3]) + "."
 
         if table_id == "price_trend_table":
             return (
-                f"{title} shows how the visible asking-rate trend is distributed across the available time periods for this page. "
-                "It helps compare the locality signal with the broader micromarket and city context wherever those values are present."
-                f"{preview_clause} "
-                "This gives reviewers and content editors a quick way to ground any narrative around pricing movement in the actual table values."
+                f"{title} helps compare the latest asking-price trend with broader local benchmarks."
+                f"{preview_clause}"
             )
 
         if table_id == "sale_unit_type_distribution_table":
             return (
-                f"{title} highlights the visible BHK mix currently present in the resale inventory for this page. "
-                "It makes it easier to understand which home configurations appear most often in the structured listing data."
-                f"{preview_clause} "
-                "This table is useful when writing buyer-facing copy around inventory spread without making unsupported assumptions."
+                f"{title} makes it easier to see which BHK configurations are showing up most often in the resale stock here."
+                f"{preview_clause}"
             )
 
         if table_id == "nearby_localities_table":
             return (
-                f"{title} captures nearby alternatives that can also be explored alongside the current location. "
-                "It brings together proximity, visible resale inventory, and page-level pricing signals in one place."
-                f"{preview_clause} "
-                "This can support grounded exploration-oriented copy for users comparing nearby options."
+                f"{title} helps users compare nearby areas when they want more resale options around the current location."
+                f"{preview_clause}"
             )
 
         if table_id == "location_rates_table":
             return (
-                f"{title} lists the visible rate snapshot for local pockets available within the dataset. "
-                "It helps show how pricing signals vary across the locations surfaced on this page."
-                f"{preview_clause} "
-                "This is useful for adding grounded locality-level context without drifting into unsupported commentary."
+                f"{title} gives a quick read on how asking-rate signals vary across the covered locations."
+                f"{preview_clause}"
             )
 
         if table_id == "property_types_table":
             return (
-                f"{title} summarizes the property-type level pricing inputs available in the underlying source data. "
-                "It helps show which property categories are visible on the page and how their listed values compare."
-                f"{preview_clause} "
-                "This can support grounded prose about inventory mix and rate variation across property types."
+                f"{title} helps compare how different residential property types are showing up in the available pricing view."
+                f"{preview_clause}"
             )
 
         if table_id == "coverage_summary_table":
             return (
-                f"{title} provides a compact overview of the visible resale coverage for this page. "
-                "It helps summarize listing scale and project presence at the page level using direct source-backed values."
-                f"{preview_clause} "
-                "This gives a quick factual baseline before deeper section-level review."
+                f"{title} gives a quick sense of how much resale inventory and project coverage is represented on this page."
+                f"{preview_clause}"
             )
 
         return (
-            f"{title} summarizes the structured source-backed data available for this page. "
-            "It helps organize the visible inputs into a format that is easier to inspect and use in grounded content generation."
-            f"{preview_clause} "
-            "The values shown here should be treated as the factual reference point for related narrative sections."
+            f"{title} gives a compact view of the key values behind this page."
+            f"{preview_clause}"
         )
 
     @staticmethod

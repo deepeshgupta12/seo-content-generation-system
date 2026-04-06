@@ -19,6 +19,25 @@ class OpenAIClient:
         self.timeout = settings.openai_timeout_seconds
         self.temperature = settings.openai_temperature
 
+    @staticmethod
+    def _extract_json_object(content: str) -> dict[str, Any]:
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            candidate = content[start : end + 1]
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+
+        raise ValueError("Model response did not contain a valid JSON object.")
+
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         url = f"{self.base_url}/chat/completions"
         payload = {
@@ -41,4 +60,7 @@ class OpenAIClient:
             data = response.json()
 
         content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Model returned an empty response.")
+
+        return self._extract_json_object(content)
