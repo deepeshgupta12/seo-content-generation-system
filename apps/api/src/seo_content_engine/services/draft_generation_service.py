@@ -361,6 +361,26 @@ class DraftGenerationService:
                 return item.get("doc_count")
 
         return None
+    
+    @staticmethod
+    def _clean_market_signal_items(items: list[str], limit: int = 4) -> list[str]:
+        cleaned: list[str] = []
+
+        for item in items or []:
+            text = str(item or "").strip()
+            if not text:
+                continue
+
+            text = " ".join(text.split())
+            text = text.rstrip(" .;,:")
+            if not text:
+                continue
+
+            cleaned.append(text)
+            if len(cleaned) >= limit:
+                break
+
+        return cleaned
 
     @staticmethod
     def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
