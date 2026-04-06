@@ -83,22 +83,6 @@ class TableRenderer:
                 "This can support grounded prose about inventory mix and rate variation across property types."
             )
 
-        if table_id == "property_status_table":
-            return (
-                f"{title} brings together the visible status buckets and their associated pricing inputs for this page. "
-                "It helps clarify how the currently surfaced inventory is distributed across readiness or completion states."
-                f"{preview_clause} "
-                "This is especially helpful for grounded content around ready-to-move or status-led inventory mix."
-            )
-
-        if table_id == "top_projects_table":
-            return (
-                f"{title} surfaces the projects currently highlighted by the structured source inputs for this page. "
-                "Depending on the available dataset, this may reflect transactions, listing rates, or value-led ranking signals."
-                f"{preview_clause} "
-                "It provides a grounded project snapshot that can support internal review and controlled narrative generation."
-            )
-
         if table_id == "coverage_summary_table":
             return (
                 f"{title} provides a compact overview of the visible resale coverage for this page. "
