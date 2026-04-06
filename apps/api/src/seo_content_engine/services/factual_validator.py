@@ -37,6 +37,22 @@ class FactualValidator:
         "robust demand",
         "offers potential",
         "could provide entry",
+        "healthy appreciation",
+        "healthy supply",
+        "healthy demand",
+        "steady demand",
+        "steady growth",
+        "strong activity",
+        "active market participation",
+        "growth potential",
+        "reliability and market acceptance",
+        "market acceptance",
+        "stands out",
+        "reflecting interest in luxury homes",
+        "luxury homes",
+        "active buyer engagement",
+        "indicating healthy appreciation",
+        "indicating steady demand",
     ]
 
     ROBOTIC_PHRASES = [
@@ -54,6 +70,32 @@ class FactualValidator:
         "visible resale dataset",
         "structured market-summary layer",
     ]
+
+    GENERIC_FILLER_PHRASES = [
+        "helps buyers understand",
+        "helps users understand",
+        "helps set expectations",
+        "gives a clear picture",
+        "provides useful insights",
+        "offers a wide selection",
+        "offers a wide range",
+        "adds context",
+        "makes it easier to understand",
+        "helps explain the visible",
+        "gives a grounded sense",
+        "works as a quick reference point",
+    ]
+
+    COMMERCIAL_TERMS = {
+        "shop",
+        "office space",
+        "warehouse",
+        "showroom",
+        "commercial",
+        "industrial",
+        "co-working space",
+        "co working space",
+    }
 
     PRICING_SYNONYMS = {
         "asking_price": [
@@ -90,6 +132,7 @@ class FactualValidator:
         "section_too_short": {"category": "structure", "severity": "low"},
         "faq_too_short": {"category": "structure", "severity": "low"},
         "robotic_phrase_detected": {"category": "editorial", "severity": "medium"},
+        "generic_filler_detected": {"category": "editorial", "severity": "medium"},
     }
 
     STALE_DATA_WARNING_DAYS = 45
@@ -228,6 +271,11 @@ class FactualValidator:
         return [phrase for phrase in FactualValidator.ROBOTIC_PHRASES if phrase in lowered]
 
     @staticmethod
+    def _find_generic_filler(text: str) -> list[str]:
+        lowered = text.lower()
+        return [phrase for phrase in FactualValidator.GENERIC_FILLER_PHRASES if phrase in lowered]
+
+    @staticmethod
     def _normalize_numeric_token(raw: str) -> str:
         cleaned = raw.replace(",", "").strip()
         if cleaned.startswith("+"):
@@ -296,6 +344,9 @@ class FactualValidator:
         for phrase in FactualValidator.ROBOTIC_PHRASES:
             sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
 
+        for phrase in FactualValidator.GENERIC_FILLER_PHRASES:
+            sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
+
         sanitized = re.sub(r"\s{2,}", " ", sanitized)
         sanitized = re.sub(r"\s+([,.])", r"\1", sanitized)
         sanitized = re.sub(r"\s+([)])", r"\1", sanitized)
@@ -359,6 +410,14 @@ class FactualValidator:
         intersection = words_a.intersection(words_b)
         union = words_a.union(words_b)
         return len(intersection) / max(len(union), 1)
+
+    @staticmethod
+    def _has_residential_commercial_mixing(text: str) -> bool:
+        lowered = text.lower()
+        residential_markers = {"apartment", "flat", "villa", "builder floor", "plot", "house", "penthouse", "studio"}
+        has_residential = any(marker in lowered for marker in residential_markers)
+        has_commercial = any(marker in lowered for marker in FactualValidator.COMMERCIAL_TERMS)
+        return has_residential and has_commercial
 
     @staticmethod
     def _build_repetition_check(draft: dict) -> dict[str, Any]:
@@ -551,6 +610,7 @@ class FactualValidator:
     def _build_robotic_language_check(draft: dict) -> dict[str, Any]:
         warnings: list[str] = []
         phrase_hits: dict[str, int] = {}
+        filler_hits: dict[str, int] = {}
 
         texts = [
             draft.get("metadata", {}).get("title", ""),
@@ -568,15 +628,26 @@ class FactualValidator:
             if count:
                 phrase_hits[phrase] = count
 
-        total_hits = sum(phrase_hits.values())
-        if total_hits >= settings.editorial_robotic_phrase_threshold:
+        for phrase in FactualValidator.GENERIC_FILLER_PHRASES:
+            count = full_text.count(phrase)
+            if count:
+                filler_hits[phrase] = count
+
+        total_phrase_hits = sum(phrase_hits.values())
+        total_filler_hits = sum(filler_hits.values())
+
+        if total_phrase_hits >= settings.editorial_robotic_phrase_threshold:
             warnings.append("robotic_phrase_detected")
+        if total_filler_hits >= settings.editorial_generic_filler_threshold:
+            warnings.append("generic_filler_detected")
 
         return {
             "passed": len(warnings) == 0,
             "warnings": warnings,
             "phrase_hits": phrase_hits,
-            "total_hits": total_hits,
+            "filler_hits": filler_hits,
+            "total_phrase_hits": total_phrase_hits,
+            "total_filler_hits": total_filler_hits,
         }
 
     @staticmethod
@@ -756,6 +827,7 @@ class FactualValidator:
             "severely_stale_source_data_detected": 25,
             "faq_too_short": 5,
             "robotic_phrase_detected": 8,
+            "generic_filler_detected": 6,
         }
         for warning in warning_reasons:
             score_penalty += penalty_map.get(warning, 0)
@@ -797,6 +869,7 @@ class FactualValidator:
             else []
         )
         robotic_phrases = FactualValidator._find_robotic_phrases(text)
+        filler_phrases = FactualValidator._find_generic_filler(text)
         sanitized_text = FactualValidator._sanitize_text(text)
 
         issues: list[str] = []
@@ -811,6 +884,7 @@ class FactualValidator:
             "sanitized_text": sanitized_text,
             "forbidden_claims": forbidden_claims,
             "robotic_phrases": robotic_phrases,
+            "filler_phrases": filler_phrases,
             "unreconciled_numbers": unreconciled_numbers,
             "metric_issues": metric_issues,
             "word_count": FactualValidator._word_count(text),
@@ -819,7 +893,7 @@ class FactualValidator:
         }
 
     @staticmethod
-    def validate_draft(draft: dict) -> dict[str, Any]:
+    def validate_draft(draft: dict) -> dict:
         content_plan = draft["content_plan"]
         full_allowed_numbers = FactualValidator._extract_allowed_numeric_strings(content_plan)
         canonical_metric_name = content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"]
@@ -862,6 +936,13 @@ class FactualValidator:
                 section_allowed_numbers,
                 canonical_metric_name,
             )
+
+            section_id = section.get("id") or ""
+            if section_id in {"property_type_signals", "market_snapshot", "property_type_rate_snapshot"}:
+                if FactualValidator._has_residential_commercial_mixing(section.get("body", "")):
+                    body_check["issues"].append("residential_commercial_mixing_detected")
+                    body_check["passed"] = False
+
             section_checks.append(
                 {
                     "id": section.get("id"),

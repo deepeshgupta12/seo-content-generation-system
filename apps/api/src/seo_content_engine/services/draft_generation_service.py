@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
@@ -14,6 +15,44 @@ from seo_content_engine.services.table_renderer import TableRenderer
 
 
 class DraftGenerationService:
+    INTERNAL_LANGUAGE_PHRASES = {
+        "visible dataset",
+        "structured inputs",
+        "source-backed layer",
+        "source-backed values",
+        "current structured data",
+        "currently represented on the page",
+        "visible row",
+        "visible rows",
+        "grounded layer",
+        "structured snapshot",
+        "structured source data",
+        "visible resale dataset",
+        "structured market-summary layer",
+    }
+
+    GENERIC_FILLER_PHRASES = {
+        "helps buyers understand",
+        "helps users understand",
+        "helps set expectations",
+        "gives a clear picture",
+        "provides useful insights",
+        "offers a wide selection",
+        "offers a wide range",
+        "adds context",
+        "makes it easier to understand",
+        "gives a grounded sense",
+    }
+
+    WEAK_OPENERS = {
+        "this section",
+        "for broader context",
+        "within the available",
+        "the visible",
+        "the current",
+        "this table",
+    }
+
     @staticmethod
     def _generate_metadata(content_plan: dict, client: OpenAIClient) -> dict:
         system_prompt, user_prompt = PromptBuilder.metadata_prompts(content_plan)
@@ -216,6 +255,136 @@ class DraftGenerationService:
         return f"{entity_name}, {city_name}" if city_name and city_name != entity_name else entity_name
 
     @staticmethod
+    def _split_paragraphs(text: str) -> list[str]:
+        return [item.strip() for item in re.split(r"\n{2,}", text or "") if item.strip()]
+
+    @staticmethod
+    def _sentence_split(text: str) -> list[str]:
+        parts = re.split(r"(?<=[.!?])\s+", (text or "").strip())
+        return [part.strip() for part in parts if part.strip()]
+
+    @staticmethod
+    def _normalize_editorial_text(text: str) -> str:
+        if not text:
+            return ""
+
+        normalized = text
+
+        for phrase in DraftGenerationService.INTERNAL_LANGUAGE_PHRASES:
+            normalized = re.sub(re.escape(phrase), "", normalized, flags=re.IGNORECASE)
+
+        normalized = re.sub(r"\s{2,}", " ", normalized)
+        normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+
+        paragraphs = DraftGenerationService._split_paragraphs(normalized)
+        deduped_paragraphs: list[str] = []
+        seen_signatures: set[str] = set()
+
+        for paragraph in paragraphs:
+            cleaned_sentences: list[str] = []
+            seen_sentences: set[str] = set()
+
+            for sentence in DraftGenerationService._sentence_split(paragraph):
+                lowered = re.sub(r"\s+", " ", sentence.lower()).strip()
+                if lowered in seen_sentences:
+                    continue
+                seen_sentences.add(lowered)
+                cleaned_sentences.append(sentence)
+
+            if not cleaned_sentences:
+                continue
+
+            rebuilt = " ".join(cleaned_sentences).strip()
+            signature = re.sub(r"\s+", " ", rebuilt.lower())
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            deduped_paragraphs.append(rebuilt)
+
+        normalized = "\n\n".join(deduped_paragraphs)
+        normalized = re.sub(r"\s{2,}", " ", normalized)
+        normalized = re.sub(r"\s+([,.])", r"\1", normalized)
+        return normalized.strip()
+
+    @staticmethod
+    def _count_phrase_hits(text: str, phrases: set[str]) -> int:
+        lowered = text.lower()
+        return sum(lowered.count(phrase) for phrase in phrases)
+
+    @staticmethod
+    def _looks_machine_written(text: str) -> bool:
+        if not text or len(text.split()) < 40:
+            return True
+
+        lowered = text.lower()
+        if DraftGenerationService._count_phrase_hits(lowered, DraftGenerationService.INTERNAL_LANGUAGE_PHRASES) >= 1:
+            return True
+        if DraftGenerationService._count_phrase_hits(lowered, DraftGenerationService.GENERIC_FILLER_PHRASES) >= 2:
+            return True
+
+        paragraphs = DraftGenerationService._split_paragraphs(text)
+        if len(paragraphs) >= 2:
+            openings = []
+            for paragraph in paragraphs:
+                words = re.findall(r"\b\w+\b", paragraph.lower())
+                if words:
+                    openings.append(" ".join(words[:2]))
+            if len(openings) != len(set(openings)):
+                return True
+
+        return False
+
+    @staticmethod
+    def _section_should_use_safe_body(content_plan: dict, section: dict) -> bool:
+        section_id = section.get("id") or ""
+        body = DraftGenerationService._normalize_editorial_text(section.get("body", ""))
+
+        if section_id in set(settings.editorial_force_safe_sections or []):
+            return True
+
+        if not body or len(body.split()) < settings.editorial_min_section_words:
+            return True
+
+        validation = FactualValidator.validate_text(
+            body,
+            FactualValidator._extract_allowed_numeric_strings(content_plan),
+            content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"],
+        )
+        if validation["issues"]:
+            return True
+
+        if DraftGenerationService._looks_machine_written(body):
+            return True
+
+        if section_id in {"property_type_signals", "market_snapshot", "property_type_rate_snapshot"}:
+            lowered = body.lower()
+            if any(term in lowered for term in {"shop", "office space", "warehouse", "showroom", "commercial"}):
+                if any(term in lowered for term in {"apartment", "flat", "villa", "builder floor", "plot", "house", "studio"}):
+                    return True
+
+        return False
+
+    @staticmethod
+    def _faq_should_use_safe_answer(content_plan: dict, faq: dict) -> bool:
+        answer = DraftGenerationService._normalize_editorial_text(faq.get("answer", ""))
+
+        if not answer or len(answer.split()) < settings.editorial_min_faq_words:
+            return True
+
+        validation = FactualValidator.validate_text(
+            answer,
+            FactualValidator._extract_allowed_numeric_strings(content_plan),
+            content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"],
+        )
+        if validation["issues"]:
+            return True
+
+        if DraftGenerationService._looks_machine_written(answer):
+            return True
+
+        return False
+
+    @staticmethod
     def _build_price_trends_safe_body(content_plan: dict) -> str:
         pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
@@ -223,11 +392,12 @@ class DraftGenerationService:
         asking_price = pricing_summary.get("asking_price")
         price_trend = pricing_summary.get("price_trend", []) or []
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
 
         if asking_price is not None:
-            lines.append(
-                f"The current asking price signal for resale properties in {location_label} is ₹{asking_price:,}."
+            paragraphs.append(
+                f"The current asking price signal for resale properties in {location_label} is ₹{asking_price:,}. "
+                f"That is the main price reference for this page."
             )
 
         if price_trend:
@@ -241,16 +411,21 @@ class DraftGenerationService:
                 trend_parts.append(f"the micromarket-level rate is ₹{latest.get('micromarketRate'):,}")
             if latest.get("cityRate") is not None:
                 trend_parts.append(f"the city-level rate is ₹{latest.get('cityRate'):,}")
-            if trend_parts:
-                lines.append("In the available trend view, " + ", ".join(trend_parts) + ".")
 
-        if not lines:
+            if trend_parts:
+                paragraphs.append(
+                    "The trend view adds a comparison layer rather than a second price definition. "
+                    + ", ".join(trend_parts)
+                    + "."
+                )
+
+        if not paragraphs:
             return (
-                f"This section covers the available asking-price view for resale properties in {location_label}. "
-                "When trend data is present, it can be used to compare the current asking signal with the broader local context."
+                f"The price section for {location_label} is built around the asking-price view available on this page. "
+                "When trend data is present, it can be used to compare the local signal with broader benchmarks."
             )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_review_signals_safe_body(content_plan: dict) -> str:
@@ -265,7 +440,7 @@ class DraftGenerationService:
         negative_tags = review_summary.get("negative_tags", []) or []
         locality_summary = ai_summary.get("locality_summary")
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
 
         summary_bits: list[str] = []
         if avg_rating is not None:
@@ -274,24 +449,28 @@ class DraftGenerationService:
             summary_bits.append(f"{review_count} reviews")
 
         if summary_bits:
-            lines.append(
+            paragraphs.append(
                 f"For {location_label}, the available review view shows " + " and ".join(summary_bits) + "."
             )
 
+        tag_bits: list[str] = []
         if positive_tags:
-            lines.append(f"Some of the visible positive review tags include {', '.join(positive_tags[:3])}.")
+            tag_bits.append(f"positive tags such as {', '.join(positive_tags[:3])}")
         if negative_tags:
-            lines.append(f"Some of the visible negative review tags include {', '.join(negative_tags[:3])}.")
-        if locality_summary:
-            lines.append(locality_summary)
+            tag_bits.append(f"negative tags such as {', '.join(negative_tags[:3])}")
+        if tag_bits:
+            paragraphs.append("The visible feedback labels include " + " alongside ".join(tag_bits) + ".")
 
-        if not lines:
+        if locality_summary:
+            paragraphs.append(locality_summary)
+
+        if not paragraphs:
             return (
-                f"This section covers the review and rating signals available for {location_label}. "
-                "When review data is present, it helps add buyer context beyond pricing and inventory."
+                f"This section covers the review and rating information available for {location_label}. "
+                "When review data is present, it adds another layer beyond pricing and inventory."
             )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_demand_supply_safe_body(content_plan: dict) -> str:
@@ -306,16 +485,16 @@ class DraftGenerationService:
         sale_count = listing_summary.get("sale_count")
         sale_range = listing_ranges.get("sale_listing_range", {}) or {}
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
 
         count_parts: list[str] = []
         if sale_available is not None:
-            count_parts.append(f"{sale_available} available resale listings")
+            count_parts.append(f"{sale_available} currently available resale listings")
         if sale_count is not None and sale_count != sale_available:
-            count_parts.append(f"{sale_count} total resale listings")
+            count_parts.append(f"{sale_count} resale listings in the broader page summary")
 
         if count_parts:
-            lines.append(
+            paragraphs.append(
                 f"For {location_label}, the current resale view includes " + " and ".join(count_parts) + "."
             )
 
@@ -337,7 +516,9 @@ class DraftGenerationService:
                 unit_parts.append(f"supply share of {supply_percent}")
 
             if unit_parts:
-                lines.append("At the unit-type level, one visible configuration shows " + ", ".join(unit_parts) + ".")
+                paragraphs.append(
+                    "At the configuration level, one visible bucket shows " + ", ".join(unit_parts) + "."
+                )
 
         range_parts: list[str] = []
         if sale_range.get("min_price") is not None:
@@ -345,18 +526,18 @@ class DraftGenerationService:
         if sale_range.get("max_price") is not None:
             range_parts.append(f"a maximum listed price of ₹{sale_range['max_price']:,}")
         if sale_range.get("doc_count") is not None:
-            range_parts.append(f"{sale_range['doc_count']} rows in the listing-range view")
+            range_parts.append(f"{sale_range['doc_count']} entries in the listing-range view")
 
         if range_parts:
-            lines.append("The available price-range view shows " + ", ".join(range_parts) + ".")
+            paragraphs.append("The available price-range view shows " + ", ".join(range_parts) + ".")
 
-        if not lines:
+        if not paragraphs:
             return (
-                f"This section explains the demand, supply, and listing-range signals available for {location_label}. "
-                "When those inputs are present, they help clarify how the visible resale stock is distributed."
+                f"This section explains the demand, supply, and listing-range information available for {location_label}. "
+                "When those inputs are present, they show how the currently visible stock is distributed."
             )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_property_rates_ai_safe_body(content_plan: dict) -> str:
@@ -428,28 +609,28 @@ class DraftGenerationService:
                 property_type,
             )
 
-            lines: list[str] = [
-                f"This page is focused on resale {property_type.lower()} options in {location_label}."
+            paragraphs: list[str] = [
+                f"This page is focused on resale {property_type.lower()} options in {location_label}, so the market view should be read through that category rather than across every residential format."
             ]
 
-            detail_parts: list[str] = []
+            details: list[str] = []
             if sale_count is not None:
-                detail_parts.append(f"{sale_count} resale listings are currently visible")
+                details.append(f"{sale_count} resale listings are currently visible")
             if property_count is not None:
-                detail_parts.append(f"{property_count} rows in the property-type mix align to this category")
-            if detail_parts:
-                lines.append("At a page level, " + " and ".join(detail_parts) + ".")
+                details.append(f"{property_count} rows in the property-type mix align with this category")
+            if details:
+                paragraphs.append("At the page level, " + " and ".join(details) + ".")
 
             if property_record:
-                rate_parts: list[str] = []
+                price_bits: list[str] = []
                 if property_record.get("avgPrice") is not None:
-                    rate_parts.append(f"the asking-rate signal for this category is ₹{property_record['avgPrice']:,}")
+                    price_bits.append(f"the asking-rate signal for this category is ₹{property_record['avgPrice']:,}")
                 if property_record.get("changePercent") is not None:
-                    rate_parts.append(f"the visible change signal is {property_record['changePercent']}")
-                if rate_parts:
-                    lines.append("In the available rate view, " + " and ".join(rate_parts) + ".")
+                    price_bits.append(f"the visible change signal is {property_record['changePercent']}")
+                if price_bits:
+                    paragraphs.append("In the available rate view, " + " and ".join(price_bits) + ".")
 
-            return "\n\n".join(lines)
+            return "\n\n".join(paragraphs)
 
         visible_residential_types = [
             item.get("propertyType") for item in residential_property_types[:4] if item.get("propertyType")
@@ -458,18 +639,18 @@ class DraftGenerationService:
         if not visible_residential_types and sale_count is None:
             return (
                 f"This section gives a grounded overview of the resale market visible for {location_label}. "
-                "When inventory and property-type data is available, it helps explain what kinds of options are showing up here."
+                "When inventory and residential property-type data is available, it shows what kinds of options are appearing here."
             )
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
         if visible_residential_types:
-            lines.append(
+            paragraphs.append(
                 f"The visible resale mix in {location_label} includes residential categories such as {', '.join(visible_residential_types)}."
             )
         if sale_count is not None:
-            lines.append(f"The page currently shows {sale_count} resale listings.")
+            paragraphs.append(f"The page currently shows {sale_count} resale listings.")
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_property_type_signals_safe_body(content_plan: dict) -> str:
@@ -494,12 +675,12 @@ class DraftGenerationService:
                 property_type,
             )
 
-            lines: list[str] = [
+            paragraphs: list[str] = [
                 f"For {location_label}, this page stays focused on resale {property_type.lower()} inventory."
             ]
 
             if property_count is not None:
-                lines.append(f"The available property-type mix shows {property_count} rows for this category.")
+                paragraphs.append(f"The available property-type mix shows {property_count} rows for this category.")
 
             if property_record:
                 record_parts: list[str] = []
@@ -508,21 +689,21 @@ class DraftGenerationService:
                 if property_record.get("changePercent") is not None:
                     record_parts.append(f"a visible change signal of {property_record['changePercent']}")
                 if record_parts:
-                    lines.append("The current rate view shows " + " and ".join(record_parts) + ".")
+                    paragraphs.append("The current rate view shows " + " and ".join(record_parts) + ".")
 
-            return "\n\n".join(lines)
+            return "\n\n".join(paragraphs)
 
         if not residential_property_types and not property_mix:
             return (
                 f"This section covers the residential property-type mix visible for {location_label}. "
-                "When that data is available, it helps explain how the current resale options are distributed."
+                "When that data is available, it shows how the resale options are distributed across home formats."
             )
 
         visible_names = [item.get("propertyType") for item in residential_property_types[:4] if item.get("propertyType")]
-        lines: list[str] = []
+        paragraphs: list[str] = []
 
         if visible_names:
-            lines.append(
+            paragraphs.append(
                 f"For {location_label}, the visible residential mix includes categories such as {', '.join(visible_names)}."
             )
 
@@ -534,9 +715,11 @@ class DraftGenerationService:
                     first_match = item
                     break
             if first_match and first_match.get("doc_count") is not None:
-                lines.append(f"One visible property-type bucket is {first_match.get('key')} with {first_match.get('doc_count')} rows.")
+                paragraphs.append(
+                    f"One visible property-type bucket is {first_match.get('key')} with {first_match.get('doc_count')} rows."
+                )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_property_type_rate_snapshot_safe_body(content_plan: dict) -> str:
@@ -550,7 +733,7 @@ class DraftGenerationService:
         location_rates = pricing_summary.get("location_rates", []) or []
         micromarket_rates = pricing_summary.get("micromarket_rates", []) or []
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
 
         if page_property_type_context.get("scope") == "specific" and page_property_type_context.get("property_type"):
             property_type = page_property_type_context.get("property_type")
@@ -567,7 +750,7 @@ class DraftGenerationService:
                     parts.append(f"The asking-rate signal for this category is ₹{property_record['avgPrice']:,}.")
                 if property_record.get("changePercent") is not None:
                     parts.append(f"The visible change signal for this category is {property_record['changePercent']}.")
-                lines.append(" ".join(parts))
+                paragraphs.append(" ".join(parts))
 
             comparison_row = None
             if location_rates and isinstance(location_rates[0], dict):
@@ -576,17 +759,17 @@ class DraftGenerationService:
                 comparison_row = micromarket_rates[0]
 
             if comparison_row and comparison_row.get("name") and comparison_row.get("avgRate") is not None:
-                lines.append(
+                paragraphs.append(
                     f"For broader location context, {comparison_row.get('name')} is shown at ₹{comparison_row.get('avgRate'):,}."
                 )
 
-            if lines:
-                return "\n\n".join(lines)
+            if paragraphs:
+                return "\n\n".join(paragraphs)
 
         if residential_property_types:
             visible_types = [item.get("propertyType") for item in residential_property_types[:3] if item.get("propertyType")]
             if visible_types:
-                lines.append(
+                paragraphs.append(
                     f"The current rate view for {location_label} covers residential categories such as {', '.join(visible_types)}."
                 )
 
@@ -600,15 +783,15 @@ class DraftGenerationService:
             row_bits = [f"{comparison_row.get('name')} is shown at ₹{comparison_row.get('avgRate'):,}"]
             if comparison_row.get("changePercentage") is not None:
                 row_bits.append(f"with a change signal of {comparison_row.get('changePercentage')}")
-            lines.append("For broader context, " + " and ".join(row_bits) + ".")
+            paragraphs.append("For broader context, " + " and ".join(row_bits) + ".")
 
-        if not lines:
+        if not paragraphs:
             return (
                 f"This section explains the property-type and location-rate view available for {location_label}. "
-                "When those values are present, they help add context to the current asking-price picture."
+                "When those values are present, they add context to the current asking-price picture."
             )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
 
     @staticmethod
     def _build_micromarket_coverage_safe_body(content_plan: dict) -> str:
@@ -622,7 +805,7 @@ class DraftGenerationService:
         if not valid_rows:
             return (
                 f"This section covers the city-level zone view available for {location_label}. "
-                "When zone-level rates are present, they help show how asking-rate signals differ across the city."
+                "When zone-level rates are present, they show how asking-rate signals differ across the city."
             )
 
         sorted_rows = sorted(valid_rows, key=lambda item: item.get("avgRate") or 0, reverse=True)
@@ -632,17 +815,115 @@ class DraftGenerationService:
         premium_zone = sorted_rows[0]
         value_zone = sorted_rows[-1]
 
-        lines: list[str] = []
+        paragraphs: list[str] = []
         if top_bits:
-            lines.append(
+            paragraphs.append(
                 f"The visible city-rate view for {location_label} includes zones such as " + ", ".join(top_bits) + "."
             )
 
-        lines.append(
+        paragraphs.append(
             f"Within this view, {premium_zone.get('name')} is at the higher end at ₹{premium_zone.get('avgRate'):,}, while {value_zone.get('name')} appears at the lower end at ₹{value_zone.get('avgRate'):,}."
         )
 
-        return "\n\n".join(lines)
+        return "\n\n".join(paragraphs)
+
+    @staticmethod
+    def _build_bhk_inventory_mix_safe_body(content_plan: dict) -> str:
+        distributions = content_plan.get("data_context", {}).get("distributions", {}) or {}
+        location_label = DraftGenerationService._location_label(content_plan)
+
+        bhk_mix = distributions.get("sale_unit_type_distribution", []) or []
+        property_mix = distributions.get("sale_property_type_distribution", []) or []
+
+        if not bhk_mix and not property_mix:
+            return (
+                f"This section explains the BHK and inventory mix visible for {location_label}. "
+                "When that data is present, it shows how the currently visible stock is distributed by home size."
+            )
+
+        paragraphs: list[str] = []
+
+        bhk_rows = []
+        for item in bhk_mix[:4]:
+            key = item.get("key")
+            doc_count = item.get("doc_count")
+            if key and doc_count is not None:
+                bhk_rows.append(f"{key} with {doc_count} listings")
+            elif key:
+                bhk_rows.append(str(key))
+
+        if bhk_rows:
+            paragraphs.append(
+                f"The visible home-size mix in {location_label} includes " + ", ".join(bhk_rows) + "."
+            )
+
+        property_rows = []
+        for item in property_mix[:3]:
+            key = item.get("key")
+            doc_count = item.get("doc_count")
+            if key and doc_count is not None:
+                property_rows.append(f"{key} with {doc_count} rows")
+        if property_rows:
+            paragraphs.append("Alongside that, the broader property-type mix includes " + ", ".join(property_rows) + ".")
+
+        return "\n\n".join(paragraphs)
+
+    @staticmethod
+    def _build_nearby_alternatives_safe_body(content_plan: dict) -> str:
+        nearby_localities = content_plan.get("data_context", {}).get("nearby_localities", []) or []
+        location_label = DraftGenerationService._location_label(content_plan)
+
+        if not nearby_localities:
+            return (
+                f"This section is meant to highlight nearby alternatives around {location_label}. "
+                "When nearby-locality data is available, it helps compare adjacent resale markets."
+            )
+
+        top_rows = nearby_localities[:4]
+        names = [item.get("name") for item in top_rows if item.get("name")]
+        first = top_rows[0]
+
+        paragraphs: list[str] = []
+        if names:
+            paragraphs.append(
+                f"Buyers comparing options around {location_label} can also look at nearby areas such as {', '.join(names)}."
+            )
+
+        first_bits: list[str] = []
+        if first.get("distance_km") is not None:
+            first_bits.append(f"{first['distance_km']:.2f} km away")
+        if first.get("sale_count") is not None:
+            first_bits.append(f"{first['sale_count']} resale listings")
+        if first_bits and first.get("name"):
+            paragraphs.append(
+                f"The first nearby option shown is {first.get('name')} with " + " and ".join(first_bits) + "."
+            )
+
+        return "\n\n".join(paragraphs)
+
+    @staticmethod
+    def _build_locality_coverage_safe_body(content_plan: dict) -> str:
+        pricing_summary = content_plan.get("data_context", {}).get("pricing_summary", {}) or {}
+        location_label = DraftGenerationService._location_label(content_plan)
+        location_rates = pricing_summary.get("location_rates", []) or []
+
+        valid_rows = [
+            item for item in location_rates if isinstance(item, dict) and item.get("name") and item.get("avgRate") is not None
+        ]
+
+        if not valid_rows:
+            return (
+                f"This section covers the localities visible inside the micromarket view for {location_label}. "
+                "When locality-level rate rows are available, they help compare sub-areas within the same micromarket."
+            )
+
+        top_rows = valid_rows[:4]
+        bits = [f"{item.get('name')} at ₹{item.get('avgRate'):,}" for item in top_rows]
+        return (
+            f"Within {location_label}, the locality-level resale view currently includes areas such as "
+            + ", ".join(bits)
+            + "."
+        )
 
     @staticmethod
     def _build_safe_section_body(content_plan: dict, section_id: str) -> str | None:
@@ -669,6 +950,15 @@ class DraftGenerationService:
 
         if section_id == "micromarket_coverage":
             return DraftGenerationService._build_micromarket_coverage_safe_body(content_plan)
+
+        if section_id == "bhk_and_inventory_mix":
+            return DraftGenerationService._build_bhk_inventory_mix_safe_body(content_plan)
+
+        if section_id == "nearby_alternatives":
+            return DraftGenerationService._build_nearby_alternatives_safe_body(content_plan)
+
+        if section_id == "locality_coverage":
+            return DraftGenerationService._build_locality_coverage_safe_body(content_plan)
 
         return None
 
@@ -750,6 +1040,23 @@ class DraftGenerationService:
         return completed_sections
 
     @staticmethod
+    def _editorialize_sections(content_plan: dict, sections: list[dict]) -> list[dict]:
+        edited: list[dict] = []
+
+        for section in sections:
+            updated = dict(section)
+            updated["body"] = DraftGenerationService._normalize_editorial_text(updated.get("body", ""))
+
+            if DraftGenerationService._section_should_use_safe_body(content_plan, updated):
+                safe_body = DraftGenerationService._build_safe_section_body(content_plan, updated.get("id", ""))
+                if safe_body is not None:
+                    updated["body"] = safe_body
+
+            edited.append(updated)
+
+        return edited
+
+    @staticmethod
     def _faq_answer_for_pricing(content_plan: dict) -> str | None:
         pricing_summary = content_plan.get("data_context", {}).get("pricing_summary", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
@@ -777,7 +1084,7 @@ class DraftGenerationService:
             if latest.get("cityRate") is not None:
                 trend_bits.append(f"the city-level rate is ₹{latest['cityRate']:,}")
             if trend_bits:
-                parts.append("The available trend view shows " + ", ".join(trend_bits) + ".")
+                parts.append("The trend view currently shows " + ", ".join(trend_bits) + ".")
 
         return " ".join(parts)
 
@@ -801,9 +1108,7 @@ class DraftGenerationService:
         if total_projects is not None:
             metrics.append(f"{total_projects} projects")
 
-        return (
-            f"For {location_label}, the current page-level summary shows " + ", ".join(metrics) + "."
-        )
+        return f"For {location_label}, the current page-level summary shows " + ", ".join(metrics) + "."
 
     @staticmethod
     def _faq_answer_for_bhk_availability(content_plan: dict) -> str | None:
@@ -830,7 +1135,7 @@ class DraftGenerationService:
             return None
 
         return (
-            f"The available BHK mix for resale properties in {location_label} includes {', '.join(pieces)}."
+            f"The visible home-size mix for resale properties in {location_label} includes {', '.join(pieces)}."
         )
 
     @staticmethod
@@ -882,13 +1187,13 @@ class DraftGenerationService:
 
         parts: list[str] = []
         if names:
-            parts.append(f"nearby localities such as {', '.join(names)}")
+            parts.append(f"nearby areas such as {', '.join(names)}")
         if first.get("distance_km") is not None:
             parts.append(f"the closest visible option is {first['distance_km']:.2f} km away")
         if first.get("sale_count") is not None:
             parts.append(f"that row shows {first['sale_count']} resale listings")
 
-        return f"Around {location_label}, the current nearby-locality view includes " + ", ".join(parts) + "."
+        return f"Around {location_label}, the current nearby-area view includes " + ", ".join(parts) + "."
 
     @staticmethod
     def _faq_answer_for_review_signals(content_plan: dict) -> str | None:
@@ -991,7 +1296,7 @@ class DraftGenerationService:
                 details.append(", ".join(unit_bits))
 
         if sale_range.get("doc_count") is not None:
-            details.append(f"{sale_range['doc_count']} rows in the listing-range view")
+            details.append(f"{sale_range['doc_count']} entries in the listing-range view")
         if sale_range.get("min_price") is not None and sale_range.get("max_price") is not None:
             details.append(
                 f"a visible price span from ₹{sale_range['min_price']:,} to ₹{sale_range['max_price']:,}"
@@ -1005,7 +1310,9 @@ class DraftGenerationService:
         distributions = content_plan.get("data_context", {}).get("distributions", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
 
-        property_types = pricing_summary.get("property_types", []) or []
+        property_types = DraftGenerationService._filter_residential_property_types(
+            pricing_summary.get("property_types", []) or []
+        )
         property_mix = distributions.get("sale_property_type_distribution", []) or []
 
         if not property_types and not property_mix:
@@ -1034,7 +1341,7 @@ class DraftGenerationService:
             if first_mix.get("key") and first_mix.get("doc_count") is not None:
                 details.append(f"{first_mix['key']} with {first_mix['doc_count']} rows")
 
-        return f"For {location_label}, the current property-type view includes " + " and ".join(details) + "."
+        return f"For {location_label}, the current residential property-type view includes " + " and ".join(details) + "."
 
     @staticmethod
     def _faq_answer_for_price_range(content_plan: dict) -> str | None:
@@ -1071,9 +1378,7 @@ class DraftGenerationService:
             return None
 
         preview = ", ".join(visible_keys[:4])
-        return (
-            f"For {location_label}, the page includes RERA or buyer-protection related fields such as {preview}."
-        )
+        return f"For {location_label}, the page includes RERA or buyer-protection related fields such as {preview}."
 
     @staticmethod
     def _build_safe_faq_answer_for_intent(content_plan: dict, intent_id: str) -> str | None:
@@ -1108,6 +1413,7 @@ class DraftGenerationService:
             or "property rates ai" in lowered
             or "ai market" in lowered
             or "market signals" in lowered
+            or "market-summary" in lowered
         ):
             return DraftGenerationService._faq_answer_for_property_rates_ai_signals(content_plan)
 
@@ -1126,13 +1432,13 @@ class DraftGenerationService:
         if "price" in lowered or "asking" in lowered or "rate" in lowered:
             return DraftGenerationService._faq_answer_for_pricing(content_plan)
 
-        if "how many" in lowered or "available" in lowered or "inventory" in lowered:
+        if "how much" in lowered or "how many" in lowered or "inventory" in lowered or "visible" in lowered:
             return DraftGenerationService._faq_answer_for_inventory(content_plan)
 
-        if "bhk" in lowered or "unit type" in lowered or "unit-type" in lowered:
+        if "bhk" in lowered or "home size" in lowered or "unit type" in lowered or "unit-type" in lowered:
             return DraftGenerationService._faq_answer_for_bhk_availability(content_plan)
 
-        if "nearby" in lowered or "localities" in lowered or "locality" in lowered:
+        if "nearby" in lowered or "areas" in lowered or "localities" in lowered or "locality" in lowered:
             return DraftGenerationService._faq_answer_for_nearby_localities(content_plan)
 
         if "rera" in lowered or "buyer-protection" in lowered or "buyer protection" in lowered:
@@ -1149,7 +1455,7 @@ class DraftGenerationService:
 
         for faq in faqs:
             question = (faq.get("question") or "").strip()
-            answer = (faq.get("answer") or "").strip()
+            answer = DraftGenerationService._normalize_editorial_text(faq.get("answer", ""))
 
             if not question or not answer:
                 continue
@@ -1167,6 +1473,26 @@ class DraftGenerationService:
             seen_questions.add(lowered)
 
         return normalized
+
+    @staticmethod
+    def _editorialize_faqs(content_plan: dict, faqs: list[dict]) -> list[dict]:
+        edited: list[dict] = []
+
+        for faq in DraftGenerationService._normalize_generated_faqs(content_plan, faqs):
+            updated = dict(faq)
+
+            if DraftGenerationService._faq_should_use_safe_answer(content_plan, updated):
+                safe_answer = DraftGenerationService._build_safe_faq_answer(
+                    content_plan,
+                    updated.get("question", ""),
+                )
+                if safe_answer:
+                    updated["answer"] = safe_answer
+
+            updated["answer"] = DraftGenerationService._normalize_editorial_text(updated.get("answer", ""))
+            edited.append(updated)
+
+        return edited
 
     @staticmethod
     def _repair_sections(
@@ -1454,18 +1780,39 @@ class DraftGenerationService:
         return f"{title} gives a compact view of the values behind this page."
 
     @staticmethod
+    def _ai_table_summary_is_acceptable(summary: str) -> bool:
+        cleaned = DraftGenerationService._normalize_editorial_text(summary)
+        if not cleaned:
+            return False
+        if DraftGenerationService._looks_machine_written(cleaned):
+            return False
+        if len(cleaned.split()) < 10:
+            return False
+        return True
+
+    @staticmethod
     def _generate_table_summary(table: dict, content_plan: dict, client: OpenAIClient) -> str:
-        system_prompt, user_prompt = PromptBuilder.table_summary_prompt(
-            table,
-            content_plan["entity"],
-            content_plan.get("planning_signals", {}),
-        )
-        response = client.generate_json(system_prompt, user_prompt)
-        if isinstance(response, dict):
-            summary = response.get("summary")
-            if isinstance(summary, str) and summary.strip():
-                return summary.strip()
-        return DraftGenerationService._summarize_table(table)
+        deterministic = DraftGenerationService._summarize_table(table)
+
+        rows = table.get("rows", []) or []
+        if not rows:
+            return deterministic
+
+        try:
+            system_prompt, user_prompt = PromptBuilder.table_summary_prompt(
+                table,
+                content_plan["entity"],
+                content_plan.get("planning_signals", {}),
+            )
+            response = client.generate_json(system_prompt, user_prompt)
+            if isinstance(response, dict):
+                summary = response.get("summary")
+                if isinstance(summary, str) and DraftGenerationService._ai_table_summary_is_acceptable(summary):
+                    return DraftGenerationService._normalize_editorial_text(summary)
+        except Exception:
+            return deterministic
+
+        return deterministic
 
     @staticmethod
     def _attach_table_summaries(
@@ -1498,7 +1845,7 @@ class DraftGenerationService:
         internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
         return {
-            "version": "v2.6",
+            "version": "v2.7",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": content_plan["page_type"],
             "listing_type": content_plan["listing_type"],
@@ -1540,9 +1887,11 @@ class DraftGenerationService:
         sections = DraftGenerationService._generate_sections(content_plan, client)
         sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
         sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
+        sections = DraftGenerationService._editorialize_sections(content_plan, sections)
 
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
+        faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
 
         draft = DraftGenerationService._build_base_draft(
             content_plan=content_plan,
@@ -1569,8 +1918,11 @@ class DraftGenerationService:
             )
             sections = DraftGenerationService._ensure_planned_sections_present(content_plan, sections)
             sections = DraftGenerationService._enforce_strict_section_bodies(content_plan, sections)
+            sections = DraftGenerationService._editorialize_sections(content_plan, sections)
+
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
             faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
+            faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
 
             draft = DraftGenerationService._build_base_draft(
                 content_plan=content_plan,

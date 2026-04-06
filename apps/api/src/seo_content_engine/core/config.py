@@ -52,10 +52,11 @@ class Settings(BaseSettings):
     block_artifact_write_on_review: bool = False
     draft_default_export_formats: list[str] = ["json", "markdown", "docx", "html"]
 
-    editorial_min_section_words: int = 70
-    editorial_min_faq_words: int = 35
+    editorial_min_section_words: int = 80
+    editorial_min_faq_words: int = 40
     editorial_force_safe_sections: list[str] = ["property_rates_ai_signals"]
     editorial_robotic_phrase_threshold: int = 2
+    editorial_generic_filler_threshold: int = 2
 
     @field_validator("draft_default_export_formats")
     @classmethod
