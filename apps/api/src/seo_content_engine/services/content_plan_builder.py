@@ -44,7 +44,7 @@ class ContentPlanBuilder:
         if entity_name.lower() == city_name.lower():
             return entity_name
         return f"{entity_name}, {city_name}"
-    
+
     @staticmethod
     def _page_property_type_context(normalized: dict, entity: dict) -> dict[str, Any]:
         context = normalized.get("page_property_type_context", {}) or {}
@@ -72,7 +72,11 @@ class ContentPlanBuilder:
     @staticmethod
     def _build_city_zone_segmentation(pricing_summary: dict) -> dict[str, Any]:
         location_rates = pricing_summary.get("location_rates", []) or []
-        valid_rows = [item for item in location_rates if isinstance(item, dict) and item.get("name") and item.get("avgRate") is not None]
+        valid_rows = [
+            item
+            for item in location_rates
+            if isinstance(item, dict) and item.get("name") and item.get("avgRate") is not None
+        ]
 
         if len(valid_rows) < 2:
             return {}
@@ -257,7 +261,7 @@ class ContentPlanBuilder:
             "raw_source_meta_available": bool(raw_source_meta),
             "raw_source_signals": raw_source_meta,
         }
-    
+
     @staticmethod
     def _apply_priority_order(items: list[dict], priority_ids: list[str], id_key: str = "id") -> list[dict]:
         priority_map = {value: index for index, value in enumerate(priority_ids)}
@@ -276,8 +280,10 @@ class ContentPlanBuilder:
             "bhk": ["bhk_and_inventory_mix"],
             "ready_to_move": [],
             "locality_navigation": (
-                ["nearby_alternatives"] if page_type == PageType.RESALE_LOCALITY
-                else ["locality_coverage"] if page_type == PageType.RESALE_MICROMARKET
+                ["nearby_alternatives"]
+                if page_type == PageType.RESALE_LOCALITY
+                else ["locality_coverage"]
+                if page_type == PageType.RESALE_MICROMARKET
                 else ["micromarket_coverage"]
             ),
             "reviews": ["review_and_rating_signals"],
@@ -451,9 +457,9 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore {primary_keyword_text.lower()} with prices, BHK options, nearby localities, and current page-level market signals on Square Yards.",
-            f"Find {secondary_primary_keyword.lower()} with price trends, inventory mix, and nearby area insights on Square Yards.",
-            f"Browse {tertiary_primary_keyword.lower()} with rates, property mix, and grounded buying insights on Square Yards.",
+            f"Explore {primary_keyword_text.lower()} with asking price details, BHK options, nearby localities, and resale market context on Square Yards.",
+            f"Find {secondary_primary_keyword.lower()} with asking price trends, inventory mix, and nearby area insights on Square Yards.",
+            f"Browse {tertiary_primary_keyword.lower()} with rates, property mix, and grounded resale information on Square Yards.",
             f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
         ]
 
@@ -486,8 +492,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["quarterName", "locationRate", "micromarketRate", "cityRate"],
                 "summary_instruction": (
-                    "Summarize what this table covers, why it matters to a resale buyer, "
-                    "and mention the first visible row using grounded values only."
+                    "Explain what this table helps the user compare and mention one visible row naturally."
                 ),
             },
             {
@@ -497,8 +502,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["key", "doc_count"],
                 "summary_instruction": (
-                    "Explain what this table shows about the visible BHK mix "
-                    "and reference the first row with grounded values only."
+                    "Explain what this table says about the available BHK mix and mention one visible row naturally."
                 ),
             },
             {
@@ -508,8 +512,7 @@ class ContentPlanBuilder:
                 "render_type": "deterministic",
                 "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
                 "summary_instruction": (
-                    "Explain how this table helps compare nearby alternatives and mention the first row "
-                    "with grounded values only."
+                    "Explain how this table helps compare nearby alternatives and mention one visible row naturally."
                 ),
             },
         ]
@@ -524,8 +527,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["name", "avgRate", "changePercentage"],
                     "summary_instruction": (
-                        "For city pages, treat these as city zones or micromarkets rather than locality rows. "
-                        "Explain what the table covers and reference the first visible row using grounded values only."
+                        "For city pages, treat these as city zones or micromarkets rather than locality rows."
                     ),
                 }
             )
@@ -540,8 +542,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["propertyType", "avgPrice", "changePercent"],
                     "summary_instruction": (
-                        "Explain the visible residential property-type pricing signals here and mention the first row "
-                        "using grounded values only."
+                        "Explain the visible residential property-type pricing signals and mention one visible row naturally."
                     ),
                 }
             )
@@ -555,7 +556,7 @@ class ContentPlanBuilder:
                     "render_type": "deterministic",
                     "columns": ["sale_count", "total_listings", "total_projects"],
                     "summary_instruction": (
-                        "Explain that this table gives a quick page-level coverage snapshot and reference the visible values only."
+                        "Explain that this table gives a quick scale view of the page using only visible values."
                     ),
                 }
             )
@@ -707,7 +708,6 @@ class ContentPlanBuilder:
 
     @staticmethod
     def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
-        location_label = ContentPlanBuilder._display_location(entity)
         has_review_signals = ContentPlanBuilder._has_review_signals(normalized)
 
         common_sections = [
@@ -715,9 +715,9 @@ class ContentPlanBuilder:
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
                 "objective": (
-                    "Summarize the visible resale inventory in a grounded and readable way. "
-                    "If this page is for a specific residential property type, talk only about that property type. "
-                    "If this page is a generic property-for-sale page, summarize only the relevant residential property types visible in the source data."
+                    "Open with a grounded overview of what a buyer is actually looking at on this page. "
+                    "Explain the visible resale inventory in plain English. "
+                    "If this page is for a specific residential property type, stay focused on that type only."
                 ),
                 "render_type": "generative",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 5),
@@ -726,7 +726,10 @@ class ContentPlanBuilder:
             {
                 "id": "price_trends_and_rates",
                 "title": "Price Trends and Rates",
-                "objective": "Explain visible asking price direction and trend context using grounded inputs only, in a more descriptive and SEO-friendly format.",
+                "objective": (
+                    "Explain the asking price signal and the available trend context in a grounded, readable way. "
+                    "Help a buyer understand the numbers without sounding technical or promotional."
+                ),
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 5),
                 "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
@@ -738,7 +741,10 @@ class ContentPlanBuilder:
             {
                 "id": "bhk_and_inventory_mix",
                 "title": "BHK and Inventory Mix",
-                "objective": "Describe the visible mix of BHK formats and inventory composition in a buyer-friendly but fully grounded way.",
+                "objective": (
+                    "Explain which BHK formats and inventory buckets are showing up in the resale stock here. "
+                    "Make the mix easy to scan and understand for a buyer comparing options."
+                ),
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 6),
                 "data_dependencies": [
@@ -749,7 +755,7 @@ class ContentPlanBuilder:
             {
                 "id": "faq_section",
                 "title": "Frequently Asked Questions",
-                "objective": "Answer a broader set of grounded buying, inventory, price, supply, and nearby-location questions.",
+                "objective": "Answer realistic buyer questions using grounded data only.",
                 "render_type": "generative",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("faq_keyword_candidates", []), 8),
                 "data_dependencies": [
@@ -777,7 +783,10 @@ class ContentPlanBuilder:
         locality_specific = {
             "id": "nearby_alternatives",
             "title": "Nearby Localities Buyers Can Also Explore",
-            "objective": "Describe nearby resale alternatives around the locality using actual nearby locality data and grounded comparisons.",
+            "objective": (
+                "Help a buyer compare nearby alternatives without leaving the resale context. "
+                "Use only actual nearby-locality data."
+            ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": ["nearby_localities"],
@@ -786,7 +795,9 @@ class ContentPlanBuilder:
         review_signals_section = {
             "id": "review_and_rating_signals",
             "title": "Review and Rating Signals",
-            "objective": "Summarize explicit review counts, rating inputs, visible tags, and AI summary text in a descriptive but grounded way.",
+            "objective": (
+                "Summarize explicit review counts, ratings, visible tags, and locality summary text in a way that is useful but restrained."
+            ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": ["review_summary", "ai_summary"],
@@ -796,22 +807,20 @@ class ContentPlanBuilder:
             "id": "property_rates_ai_signals",
             "title": "Market Strengths, Challenges, and Opportunities",
             "objective": (
-                "Write a tightly grounded market-summary section using only the structured "
-                "property-rates AI fields: market snapshot, market strengths, market challenges, "
-                "and investment opportunities. Break the output clearly into Strengths, Challenges, "
-                "and Opportunities. Keep it concise, readable, and source-bound."
+                "Present the structured property-rates AI fields exactly as a restrained editorial summary. "
+                "Do not add interpretation beyond the provided snapshot and lists."
             ),
             "render_type": "hybrid",
-            "target_keywords": ContentPlanBuilder._top_keywords(
-                keyword_clusters.get("secondary_keywords", []), 4
-            ),
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": ["property_rates_ai_summary"],
         }
 
         demand_supply_section = {
             "id": "demand_and_supply_signals",
             "title": "Demand and Supply Signals",
-            "objective": "Describe visible demand, supply, range, and availability inputs without adding unsupported market interpretation.",
+            "objective": (
+                "Explain what the available counts, percentages, and listing ranges suggest about the visible resale stock, without adding unsupported interpretation."
+            ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
@@ -821,9 +830,8 @@ class ContentPlanBuilder:
             "id": "property_type_signals",
             "title": "Property Type Signals",
             "objective": (
-                "Describe visible residential property-type and mix inputs in a non-technical, buyer-readable way. "
-                "If this page is for a specific residential property type, stay focused on that property type only. "
-                "Do not mix residential and commercial categories. Do not use status-bucket commentary here."
+                "Explain which residential property types are visible and how they appear in the current resale mix. "
+                "If the page is for a specific type, stay tightly focused on that type."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -838,8 +846,8 @@ class ContentPlanBuilder:
             "id": "property_type_rate_snapshot",
             "title": "Property Type Rate Snapshot",
             "objective": (
-                "Explain visible residential property-type and location-level rate inputs in a more readable and less technical way. "
-                "Align the narrative with the page intent. Avoid raw field-language such as listed value input or change input."
+                "Translate property-type and location-level rate inputs into buyer-readable prose. "
+                "Avoid raw field language and avoid repeating the market snapshot section."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -854,7 +862,9 @@ class ContentPlanBuilder:
         micromarket_specific = {
             "id": "locality_coverage",
             "title": "Localities Covered in This Micromarket",
-            "objective": "Describe how resale options are distributed across the micromarket using grounded listing and nearby-locality signals.",
+            "objective": (
+                "Explain how resale options are distributed across localities within the micromarket using grounded inputs only."
+            ),
             "render_type": "generative",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
             "data_dependencies": ["listing_summary", "nearby_localities", "pricing_summary.location_rates"],
@@ -864,9 +874,8 @@ class ContentPlanBuilder:
             "id": "micromarket_coverage",
             "title": "Key Resale Zones Across the City",
             "objective": (
-                "Describe how visible resale opportunities are distributed across city-level zones using grounded city coverage signals. "
-                "Where clear pricing tiers are visible, add a simple buyer segmentation layer such as higher-budget zones versus relatively lower visible rate zones, "
-                "without making unsupported investment claims."
+                "Explain how visible resale opportunities are distributed across the city using grounded location-rate inputs. "
+                "If clear pricing tiers exist, explain them simply without making investment claims."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -941,6 +950,8 @@ class ContentPlanBuilder:
                 "prefer_paragraphs_over_bullets": True,
                 "avoid_template_like_phrasing": True,
                 "avoid_repetition": True,
+                "avoid_internal_language": True,
+                "write_for_real_buyers_not_reviewers": True,
             }
 
             section_context["keyword_usage_plan"] = {
@@ -949,8 +960,8 @@ class ContentPlanBuilder:
                 "body_keyword_priority": body_keyword_priority,
                 "instruction": (
                     "Use the main primary keyword naturally in an early section. "
-                    "Where suitable, use one alternate primary keyword variant naturally in one other early section. "
-                    "Do not stuff keywords or repeat the same keyword phrasing across every section."
+                    "Where suitable, use one alternate primary keyword variant naturally in one other section. "
+                    "Do not stuff keywords or repeat the same phrase across every section."
                 ),
             }
 
@@ -963,9 +974,10 @@ class ContentPlanBuilder:
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["listing_summary", "pricing_summary", "distributions", "page_property_type_context"],
                     "instruction": (
+                        "Open with what a buyer is actually seeing here. "
                         "If page_property_type_context.scope is specific, talk only about that residential property type. "
                         "If the page scope is all, summarize only the relevant residential property types visible in source data. "
-                        "Do not mix residential and commercial types in the same narrative."
+                        "Do not mix residential and commercial types."
                     ),
                 }
 
@@ -973,13 +985,19 @@ class ContentPlanBuilder:
                 section_context["narrative_guardrails"] = {
                     "allowed_pricing_metrics": ["asking_price"],
                     "disallowed_pricing_metrics": ["registration_rate", "sale_avg_price_per_sqft"],
-                    "instruction": "Use only asking_price and price_trend in prose. Do not mention registration_rate or any non-canonical pricing metric.",
+                    "instruction": (
+                        "Use only asking_price and price_trend in prose. "
+                        "Explain the number and the trend context in plain English."
+                    ),
                 }
 
             if section["id"] == "review_and_rating_signals":
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["review_summary", "ai_summary"],
-                    "instruction": "Use only explicit review counts, rating values, tags, and ai_summary inputs. Do not infer sentiment or desirability.",
+                    "instruction": (
+                        "Use only explicit review counts, rating values, tags, and ai_summary inputs. "
+                        "Do not infer sentiment, trust, or desirability."
+                    ),
                 }
 
             if section["id"] == "property_rates_ai_signals":
@@ -989,14 +1007,17 @@ class ContentPlanBuilder:
                         "Use only explicit property_rates_ai_summary fields. "
                         "Break the response into a short snapshot followed by Strengths, Challenges, and Opportunities. "
                         "Keep the wording concise, readable, and source-bound. "
-                        "Do not dump every raw input into one long paragraph."
+                        "Do not add advice or interpretation."
                     ),
                 }
 
             if section["id"] == "demand_and_supply_signals":
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["demand_supply", "listing_ranges", "listing_summary"],
-                    "instruction": "Use only explicit counts, percentages, availability, and listing-range values. Do not interpret market strength.",
+                    "instruction": (
+                        "Use only explicit counts, percentages, availability, and listing-range values. "
+                        "Explain what is visible without overstating what it means."
+                    ),
                 }
 
             if section["id"] == "property_type_signals":
@@ -1009,7 +1030,8 @@ class ContentPlanBuilder:
                     "instruction": (
                         "Use only explicit residential property-type, rate, and mix inputs. "
                         "If the page is specific to one residential property type, stay focused on that type only. "
-                        "Do not mix in commercial categories. Do not use status commentary here."
+                        "Do not mix in commercial categories. "
+                        "Do not use status commentary here."
                     ),
                 }
 
@@ -1023,8 +1045,7 @@ class ContentPlanBuilder:
                     ],
                     "instruction": (
                         "Use only explicit residential property-type and location-rate inputs. "
-                        "Avoid technical field language like input, avgPrice field, or changePercent field. "
-                        "Align the narrative with the page type and keep it readable."
+                        "Avoid technical field language and avoid sounding like a data dump."
                     ),
                 }
 
@@ -1033,7 +1054,7 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["pricing_summary.location_rates", "buyer_segmentation"],
                     "instruction": (
                         "For city pages, explain covered zones using the visible location-rate rows. "
-                        "Where clear tiers exist, add a simple buyer segmentation layer such as higher-budget zones versus relatively lower visible rate zones. "
+                        "Where clear tiers exist, explain them simply as pricing bands. "
                         "Do not add unsupported investment or growth claims."
                     ),
                 }
@@ -1080,7 +1101,7 @@ class ContentPlanBuilder:
         )
 
         return {
-            "version": "v1.9",
+            "version": "v2.0",
             "generated_at": datetime.now(UTC).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],

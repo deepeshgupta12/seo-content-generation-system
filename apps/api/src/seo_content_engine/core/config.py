@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     block_artifact_write_on_review: bool = False
     draft_default_export_formats: list[str] = ["json", "markdown", "docx", "html"]
 
+    editorial_min_section_words: int = 70
+    editorial_min_faq_words: int = 35
+    editorial_force_safe_sections: list[str] = ["property_rates_ai_signals"]
+    editorial_robotic_phrase_threshold: int = 2
+
     @field_validator("draft_default_export_formats")
     @classmethod
     def validate_draft_default_export_formats(cls, value: list[str]) -> list[str]:
@@ -74,6 +79,25 @@ class Settings(BaseSettings):
             normalized.append(lowered)
 
         return normalized
+
+    @field_validator("editorial_force_safe_sections")
+    @classmethod
+    def validate_editorial_force_safe_sections(cls, value: list[str]) -> list[str]:
+        if not value:
+            return ["property_rates_ai_signals"]
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            cleaned = str(item).strip()
+            if not cleaned:
+                continue
+            if cleaned in seen:
+                continue
+            seen.add(cleaned)
+            normalized.append(cleaned)
+
+        return normalized or ["property_rates_ai_signals"]
 
     model_config = SettingsConfigDict(
         env_file=".env",
