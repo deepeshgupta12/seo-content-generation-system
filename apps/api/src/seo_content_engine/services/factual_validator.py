@@ -848,12 +848,101 @@ class FactualValidator:
         return has_commercial and has_residential
 
     @staticmethod
+    # ------------------------------------------------------------------ #
+    # H3 — Cross-Section Coherence Check                                 #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _extract_price_per_sqft_values(text: str) -> list[float]:
+        """Extract price-per-sqft numeric values from a text string.
+
+        Recognises patterns like "₹40,238 per sq ft", "40238 per sqft",
+        "Rs 1,25,000/sq ft", etc.  Only returns values in the realistic
+        INR range for per-sqft pricing (2,000 – 2,00,000).
+        """
+        pattern = re.compile(
+            r"(?:₹|rs\.?\s*)?(\d[\d,]*(?:\.\d+)?)\s*"
+            r"(?:per\s+sq(?:\.?\s*ft|uare\s*feet?)|per\s*sqft|/sq\.?\s*ft|per\s+square\s+foot)",
+            re.I,
+        )
+        results: list[float] = []
+        for match in pattern.finditer(text):
+            try:
+                val = float(match.group(1).replace(",", ""))
+                if 2_000 <= val <= 2_00_000:  # realistic INR range
+                    results.append(val)
+            except ValueError:
+                pass
+        return results
+
+    @staticmethod
+    def _build_cross_section_coherence_check(draft: dict) -> dict[str, Any]:
+        """H3 — Detect price-per-sqft contradictions across sections and FAQs.
+
+        If the spread of all detected price-per-sqft values across sections and
+        FAQs exceeds 15% of the mean, ``cross_section_incoherence_detected`` is
+        raised as a warning.  The check is additive and does **not** trigger a
+        hard-fail; it penalises the quality score instead.
+        """
+        all_values: list[float] = []
+        source_map: dict[str, list[float]] = {}
+
+        for section in draft.get("sections", []):
+            section_id = str(section.get("id") or "unknown_section")
+            text = str(section.get("body") or "")
+            values = FactualValidator._extract_price_per_sqft_values(text)
+            if values:
+                all_values.extend(values)
+                source_map[section_id] = values
+
+        for faq in draft.get("faqs", []):
+            question_key = "faq:" + str(faq.get("question") or "")[:60]
+            text = str(faq.get("answer") or "")
+            values = FactualValidator._extract_price_per_sqft_values(text)
+            if values:
+                all_values.extend(values)
+                source_map[question_key] = values
+
+        if len(all_values) < 2:
+            return {
+                "warnings": [],
+                "checked_value_count": len(all_values),
+                "incoherent_sources": [],
+            }
+
+        min_val = min(all_values)
+        max_val = max(all_values)
+        mean_val = sum(all_values) / len(all_values)
+        relative_range = (max_val - min_val) / mean_val if mean_val > 0 else 0.0
+
+        warnings: list[str] = []
+        incoherent_sources: list[str] = []
+
+        if relative_range > 0.15:  # >15% spread suggests incoherence
+            warnings.append("cross_section_incoherence_detected")
+            for source, values in source_map.items():
+                if any(mean_val > 0 and abs(v - mean_val) / mean_val > 0.15 for v in values):
+                    incoherent_sources.append(source)
+
+        return {
+            "warnings": warnings,
+            "checked_value_count": len(all_values),
+            "value_range": {
+                "min": min_val,
+                "max": max_val,
+                "relative_range_pct": round(relative_range * 100, 1),
+            },
+            "incoherent_sources": incoherent_sources,
+        }
+
+    @staticmethod
     def _build_quality_report(draft: dict, validation_report: dict) -> dict[str, Any]:
         repetition_check = FactualValidator._build_repetition_check(draft)
         uniqueness_check = FactualValidator._build_page_uniqueness_check(draft)
         keyword_stuffing_check = FactualValidator._build_keyword_stuffing_check(draft)
         stale_data_check = FactualValidator._build_stale_data_check(draft["content_plan"])
         robotic_language_check = FactualValidator._build_robotic_language_check(draft)
+        coherence_check = FactualValidator._build_cross_section_coherence_check(draft)  # H3
 
         section_quality_scores = [
             FactualValidator._score_section(
@@ -883,6 +972,7 @@ class FactualValidator:
         warning_reasons.extend(keyword_stuffing_check.get("warnings", []))
         warning_reasons.extend(stale_data_check.get("warnings", []))
         warning_reasons.extend(robotic_language_check.get("warnings", []))
+        warning_reasons.extend(coherence_check.get("warnings", []))  # H3
         if faq_short_count:
             warning_reasons.append("faq_too_short")
         warning_reasons = sorted(set(warning_reasons))
@@ -902,6 +992,7 @@ class FactualValidator:
             "faq_too_short": 5,
             "robotic_phrase_detected": 8,
             "generic_filler_detected": 6,
+            "cross_section_incoherence_detected": 8,  # H3
         }
         for warning in warning_reasons:
             score_penalty += penalty_map.get(warning, 0)
@@ -929,6 +1020,7 @@ class FactualValidator:
             "keyword_stuffing_check": keyword_stuffing_check,
             "stale_data_check": stale_data_check,
             "robotic_language_check": robotic_language_check,
+            "coherence_check": coherence_check,  # H3
             "faq_short_count": faq_short_count,
             "section_quality_scores": section_quality_scores,
         }

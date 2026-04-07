@@ -190,6 +190,73 @@ Implemented as part of A2 — In `_build_section_generation_context()`, for LOCA
 
 ---
 
+## Session 3 — Enhancements H1–H6 (COMPLETE)
+
+### H1 — Schema Markup Generation (JSON-LD)
+**Files:**
+- `apps/api/src/seo_content_engine/services/schema_markup_generator.py` (NEW): `SchemaMarkupGenerator` class with `generate_all()`, `generate_faq_schema()`, `generate_real_estate_page_schema()`, `to_script_tags()`.
+- `apps/api/src/seo_content_engine/services/artifact_writer.py`: Added import of `SchemaMarkupGenerator`; inject JSON-LD `<script type="application/ld+json">` tags before `</head>` in HTML export.
+**Schema types generated:** `FAQPage` (from draft faqs) + `WebPage` with `Place/GeoCoordinates/PostalAddress`, `BreadcrumbList`, and optional `canonical_asking_price` as `additionalProperty`.
+
+---
+
+### H2 — Featured Snippet Formatting
+**File:** `apps/api/src/seo_content_engine/services/draft_generation_service.py`
+**Changes:**
+- Added `_SNIPPET_QUESTION_PATTERNS` (7 compiled regexes for pricing/BHK/inventory/market-trend questions).
+- Added `_trim_to_snippet_length(answer, target_words=45)` — trims to ~40-50 words at sentence boundary.
+- Added `_is_snippet_candidate(question)` — matches against patterns.
+- Added `_tag_featured_snippet_candidates(faqs)` — tags up to 3 FAQs with `featured_snippet_candidate: True` and `snippet_answer` (trimmed version used in JSON-LD `acceptedAnswer.text`).
+- Called after every `_editorialize_faqs()` in `generate_faqs_standalone()`, `generate()`, and the repair loop.
+
+---
+
+### H3 — Cross-Section Coherence Check
+**File:** `apps/api/src/seo_content_engine/services/factual_validator.py`
+**Changes:**
+- Added `_extract_price_per_sqft_values(text)` — regex extracts INR price-per-sqft values (₹40,238/sqft etc.).
+- Added `_build_cross_section_coherence_check(draft)` — gathers values from all sections + FAQs; flags `cross_section_incoherence_detected` if relative spread >15%.
+- Integrated into `_build_quality_report()`: called alongside other checks, warnings added to `warning_reasons`.
+- Added `"cross_section_incoherence_detected": 8` to `penalty_map`.
+- `coherence_check` included in quality report returned dict.
+
+---
+
+### H4 — Parallel Section Generation
+**Files:**
+- `apps/api/src/seo_content_engine/services/prompt_builder.py`: Added `section_prompt_single(content_plan, section_entry)` — generates a single section's system+user prompt (same instructions as `sections_prompts` but for one section, returns `{id, title, body, key_points}`).
+- `apps/api/src/seo_content_engine/services/draft_generation_service.py`: Rewrote `_generate_sections()` to use `ThreadPoolExecutor(max_workers=min(N, 8))` — dispatches one LLM call per section in parallel, re-orders results to preserve `section_plan` ordering. Added `logging`, `concurrent.futures` imports.
+
+---
+
+### H5 — Incremental Refresh
+**Files:**
+- `apps/api/src/seo_content_engine/services/draft_generation_service.py`: Added `hashlib` + `json` imports; `_compute_section_data_fingerprint(content_plan, section_id)` — MD5 of JSON-serialized data_dependency values; `_attach_section_fingerprints(content_plan, sections)` — attaches `data_fingerprint` to each section; `incremental_refresh(existing_draft, new_content_plan, client)` — compares fingerprints, regenerates stale sections only, returns `(updated_draft, regenerated_section_ids)`; `_build_base_draft()` updated to call `_attach_section_fingerprints`.
+- `apps/api/src/seo_content_engine/services/review_workbench_service.py`: Added `refresh_session(session_id, persist_session, action_label)` — rebuilds content_plan, calls `incremental_refresh`, runs validation recompute, returns updated session + mutation summary.
+- `apps/api/src/seo_content_engine/schemas/requests.py`: Added `ReviewSessionRefreshRequest`.
+- `apps/api/src/seo_content_engine/api/routes/review.py`: Added `POST /v1/review/session/refresh` endpoint.
+
+---
+
+### H6 — Streaming Generation UI (SSE)
+**Files:**
+- `apps/api/src/seo_content_engine/api/routes/review.py`: Added `GET /v1/review/session/{session_id}/stream-regenerate` — `StreamingResponse` with `text/event-stream`; generates sections in parallel via `ThreadPoolExecutor`, yields SSE events per section as they complete, then generates metadata + FAQs, runs validation, saves session, yields `done` event. Added `json`, `logging`, `ThreadPoolExecutor`, `StreamingResponse` imports.
+- `apps/web/src/api/streaming.ts` (NEW): TypeScript module with `streamRegenerate(sessionId, callbacks)` — opens `EventSource` and dispatches typed callbacks (`onStart`, `onSectionComplete`, `onSectionError`, `onDone`, `onError`); `useStreamRegenerate(sessionId, callbacks)` React hook with state (`isStreaming`, `completedSections`, `failedSections`, `totalSections`, `error`) and `startStream`/`cancelStream` actions.
+
+---
+
+## Branch and Deployment Status
+
+| Branch | Status |
+|--------|--------|
+| `feature/editorial-quality-pass-1` | Previous session — Fixes 1–5 |
+| `feature/enhancements-parts-a-g` | **Merged to main April 7, 2026** — All content deterioration fixes + Parts A–G |
+| `feature/enhancements-h1-h6` | **Pushed to GitHub April 7, 2026** — H1–H6 enhancements |
+
+PR creation URL: https://github.com/deepeshgupta12/seo-content-generation-system/pull/new/feature/enhancements-h1-h6
+
+---
+
 ## Priority Items NOT Yet Implemented (deferred)
 
 | Enhancement | Reason Deferred |

@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
@@ -88,9 +94,84 @@ class DraftGenerationService:
 
     @staticmethod
     def _generate_sections(content_plan: dict, client: OpenAIClient) -> list[dict]:
-        system_prompt, user_prompt = PromptBuilder.sections_prompts(content_plan)
-        response = client.generate_json(system_prompt, user_prompt)
-        return response.get("sections", [])
+        """H4 — Generate sections in parallel using ThreadPoolExecutor.
+
+        Each generative/hybrid section is dispatched as a separate LLM call on a
+        dedicated thread.  Results are re-ordered to match the original section_plan
+        ordering.  Falls back to the legacy single-call approach if any error occurs
+        at the dispatcher level (individual section errors produce empty bodies).
+        """
+        generative_sections = [
+            section
+            for section in content_plan["section_plan"]
+            if section["render_type"] in {"generative", "hybrid"} and section["id"] != "faq_section"
+        ]
+
+        if not generative_sections:
+            return []
+
+        # Serial fallback for single-section plans or if parallel disabled
+        if len(generative_sections) == 1:
+            system_prompt, user_prompt = PromptBuilder.section_prompt_single(
+                content_plan, generative_sections[0]
+            )
+            response = client.generate_json(system_prompt, user_prompt)
+            if isinstance(response, dict) and response.get("body"):
+                return [response]
+            return generative_sections[:1]
+
+        def _generate_one(section_entry: dict) -> dict:
+            system_prompt, user_prompt = PromptBuilder.section_prompt_single(
+                content_plan, section_entry
+            )
+            try:
+                result = client.generate_json(system_prompt, user_prompt)
+                if isinstance(result, dict) and result.get("body"):
+                    return result
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Parallel section generation failed for section %s: %s",
+                    section_entry.get("id"),
+                    exc,
+                )
+            # Return skeleton so the repair / fallback pass can fill in the body
+            return {
+                "id": section_entry.get("id"),
+                "title": section_entry.get("title", ""),
+                "body": "",
+                "key_points": [],
+            }
+
+        # Preserve original ordering via index map
+        index_map: dict[str, int] = {s["id"]: i for i, s in enumerate(generative_sections)}
+        results: list[dict | None] = [None] * len(generative_sections)
+
+        max_workers = min(len(generative_sections), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_section = {
+                executor.submit(_generate_one, s): s for s in generative_sections
+            }
+            for future in as_completed(future_to_section):
+                section_entry = future_to_section[future]
+                try:
+                    section_result = future.result()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Unexpected error collecting parallel section result for %s: %s",
+                        section_entry.get("id"),
+                        exc,
+                    )
+                    section_result = {
+                        "id": section_entry.get("id"),
+                        "title": section_entry.get("title", ""),
+                        "body": "",
+                        "key_points": [],
+                    }
+                idx = index_map.get(str(section_entry.get("id")), len(results) - 1)
+                results[idx] = section_result
+
+        # Filter out any None slots (shouldn't happen, but defensive)
+        return [r for r in results if r is not None]
 
     @staticmethod
     def _generate_faqs(content_plan: dict, client: OpenAIClient) -> list[dict]:
@@ -1612,6 +1693,113 @@ class DraftGenerationService:
 
         return edited
 
+    # ------------------------------------------------------------------ #
+    # H2 — Featured Snippet Formatting                                    #
+    # ------------------------------------------------------------------ #
+
+    # Question patterns that are strong featured-snippet candidates
+    _SNIPPET_QUESTION_PATTERNS: tuple[re.Pattern, ...] = (
+        re.compile(r"\b(what is|what are|what's)\b.*(price|rate|cost|sq\s*ft|per sqft)", re.I),
+        re.compile(r"\b(how much|what is the asking price|what is the average price)\b", re.I),
+        re.compile(r"\bhow many\s+(bhk|bedroom|1\s*bhk|2\s*bhk|3\s*bhk)\b", re.I),
+        re.compile(r"\b(what types? of (properties|bhk|flat|apartment))\b", re.I),
+        re.compile(r"\b(how many (properties|listings|flats|apartments))\b", re.I),
+        re.compile(r"\b(are (property prices|prices|flat prices) (rising|falling|increasing|decreasing))\b", re.I),
+        re.compile(r"\bwhat is the (demand|supply|inventory|market trend)\b", re.I),
+    )
+
+    _SNIPPET_MAX_CANDIDATES: int = 3
+    _SNIPPET_TARGET_WORDS: int = 45  # target ~40-50 words
+
+    @staticmethod
+    def _trim_to_snippet_length(answer: str, target_words: int = 45) -> str:
+        """Trim an answer to approximately target_words words at a sentence boundary.
+
+        Strategy:
+        1. Split into sentences (on '. ', '? ', '! ').
+        2. Accumulate sentences until we exceed target_words.
+        3. Return the accumulated text — if the first sentence alone is within
+           2× target_words, return just the first sentence for clarity.
+        """
+        if not answer:
+            return answer
+
+        words = answer.split()
+        if len(words) <= target_words + 5:
+            # Already short enough — return as-is
+            return answer
+
+        # Sentence-boundary split (keep delimiter attached to preceding sentence)
+        sentence_re = re.compile(r"(?<=[.!?])\s+")
+        sentences = sentence_re.split(answer.strip())
+
+        accumulated = ""
+        for sentence in sentences:
+            candidate = (accumulated + " " + sentence).strip() if accumulated else sentence
+            word_count = len(candidate.split())
+            if word_count > target_words + 5 and accumulated:
+                # We've already got enough; stop before adding this sentence
+                break
+            accumulated = candidate
+            if word_count >= target_words - 5:
+                # Within acceptable range; stop here
+                break
+
+        # Ensure it ends with a period
+        trimmed = accumulated.strip()
+        if trimmed and trimmed[-1] not in ".!?":
+            trimmed += "."
+
+        return trimmed
+
+    @staticmethod
+    def _is_snippet_candidate(question: str) -> bool:
+        """Return True if the question matches a featured-snippet intent pattern."""
+        for pattern in DraftGenerationService._SNIPPET_QUESTION_PATTERNS:
+            if pattern.search(question):
+                return True
+        return False
+
+    @staticmethod
+    def _tag_featured_snippet_candidates(faqs: list[dict]) -> list[dict]:
+        """H2 — Tag up to _SNIPPET_MAX_CANDIDATES FAQs as featured snippet candidates.
+
+        For each tagged FAQ:
+        - ``featured_snippet_candidate`` is set to ``True``
+        - ``snippet_answer`` is set to a 40-50 word direct-answer version
+          (used by schema_markup_generator for FAQPage JSON-LD ``acceptedAnswer.text``)
+
+        Non-candidate FAQs are returned unchanged.
+        """
+        tagged: list[dict] = []
+        candidate_count = 0
+        target = DraftGenerationService._SNIPPET_MAX_CANDIDATES
+
+        for faq in faqs:
+            updated = dict(faq)
+            question = str(updated.get("question") or "")
+            answer = str(updated.get("answer") or "")
+
+            if (
+                candidate_count < target
+                and DraftGenerationService._is_snippet_candidate(question)
+                and answer
+            ):
+                snippet = DraftGenerationService._trim_to_snippet_length(
+                    answer,
+                    target_words=DraftGenerationService._SNIPPET_TARGET_WORDS,
+                )
+                updated["featured_snippet_candidate"] = True
+                updated["snippet_answer"] = snippet
+                candidate_count += 1
+            else:
+                updated.setdefault("featured_snippet_candidate", False)
+                updated.setdefault("snippet_answer", "")
+
+            tagged.append(updated)
+
+        return tagged
+
     @staticmethod
     def _repair_sections(
         content_plan: dict,
@@ -1972,6 +2160,9 @@ class DraftGenerationService:
         tables = DraftGenerationService._attach_table_summaries(tables, content_plan, client)
         internal_links = DraftGenerationService._resolve_internal_links(content_plan["internal_links_plan"])
 
+        # H5 — Attach data fingerprints so incremental_refresh can detect stale sections
+        sections_with_fp = DraftGenerationService._attach_section_fingerprints(content_plan, sections)
+
         return {
             "version": "v2.5",
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -1979,7 +2170,7 @@ class DraftGenerationService:
             "listing_type": content_plan["listing_type"],
             "entity": content_plan["entity"],
             "metadata": metadata,
-            "sections": sections,
+            "sections": sections_with_fp,
             "tables": tables,
             "faqs": faqs,
             "internal_links": internal_links,
@@ -2001,6 +2192,141 @@ class DraftGenerationService:
             "validation_report": validation_report,
         }
 
+    # ------------------------------------------------------------------ #
+    # H5 — Incremental Refresh / Data Fingerprinting                     #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _compute_section_data_fingerprint(content_plan: dict, section_id: str) -> str:
+        """Compute a deterministic MD5 fingerprint of a section's data dependencies.
+
+        The fingerprint captures the actual *values* resolved from the content_plan
+        for the section's declared data_dependencies paths.  If the underlying data
+        changes (e.g. new listings, updated prices), the fingerprint changes and the
+        section will be flagged for regeneration by ``incremental_refresh``.
+        """
+        from seo_content_engine.services.factual_validator import FactualValidator
+
+        dependency_paths = FactualValidator._get_section_dependency_paths(content_plan, section_id)
+        dependency_values: dict[str, Any] = {}
+        for path in dependency_paths:
+            dependency_values[path] = FactualValidator._resolve_content_plan_dependency(
+                content_plan, path
+            )
+
+        try:
+            serialized = json.dumps(dependency_values, sort_keys=True, ensure_ascii=True, default=str)
+        except (TypeError, ValueError):
+            serialized = str(dependency_values)
+
+        return hashlib.md5(serialized.encode("utf-8")).hexdigest()  # noqa: S324 — non-security use
+
+    @staticmethod
+    def _attach_section_fingerprints(content_plan: dict, sections: list[dict]) -> list[dict]:
+        """Attach ``data_fingerprint`` to each section dict in-place (returns new list).
+
+        Only sections whose id appears in the section_plan receive a fingerprint.
+        Sections without an id are returned unchanged.
+        """
+        fingerprinted: list[dict] = []
+        for section in sections:
+            updated = dict(section)
+            section_id = section.get("id")
+            if section_id:
+                updated["data_fingerprint"] = DraftGenerationService._compute_section_data_fingerprint(
+                    content_plan, section_id
+                )
+            fingerprinted.append(updated)
+        return fingerprinted
+
+    @staticmethod
+    def incremental_refresh(
+        existing_draft: dict,
+        new_content_plan: dict,
+        openai_client: OpenAIClient | None = None,
+    ) -> tuple[dict, list[str]]:
+        """H5 — Regenerate only sections whose data dependencies changed.
+
+        Compares the ``data_fingerprint`` stored on each existing section against
+        a freshly computed fingerprint from ``new_content_plan``.  Sections with
+        mismatched fingerprints are regenerated in parallel (reusing H4's parallel
+        executor).  Unchanged sections are preserved verbatim.
+
+        Returns:
+            (updated_draft, regenerated_section_ids)
+            where updated_draft is a copy of existing_draft with only the stale
+            sections replaced, and regenerated_section_ids is the list of ids that
+            were actually regenerated.
+        """
+        client = openai_client or OpenAIClient()
+        existing_sections: list[dict] = existing_draft.get("sections") or []
+
+        # Identify which sections are stale
+        stale_ids: set[str] = set()
+        for section in existing_sections:
+            section_id = section.get("id")
+            if not section_id:
+                continue
+            old_fp = section.get("data_fingerprint", "")
+            new_fp = DraftGenerationService._compute_section_data_fingerprint(new_content_plan, section_id)
+            if old_fp != new_fp:
+                stale_ids.add(section_id)
+
+        if not stale_ids:
+            # Nothing changed — return existing draft as-is
+            return deepcopy(existing_draft), []
+
+        # Get the section_plan entries for stale sections only
+        stale_section_entries = [
+            s for s in new_content_plan.get("section_plan", [])
+            if s.get("id") in stale_ids
+            and s.get("render_type") in {"generative", "hybrid"}
+            and s.get("id") != "faq_section"
+        ]
+
+        # Regenerate stale sections in parallel
+        def _generate_one(section_entry: dict) -> dict:
+            system_prompt, user_prompt = PromptBuilder.section_prompt_single(
+                new_content_plan, section_entry
+            )
+            try:
+                result = client.generate_json(system_prompt, user_prompt)
+                if isinstance(result, dict) and result.get("body"):
+                    result["data_fingerprint"] = DraftGenerationService._compute_section_data_fingerprint(
+                        new_content_plan, section_entry["id"]
+                    )
+                    return result
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("incremental_refresh: failed to regenerate section %s: %s", section_entry.get("id"), exc)
+            return dict(section_entry)
+
+        regenerated_map: dict[str, dict] = {}
+        if stale_section_entries:
+            max_workers = min(len(stale_section_entries), 8)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_entry = {executor.submit(_generate_one, s): s for s in stale_section_entries}
+                for future in as_completed(future_to_entry):
+                    entry = future_to_entry[future]
+                    try:
+                        result = future.result()
+                        regenerated_map[entry["id"]] = result
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("incremental_refresh: future error for %s: %s", entry.get("id"), exc)
+
+        # Merge: keep unchanged sections, replace stale ones
+        updated_sections: list[dict] = []
+        for section in existing_sections:
+            section_id = section.get("id", "")
+            if section_id in regenerated_map:
+                updated_sections.append(regenerated_map[section_id])
+            else:
+                updated_sections.append(section)
+
+        updated_draft = deepcopy(existing_draft)
+        updated_draft["sections"] = updated_sections
+        updated_draft["content_plan"] = new_content_plan
+        return updated_draft, sorted(stale_ids)
+
     @staticmethod
     def generate_faqs_standalone(
         content_plan: dict,
@@ -2015,6 +2341,7 @@ class DraftGenerationService:
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
         faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
+        faqs = DraftGenerationService._tag_featured_snippet_candidates(faqs)  # H2
         return faqs
 
     @staticmethod
@@ -2040,6 +2367,7 @@ class DraftGenerationService:
         faqs = DraftGenerationService._generate_faqs(content_plan, client)
         faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
         faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
+        faqs = DraftGenerationService._tag_featured_snippet_candidates(faqs)  # H2
 
         draft = DraftGenerationService._build_base_draft(
             content_plan=content_plan,
@@ -2072,6 +2400,7 @@ class DraftGenerationService:
             faqs = DraftGenerationService._repair_faqs(content_plan, draft["faqs"], validation_report, client)
             faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
             faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
+            faqs = DraftGenerationService._tag_featured_snippet_candidates(faqs)  # H2
 
             draft = DraftGenerationService._build_base_draft(
                 content_plan=content_plan,
