@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     dataforseo_timeout_seconds: float = 45.0
     dataforseo_historical_keywords_limit: int = 50
 
-    dataforseo_serp_seed_limit: int = 3
+    dataforseo_serp_seed_limit: int = 5
     dataforseo_serp_top_results_limit: int = 10
     dataforseo_competitor_domain_limit: int = 3
     dataforseo_keywords_for_site_limit: int = 30
