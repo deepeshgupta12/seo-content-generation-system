@@ -566,6 +566,20 @@ class DraftGenerationService:
         return "\n\n".join(paragraphs)
 
     @staticmethod
+    def _extract_locality_summary_text(locality_summary: object) -> str:
+        """Return a plain string from locality_summary regardless of whether it is a
+        bare string or a structured dict (e.g. ``{"headline": "...", "overall_summary": "..."}``)."""
+        if not locality_summary:
+            return ""
+        if isinstance(locality_summary, str):
+            return locality_summary.strip()
+        if isinstance(locality_summary, dict):
+            # Prefer the longer prose field; fall back to headline.
+            text = locality_summary.get("overall_summary") or locality_summary.get("headline") or ""
+            return str(text).strip()
+        return ""
+
+    @staticmethod
     def _build_review_signals_safe_body(content_plan: dict) -> str:
         review_summary = content_plan["data_context"].get("review_summary", {}) or {}
         ai_summary = content_plan["data_context"].get("ai_summary", {}) or {}
@@ -576,7 +590,9 @@ class DraftGenerationService:
         review_count = overview.get("review_count")
         positive_tags = review_summary.get("positive_tags", []) or []
         negative_tags = review_summary.get("negative_tags", []) or []
-        locality_summary = ai_summary.get("locality_summary")
+        locality_summary = DraftGenerationService._extract_locality_summary_text(
+            ai_summary.get("locality_summary")
+        )
 
         paragraphs: list[str] = []
 
@@ -1394,7 +1410,9 @@ class DraftGenerationService:
         review_count = overview.get("review_count")
         positive_tags = review_summary.get("positive_tags", []) or []
         negative_tags = review_summary.get("negative_tags", []) or []
-        locality_summary = ai_summary.get("locality_summary")
+        locality_summary = DraftGenerationService._extract_locality_summary_text(
+            ai_summary.get("locality_summary")
+        )
 
         if (
             avg_rating is None
