@@ -257,6 +257,7 @@ class PromptBuilder:
             "not a restatement of the prose, but a sharp, standalone takeaway. "
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
+            "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
             "Return only valid JSON."
         )
 
@@ -294,6 +295,7 @@ class PromptBuilder:
             "buyer_persona": buyer_persona,
             "section": section_entry,
             "section_context": section_context,
+            "comparison_plan": content_plan.get("comparison_plan", []),
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "keyword_strategy": {
                 "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
@@ -303,6 +305,21 @@ class PromptBuilder:
                 "bhk_keywords": content_plan["keyword_strategy"]["bhk_keywords"],
                 "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
                 "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
+                # Restored: competitor intelligence and planning signals were missing from the
+                # parallel per-section prompt, causing keyword quality regression vs. the
+                # original single-call sections_prompts().
+                "competitor_intelligence": {
+                    "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_competitor_keywords", []
+                    ),
+                    "relevant_informational_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_informational_keywords", []
+                    ),
+                    "relevant_overlap_keywords": content_plan.get("competitor_intelligence", {}).get(
+                        "relevant_overlap_keywords", []
+                    ),
+                },
+                "planning_signals": content_plan.get("planning_signals", {}),
             },
             "requirements": {
                 "strict_grounding": True,
@@ -311,6 +328,9 @@ class PromptBuilder:
                 "aeo_style_lead_sentence": True,
                 "write_3_to_4_paragraphs": True,
                 "add_3_to_4_key_points_for_data_driven_sections": True,
+                "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
+                "avoid_repeating_same_primary_keyword": True,
+                "use_keywords_naturally": True,
             },
             "output_schema": {
                 "id": "string — same as input section id",
