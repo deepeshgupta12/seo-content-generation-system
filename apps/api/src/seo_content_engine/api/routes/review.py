@@ -5,6 +5,8 @@ from fastapi.responses import FileResponse
 
 from seo_content_engine.schemas.requests import (
     ReviewDraftRegenerateRequest,
+    ReviewFaqRegenerateRequest,
+    ReviewFaqUpdateRequest,
     ReviewMetadataUpdateRequest,
     ReviewSectionRegenerateRequest,
     ReviewSectionUpdateRequest,
@@ -234,6 +236,57 @@ def download_review_export(session_id: str, format_name: str):
             path=str(path_obj),
             media_type=media_type_map[export_format],
             filename=download_name,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# C1 — Standalone FAQ endpoints
+
+
+@router.post("/faq/regenerate", response_model=ReviewMutationResponse)
+def regenerate_review_faqs(payload: ReviewFaqRegenerateRequest) -> ReviewMutationResponse:
+    """Regenerate all FAQs for a session without touching sections or metadata."""
+    try:
+        review_session, mutation_summary = ReviewWorkbenchService.regenerate_faqs(
+            session_id=payload.session_id,
+            persist_session=payload.persist_session,
+            action_label=payload.action_label,
+        )
+        return ReviewMutationResponse(
+            success=True,
+            message="FAQs regenerated successfully",
+            review_session=review_session,
+            mutation_summary=mutation_summary,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/faq/update", response_model=ReviewMutationResponse)
+def update_review_faq(payload: ReviewFaqUpdateRequest) -> ReviewMutationResponse:
+    """Update the answer for a single FAQ identified by its question text."""
+    try:
+        review_session, mutation_summary = ReviewWorkbenchService.update_faq(
+            session_id=payload.session_id,
+            question=payload.question,
+            answer=payload.answer,
+            persist_session=payload.persist_session,
+            action_label=payload.action_label,
+        )
+        return ReviewMutationResponse(
+            success=True,
+            message="FAQ updated successfully",
+            review_session=review_session,
+            mutation_summary=mutation_summary,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

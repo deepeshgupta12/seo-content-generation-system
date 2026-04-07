@@ -6,6 +6,12 @@ from seo_content_engine.services.output_formatter import OutputFormatter
 
 
 class TableRenderer:
+    # These table IDs must never render on resale pages. They carry new-project
+    # or aggregate-status data that has no place on a resale listing page.
+    RESALE_BLOCKED_TABLE_IDS: frozenset[str] = frozenset(
+        {"property_status_table", "coverage_summary_table"}
+    )
+
     COMMERCIAL_PROPERTY_TERMS = {
         "shop",
         "office space",
@@ -124,6 +130,11 @@ class TableRenderer:
         else:
             rows = []
 
+        # Filter commercial property rows before formatting so the rendered table
+        # only contains residential property types.
+        if table_plan["id"] == "property_types_table":
+            rows = TableRenderer._filter_property_type_rows(rows)
+
         formatted_rows: list[dict[str, Any]] = []
         for row in rows:
             formatted_rows.append(
@@ -146,5 +157,14 @@ class TableRenderer:
         }
 
     @staticmethod
+    def should_render(table_id: str) -> bool:
+        """Return False for table IDs that are blocked on all resale pages."""
+        return table_id not in TableRenderer.RESALE_BLOCKED_TABLE_IDS
+
+    @staticmethod
     def render_all(table_plans: list[dict], data_context: dict) -> list[dict]:
-        return [TableRenderer.render_table(plan, data_context) for plan in table_plans]
+        return [
+            TableRenderer.render_table(plan, data_context)
+            for plan in table_plans
+            if TableRenderer.should_render(plan.get("id", ""))
+        ]

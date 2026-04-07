@@ -63,6 +63,11 @@ class MarkdownRenderer:
         for section in sections:
             title = MarkdownRenderer._string(section.get("title"))
             body = MarkdownRenderer._string(section.get("body"))
+            key_points: list[str] = [
+                MarkdownRenderer._string(point)
+                for point in (section.get("key_points") or [])
+                if point and MarkdownRenderer._string(point)
+            ]
 
             if title:
                 lines.append(f"### {title}")
@@ -72,10 +77,16 @@ class MarkdownRenderer:
                 for paragraph in body.split("\n"):
                     paragraph = paragraph.strip()
                     if paragraph:
+                        # Preserve any bullet lines the model may have written inline
                         lines.append(paragraph)
                         lines.append("")
             else:
                 lines.append("No grounded narrative available for this section.")
+                lines.append("")
+
+            if key_points:
+                for point in key_points:
+                    lines.append(f"- {point}")
                 lines.append("")
 
         return lines
@@ -226,6 +237,15 @@ class MarkdownRenderer:
     @staticmethod
     def render(draft: dict) -> str:
         lines: list[str] = []
+
+        # E3: Prepend a review banner for drafts that failed hard validation.
+        if draft.get("needs_review"):
+            approval = draft.get("quality_report", {}).get("approval_status", "unknown")
+            lines.append(
+                f"> ⚠️ **DRAFT STATUS: Validation failed (approval_status={approval}) — "
+                "review required before publishing.**"
+            )
+            lines.append("")
 
         lines.extend(MarkdownRenderer._render_metadata(draft.get("metadata", {})))
         lines.extend(MarkdownRenderer._render_sections(draft.get("sections", [])))

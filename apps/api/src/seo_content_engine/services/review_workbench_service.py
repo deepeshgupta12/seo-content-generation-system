@@ -569,12 +569,29 @@ class ReviewWorkbenchService:
             updated_draft,
             action_type=action_label,
         )
+        # C3: Warn if the mutated section is FAQ-relevant, since FAQs may now be inconsistent.
+        _FAQ_RELEVANT_SECTIONS = {
+            "price_trends_and_rates",
+            "bhk_and_inventory_mix",
+            "demand_and_supply_signals",
+            "market_snapshot",
+        }
+        faq_consistency_warning = None
+        if section_id in _FAQ_RELEVANT_SECTIONS:
+            faq_consistency_warning = (
+                f"Section '{section_id}' was updated. "
+                "Consider regenerating FAQs to ensure pricing or inventory FAQs remain consistent."
+            )
+
         ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
-        return updated_session, ReviewWorkbenchService._mutation_summary(
+        summary = ReviewWorkbenchService._mutation_summary(
             updated_session,
             action_type=action_label,
             extra={"section_id": section_id},
         )
+        if faq_consistency_warning:
+            summary["faq_consistency_warning"] = faq_consistency_warning
+        return updated_session, summary
 
     @staticmethod
     def update_metadata(
@@ -649,6 +666,80 @@ class ReviewWorkbenchService:
             updated_session,
             action_type=action_label,
             extra={"restored_from_version_id": version_id},
+        )
+
+    @staticmethod
+    def regenerate_faqs(
+        *,
+        session_id: str,
+        persist_session: bool = True,
+        action_label: str = "faq_regenerate",
+    ) -> tuple[dict, dict]:
+        """C1 — Regenerate all FAQs without touching sections or metadata."""
+        session = ReviewSessionStore.load_session(session_id)
+        content_plan = session.get("content_plan") or session["draft"].get("content_plan")
+        if not content_plan:
+            raise ValueError("No content plan found in session; cannot regenerate FAQs standalone.")
+
+        new_faqs = DraftGenerationService.generate_faqs_standalone(content_plan=content_plan)
+
+        updated_draft = deepcopy(session["draft"])
+        updated_draft["faqs"] = new_faqs
+        updated_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            updated_draft,
+            pass_name="faq_regenerate_recompute",
+        )
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            updated_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={"faq_count": len(new_faqs)},
+        )
+
+    @staticmethod
+    def update_faq(
+        *,
+        session_id: str,
+        question: str,
+        answer: str,
+        persist_session: bool = True,
+        action_label: str = "faq_edit",
+    ) -> tuple[dict, dict]:
+        """C1 — Update the answer for a single FAQ identified by its question text."""
+        session = ReviewSessionStore.load_session(session_id)
+        updated_draft = deepcopy(session["draft"])
+
+        found = False
+        for faq in updated_draft.get("faqs", []):
+            if faq.get("question", "").strip().lower() == question.strip().lower():
+                faq["answer"] = answer
+                found = True
+                break
+
+        if not found:
+            raise ValueError(f"FAQ not found: {question!r}")
+
+        updated_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            updated_draft,
+            pass_name="faq_edit_recompute",
+        )
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            updated_draft,
+            action_type=action_label,
+        )
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={"question": question},
         )
 
     @staticmethod

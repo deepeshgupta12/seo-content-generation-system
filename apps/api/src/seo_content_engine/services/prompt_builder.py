@@ -15,10 +15,17 @@ class PromptBuilder:
             "Avoid phrases such as premium, most sought-after, excellent connectivity, strong demand, luxury, prime destination, investment potential. "
             "Avoid robotic phrasing, stacked keyword strings, and repetitive search language. "
             "Avoid generic intros that could fit any city page. "
-            "The title should read like a clean, high-trust search result. "
-            "The meta description should sound useful and page-specific. "
-            "The H1 should be natural and clear. "
-            "The intro snippet should feel like a real opening line for the page, not a metadata echo. "
+            "The title should read like a clean, high-trust search result — specific, location-anchored, and useful to a real buyer. "
+            "Good title examples: "
+            "'2 & 3 BHK Resale Flats in Andheri West — Prices, Listings & Market Data | Square Yards', "
+            "'Resale Properties in Bandra East — Asking Prices & BHK Options | Square Yards', "
+            "'Mumbai Resale Property Market — Prices by Micromarket | Square Yards'. "
+            "The meta description should answer what a buyer gets from this page in one direct sentence — price signals, BHK options, or locality context. "
+            "Good meta description examples: "
+            "'Browse resale flats in Andheri West with current asking prices starting from ₹X, BHK availability, and nearby locality comparisons on Square Yards.', "
+            "'Check resale property prices in Bandra East — 1 to 4 BHK options, price trends by quarter, and grounded market context on Square Yards.' "
+            "The H1 should be natural and clear — not a keyword dump. "
+            "The intro snippet should feel like the first sentence of a page a real buyer would trust, not a metadata echo. "
             "Bad patterns to avoid: "
             "'Explore X with Y and Z', "
             "'Find X with insights', "
@@ -72,6 +79,12 @@ class PromptBuilder:
     def sections_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate grounded editorial sections for Square Yards resale pages. "
+            "The primary reader is a real estate buyer — typically someone shortlisting resale properties, "
+            "comparing localities, evaluating price points for their budget, or doing final due diligence before visiting. "
+            "Write as if you are a knowledgeable real estate editor helping that buyer make sense of what the data shows. "
+            "Every section must open with a clear, direct answer to the section's core buyer question — "
+            "state the key takeaway in the first sentence, then support it with data in the following sentences. "
+            "This is AEO-style writing: answer first, evidence second. "
             "Use only the provided section-level grounded context and section plan. "
             "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
             "If price is mentioned, use only the canonical page pricing metric: asking price. "
@@ -82,7 +95,6 @@ class PromptBuilder:
             "If the page is for one specific residential property type, stay tightly focused on that type. "
             "Do not mix residential and commercial property types. "
             "For the section id 'property_rates_ai_signals', remain tightly source-bound. Present the snapshot and the listed strengths, challenges, and opportunities without adding advice, interpretation, forecast, ranking, or forward-looking conclusions. "
-            "Write for a real buyer, not for an internal reviewer. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
             "Do not restate the same metric twice. "
             "Do not end with generic filler like: "
@@ -91,8 +103,11 @@ class PromptBuilder:
             "'this provides useful insights', "
             "'this offers a wide selection'. "
             "Each section must answer one distinct buyer question. "
-            "Lead with what matters, then use the visible data as evidence. "
-            "Use 2 to 4 short paragraphs where the data allows. "
+            "Write 3 to 4 paragraphs of 2 to 3 sentences each. "
+            "For sections that contain data-driven findings (pricing, BHK mix, inventory, demand/supply), "
+            "follow the prose paragraphs with exactly 3 to 4 bullet points in the key_points field. "
+            "Each bullet point must state one specific, grounded fact a buyer would find useful — "
+            "not a restatement of the prose, but a sharp, standalone takeaway. "
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
             "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
@@ -105,8 +120,33 @@ class PromptBuilder:
             if section["render_type"] in {"generative", "hybrid"} and section["id"] != "faq_section"
         ]
 
+        entity = content_plan["entity"]
+        page_type = entity.get("page_type", "")
+        entity_name = entity.get("entity_name", "")
+        city_name = entity.get("city_name", entity_name)
+
+        if "city" in page_type.lower():
+            buyer_persona = (
+                f"A buyer researching the broader {city_name} resale market — "
+                "comparing micromarkets, understanding price bands across zones, "
+                "and deciding which area fits their budget and lifestyle."
+            )
+        elif "micromarket" in page_type.lower():
+            buyer_persona = (
+                f"A buyer who has shortlisted {entity_name} as a target area and is now "
+                "comparing specific localities within it — evaluating price levels, "
+                "available BHK sizes, and how the area compares to adjacent zones."
+            )
+        else:
+            buyer_persona = (
+                f"A buyer actively evaluating resale flats in {entity_name} — "
+                "checking current asking prices, available BHK configurations, "
+                "nearby alternatives, and what existing residents say about the locality."
+            )
+
         user_payload = {
-            "entity": content_plan["entity"],
+            "entity": entity,
+            "buyer_persona": buyer_persona,
             "sections": sections,
             "section_generation_context": content_plan.get("section_generation_context", {}),
             "comparison_plan": content_plan.get("comparison_plan", []),
@@ -145,29 +185,38 @@ class PromptBuilder:
                     "avoid_mixing_residential_and_commercial_types": True,
                     "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
                     "avoid_repeating_same_primary_keyword_in_every_section": True,
-                    "min_target_words_per_section": 90,
-                    "max_target_words_per_section": 220,
+                    "min_target_words_per_section": 150,
+                    "max_target_words_per_section": 400,
                     "write_like_human_editorial_copy": True,
-                    "prefer_2_to_4_short_paragraphs": True,
+                    "write_3_to_4_paragraphs_of_2_to_3_sentences_each": True,
+                    "add_3_to_4_key_points_bullets_for_data_driven_sections": True,
+                    "key_points_must_be_grounded_standalone_facts_not_prose_repeats": True,
+                    "aeo_style_lead_sentence_answers_section_question_directly": True,
                     "avoid_template_like_openings": True,
                     "avoid_cross_section_repetition": True,
                     "use_keywords_naturally": True,
                     "each_section_must_have_one_clear_takeaway": True,
                 },
                 "style_rules": {
-                    "tone": "human, descriptive, grounded, SEO-friendly",
-                    "reader_goal": "help a buyer understand visible resale data on the page",
+                    "tone": "human, editorial, grounded, real-estate-buyer-friendly, SEO-friendly, AEO-ready",
+                    "reader_goal": "help a resale property buyer understand the data and make a confident shortlisting decision",
                     "avoid_filler": True,
                     "avoid_marketing_hype": True,
                     "avoid_internal_workbench_language": True,
                     "prefer_specific_grounded_sentences": True,
+                    "persona_aware": True,
                 },
                 "output_schema": {
                     "sections": [
                         {
-                            "id": "string",
+                            "id": "string — same as input section id",
                             "title": "string",
-                            "body": "string",
+                            "body": "string — 3 to 4 paragraphs of prose",
+                            "key_points": [
+                                "string — one sharp grounded fact per bullet",
+                                "string",
+                                "string",
+                            ],
                         }
                     ]
                 },
@@ -180,32 +229,90 @@ class PromptBuilder:
     def faq_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate grounded FAQ answers for Square Yards resale listing pages. "
-            "Use only the provided FAQ plan and grounded data context. "
+            "The reader is a real estate buyer — someone comparing resale options, checking prices, "
+            "evaluating a locality, or doing due diligence before visiting. "
+            "Use the provided FAQ plan, data context, and section generation context. "
+            "The section generation context contains all grounded data available on this page — "
+            "use it to generate FAQs that cover every major data axis: pricing, BHK availability, "
+            "inventory, demand/supply, reviews, property type mix, nearby localities, and any AI signals. "
             "Do not invent numbers or claims. "
             "If price is mentioned, use only the canonical page pricing metric: asking price. "
             "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, and listing ranges. "
             "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
-            "Answer in a strong AEO style: start with a direct answer sentence, then add one short explanatory sentence or paragraph if useful. "
+            "Answer in a strong AEO style: start with a direct answer sentence, then add 1 to 3 explanatory sentences. "
             "Do not sound robotic, repetitive, or system-generated. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, or currently represented on the page. "
             "Do not turn every FAQ into a mini section summary. "
             "Do not answer a price-range question with city-rate comparisons unless listing-range data actually exists. "
-            "Questions should feel like realistic buyer questions. "
+            "Questions should feel like realistic buyer questions — the kind a person would type into Google. "
             "Use keyword variants only when natural. "
             "You may use competitor-derived planning signals only to expand coverage and prioritize realistic questions. Never copy wording. "
             "Return only valid JSON."
         )
 
+        entity = content_plan["entity"]
+        entity_name = entity.get("entity_name", "")
+        city_name = entity.get("city_name", entity_name)
+        page_type = entity.get("page_type", "")
+
+        # Build a data coverage guide so the model knows which axes to cover (C2 — per-axis limits)
+        data_coverage_guide = {
+            "instruction": (
+                "Ensure at least one FAQ covers each of the following data axes "
+                "when data is present in data_context or section_generation_context. "
+                "Skip an axis only if no data exists for it. "
+                "Respect per_axis_target limits to avoid over-indexing on pricing at the expense of other axes."
+            ),
+            "required_axes": [
+                "asking_price_or_price_range — What does a buyer pay for a resale property here?",
+                "bhk_availability — Which BHK configurations are available?",
+                "inventory_count — How many resale listings are visible?",
+                "price_trend — How have asking prices moved recently?",
+                "property_type_mix — What types of residential properties are available?",
+                "nearby_localities — What alternatives can buyers explore nearby?",
+                "reviews_and_ratings — What do residents say about this location?",
+                "demand_supply — What does the supply picture look like?",
+            ],
+            "optional_axes_if_data_present": [
+                "rera_or_buyer_protection — Are listings RERA-registered?",
+                "ai_market_signals — What strengths, challenges, or opportunities does the data highlight?",
+                "location_comparison — How do prices here compare to the city or micromarket average?",
+                "micromarket_or_locality_coverage — How many areas does this page cover?",
+            ],
+            "per_axis_target": {
+                "pricing_and_price_range": {"min": 2, "max": 3},
+                "bhk_and_inventory": {"min": 1, "max": 2},
+                "nearby_localities": {"min": 1, "max": 2},
+                "reviews_and_ratings": {"min": 1, "max": 2},
+                "demand_supply": {"min": 1, "max": 2},
+                "property_type_mix": {"min": 1, "max": 2},
+                "market_context_and_ai_signals": {"min": 1, "max": 2},
+            },
+        }
+
+        if "city" in page_type.lower():
+            buyer_context = f"A buyer exploring the resale market across {city_name} and trying to narrow down which micromarket or zone fits their budget."
+        elif "micromarket" in page_type.lower():
+            buyer_context = f"A buyer who has identified {entity_name} as a shortlisted area and needs specific data to compare localities within it."
+        else:
+            buyer_context = f"A buyer actively evaluating resale properties in {entity_name} and looking for specific, grounded answers before scheduling visits."
+
         user_payload = {
-            "entity": content_plan["entity"],
+            "entity": entity,
+            "buyer_context": buyer_context,
             "faq_plan": content_plan["faq_plan"],
             "data_context": content_plan["data_context"],
+            "section_generation_context": content_plan.get("section_generation_context", {}),
+            "data_coverage_guide": data_coverage_guide,
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
             "keyword_strategy": {
                 "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
                 "primary_keyword_variants": content_plan["keyword_strategy"].get("primary_keyword_variants", []),
                 "body_keyword_priority": content_plan["keyword_strategy"].get("body_keyword_priority", []),
+                # B4: Pass FAQ-specific keyword candidates so the model can phrase questions
+                # using the exact keyword forms buyers search for.
+                "faq_keyword_candidates": content_plan["keyword_strategy"].get("faq_keyword_candidates", []),
             },
             "competitor_intelligence": {
                 "relevant_competitor_keywords": content_plan.get("competitor_intelligence", {}).get(
@@ -226,22 +333,24 @@ class PromptBuilder:
                     "demand_supply_faqs_must_use_explicit_inputs_only": True,
                     "property_type_faqs_must_use_explicit_inputs_only": True,
                     "exclude_non_canonical_pricing_metrics_from_price_answers": True,
-                    "prefer_broader_coverage": True,
-                    "prefer_descriptive_answers": True,
+                    "cover_all_required_data_axes_from_data_coverage_guide": True,
+                    "prefer_broader_coverage_over_depth_repetition": True,
+                    "prefer_descriptive_answers_1_to_3_sentences": True,
                     "allow_some_keyword_variant_question_phrasing": True,
-                    "target_min_faqs": 8,
-                    "target_max_faqs": 12,
+                    "target_min_faqs": 10,
+                    "target_max_faqs": 15,
                     "avoid_duplicate_questions": True,
                     "avoid_duplicate_answers": True,
                     "prefer_people_also_ask_style_questions": True,
-                    "direct_answer_first": True,
+                    "direct_answer_first_then_explanation": True,
                 },
                 "style_rules": {
-                    "tone": "natural, buyer-friendly, grounded",
-                    "prefer_clear_explanations": True,
+                    "tone": "natural, buyer-friendly, grounded, real-estate-conversational",
+                    "prefer_clear_plain_language_explanations": True,
                     "avoid_one_line_answers_when_context_exists": True,
                     "avoid_keyword_stuffing": True,
                     "avoid_internal_language": True,
+                    "write_questions_a_real_buyer_would_google": True,
                 },
                 "output_schema": {
                     "faqs": [
@@ -263,14 +372,17 @@ class PromptBuilder:
         planning_signals: dict | None = None,
     ) -> tuple[str, str]:
         system_prompt = (
-            "You generate a short human-readable summary for a grounded Square Yards data table. "
+            "You generate a human-readable summary for a grounded Square Yards data table. "
+            "The reader is a resale property buyer trying to understand what this table means for their search. "
             "Use only the visible table title, columns, rows, and entity context provided. "
             "Do not invent trends, interpretations, recommendations, or unsupported market claims. "
-            "Write 2 to 3 sentences maximum. "
-            "Explain what the table helps the user compare or understand. "
-            "If useful, mention one visible row-level value naturally. "
+            "Write 3 to 5 sentences. "
+            "First sentence: explain what a buyer can understand from this table in plain language. "
+            "Second and third sentences: highlight one or two specific data points visible in the rows that a buyer would find useful — "
+            "for example, the lowest price, the dominant BHK type, the closest nearby locality, or the sharpest price change. "
+            "Optional fourth/fifth sentence: give a brief practical framing — how should a buyer use this data in their search? "
             "Do not use reviewer language, QA language, or phrases such as visible dataset, structured source data, visible row, or source-backed values. "
-            "Do not narrate the first row mechanically unless it improves clarity. "
+            "Do not narrate the first row mechanically — extract the insight, not the raw values. "
             "You may use competitor-derived planning signals only to decide emphasis. Never copy wording. "
             "Return only valid JSON."
         )
@@ -282,9 +394,11 @@ class PromptBuilder:
             "requirements": {
                 "strict_grounding": True,
                 "style_rules": {
-                    "tone": "natural, informative, concise",
-                    "min_sentences": 2,
-                    "max_sentences": 3,
+                    "tone": "natural, buyer-helpful, informative, real-estate-grounded",
+                    "min_sentences": 3,
+                    "max_sentences": 5,
+                    "buyer_framing_encouraged": True,
+                    "highlight_specific_visible_data_points": True,
                     "avoid_robotic_patterns": True,
                     "avoid_generic_review_workbench_language": True,
                     "avoid_market_hype": True,

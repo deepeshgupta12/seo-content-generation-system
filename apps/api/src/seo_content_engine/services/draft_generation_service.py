@@ -421,7 +421,10 @@ class DraftGenerationService:
             return True
 
         validation = DraftGenerationService._validate_faq_text(content_plan, question, answer)
-        if validation["issues"]:
+        # Only fall back to safe answer for hard blocks that produce fabricated claims.
+        # Soft issues (unreconciled_numbers, non_canonical) should not suppress LLM output.
+        _FAQ_HARD_BLOCK_ISSUES = {"forbidden_claims_detected"}
+        if any(issue in _FAQ_HARD_BLOCK_ISSUES for issue in validation.get("issues", [])):
             return True
 
         lowered_q = question.lower()
@@ -1095,7 +1098,12 @@ class DraftGenerationService:
             updated["body"] = safe_body
             return updated
 
-        if not issues:
+        # Only fall back to safe body for hard block issues that produce fabricated claims.
+        # Soft issues (unreconciled_numbers, non_canonical, keyword_stuffing) should not
+        # replace LLM output with raw data dumps — those issues are flagged for review only.
+        _SECTION_HARD_BLOCK_ISSUES = {"forbidden_claims_detected"}
+        has_hard_block = any(issue in _SECTION_HARD_BLOCK_ISSUES for issue in issues)
+        if not has_hard_block:
             return section
 
         safe_body = DraftGenerationService._build_safe_section_body(content_plan, section_id)
@@ -1195,13 +1203,19 @@ class DraftGenerationService:
         if sale_count is None and total_listings is None:
             return None
 
-        metrics: list[str] = []
+        parts: list[str] = []
         if sale_count is not None:
-            metrics.append(f"sale_count {sale_count}")
-        if total_listings is not None:
-            metrics.append(f"total_listings {total_listings}")
+            parts.append(f"{sale_count:,} active resale listings")
+        if total_listings is not None and total_listings != sale_count:
+            parts.append(f"{total_listings:,} total listings tracked")
 
-        return f"For {location_label}, the current inventory summary shows " + ", ".join(metrics) + "."
+        if not parts:
+            return None
+
+        return (
+            f"The resale inventory currently visible in {location_label} includes "
+            + " and ".join(parts) + "."
+        )
 
     @staticmethod
     def _faq_answer_for_bhk_availability(content_plan: dict) -> str | None:
@@ -1988,6 +2002,22 @@ class DraftGenerationService:
         }
 
     @staticmethod
+    def generate_faqs_standalone(
+        content_plan: dict,
+        openai_client: OpenAIClient | None = None,
+    ) -> list[dict]:
+        """C1 — Regenerate FAQs only, without regenerating sections or metadata.
+
+        Uses the stored content_plan directly so callers don't need to rebuild
+        the full plan. Returns a list of FAQ dicts ready to be merged into a draft.
+        """
+        client = openai_client or OpenAIClient()
+        faqs = DraftGenerationService._generate_faqs(content_plan, client)
+        faqs = DraftGenerationService._ensure_faq_coverage(content_plan, faqs)
+        faqs = DraftGenerationService._editorialize_faqs(content_plan, faqs)
+        return faqs
+
+    @staticmethod
     def generate(
         normalized: dict,
         keyword_intelligence: dict,
@@ -2072,6 +2102,6 @@ class DraftGenerationService:
         sanitized["debug_summary"] = final_debug_summary
         sanitized["quality_report"] = sanitized.get("quality_report", final_debug_summary)
         sanitized["publish_ready"] = sanitized["quality_report"].get("approval_status") != "fail"
-        sanitized["needs_review"] = not bool(validation_report.get("passed"))
+        sanitized["needs_review"] = sanitized["quality_report"].get("approval_status") == "fail"
         sanitized["markdown_draft"] = MarkdownRenderer.render(sanitized)
         return sanitized

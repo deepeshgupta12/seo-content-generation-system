@@ -260,7 +260,27 @@ class ContentPlanBuilder:
         return variants[:5]
 
     @staticmethod
-    def _body_keyword_priority(keyword_clusters: dict, entity: dict) -> list[str]:
+    def _keyword_limits_by_type(page_type: PageType | None) -> dict[str, int]:
+        """B1 — Return per-cluster keyword limits based on entity type.
+
+        LOCALITY pages emphasise BHK and price keywords (buyers search by BHK and budget).
+        CITY pages emphasise secondary/area keywords for zone comparison.
+        MICROMARKET pages balance BHK and area keywords.
+        """
+        if page_type == PageType.RESALE_LOCALITY:
+            return {"bhk_limit": 8, "price_limit": 6, "secondary_limit": 4}
+        if page_type == PageType.RESALE_CITY:
+            return {"bhk_limit": 4, "price_limit": 8, "secondary_limit": 6}
+        # MICROMARKET (default)
+        return {"bhk_limit": 6, "price_limit": 5, "secondary_limit": 5}
+
+    @staticmethod
+    def _body_keyword_priority(
+        keyword_clusters: dict,
+        entity: dict,
+        page_type: PageType | None = None,
+    ) -> list[str]:
+        limits = ContentPlanBuilder._keyword_limits_by_type(page_type)
         prioritized: list[str] = []
         seen: set[str] = set()
 
@@ -271,6 +291,7 @@ class ContentPlanBuilder:
             seen.add(signature)
             prioritized.append(keyword)
 
+        secondary_count = 0
         for record in keyword_clusters.get("secondary_keywords", []) or []:
             keyword = ContentPlanBuilder._extract_keyword_text(record)
             if not keyword:
@@ -280,7 +301,23 @@ class ContentPlanBuilder:
                 continue
             seen.add(signature)
             prioritized.append(keyword)
-            if len(prioritized) >= 8:
+            secondary_count += 1
+            if secondary_count >= limits["secondary_limit"]:
+                break
+
+        # B1: Inject BHK keywords into body priority based on type-specific limit.
+        bhk_count = 0
+        for record in keyword_clusters.get("bhk_keywords", []) or []:
+            keyword = ContentPlanBuilder._extract_keyword_text(record)
+            if not keyword:
+                continue
+            signature = keyword.lower()
+            if signature in seen:
+                continue
+            seen.add(signature)
+            prioritized.append(keyword)
+            bhk_count += 1
+            if bhk_count >= limits["bhk_limit"]:
                 break
 
         return prioritized
@@ -551,6 +588,12 @@ class ContentPlanBuilder:
             "refresh_plan": ContentPlanBuilder._build_refresh_plan(raw_source_meta),
         }
 
+    # Table IDs that must never appear on resale pages — they carry new-project or
+    # status-level data that is irrelevant (and misleading) for a resale listing page.
+    RESALE_BLOCKED_TABLE_IDS: frozenset[str] = frozenset(
+        {"property_status_table", "coverage_summary_table"}
+    )
+
     @staticmethod
     def _build_table_plan(page_type: PageType, normalized: dict) -> list[dict]:
         tables = [
@@ -570,26 +613,54 @@ class ContentPlanBuilder:
                 "columns": ["key", "doc_count"],
                 "summary_instruction": "Explain what this table says about the available BHK mix and mention one visible row naturally.",
             },
-            {
-                "id": "nearby_localities_table",
-                "title": "Nearby Localities to Explore",
-                "source_data_path": "nearby_localities",
-                "render_type": "deterministic",
-                "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
-                "summary_instruction": "Explain how this table helps compare nearby alternatives and mention one visible row naturally.",
-            },
         ]
+
+        # nearby_localities_table is excluded for CITY pages: city-level pages use
+        # location_rates_table (micromarket rate snapshot) for area comparison. The
+        # nearby_localities data on a city page refers to the same micromarkets already
+        # covered there and has missing distance/sale_count fields, creating duplicate noise.
+        if page_type != PageType.RESALE_CITY:
+            tables.append(
+                {
+                    "id": "nearby_localities_table",
+                    "title": "Nearby Localities to Explore",
+                    "source_data_path": "nearby_localities",
+                    "render_type": "deterministic",
+                    "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
+                    "summary_instruction": "Explain how this table helps compare nearby alternatives and mention one visible row naturally.",
+                }
+            )
 
         location_rates = normalized.get("pricing_summary", {}).get("location_rates", [])
         if location_rates:
+            # D2: Type-aware table title and summary so the table label reflects what "name" means.
+            _location_rates_title = {
+                PageType.RESALE_CITY: "Micromarket Rate Snapshot",
+                PageType.RESALE_MICROMARKET: "Locality Rate Snapshot",
+                PageType.RESALE_LOCALITY: "Sub-Locality Rate Snapshot",
+            }.get(page_type, "Location Rate Snapshot")
+            _location_rates_summary_instruction = {
+                PageType.RESALE_CITY: (
+                    "Each row represents a micromarket or zone within the city. "
+                    "Explain how the asking-rate signals vary across zones and mention one visible row naturally."
+                ),
+                PageType.RESALE_MICROMARKET: (
+                    "Each row represents a locality within this micromarket. "
+                    "Explain how rates differ across localities and mention one visible row naturally."
+                ),
+                PageType.RESALE_LOCALITY: (
+                    "Each row represents a sub-locality or cluster within this locality. "
+                    "Explain what the rate signals show and mention one visible row naturally."
+                ),
+            }.get(page_type, "Explain what these location-rate signals show and mention one visible row naturally.")
             tables.append(
                 {
                     "id": "location_rates_table",
-                    "title": "Location Rate Snapshot",
+                    "title": _location_rates_title,
                     "source_data_path": "pricing_summary.location_rates",
                     "render_type": "deterministic",
                     "columns": ["name", "avgRate", "changePercentage"],
-                    "summary_instruction": "For city pages, treat these as city zones or micromarkets rather than locality rows.",
+                    "summary_instruction": _location_rates_summary_instruction,
                 }
             )
 
@@ -608,30 +679,11 @@ class ContentPlanBuilder:
                 }
             )
 
-        property_status = normalized.get("pricing_summary", {}).get("property_status", []) or []
-        if property_status:
-            tables.append(
-                {
-                    "id": "property_status_table",
-                    "title": "Property Status Snapshot",
-                    "source_data_path": "pricing_summary.property_status",
-                    "render_type": "deterministic",
-                    "columns": ["status", "units", "avgPrice", "changePercent"],
-                    "summary_instruction": "Explain which visible property-status bucket is shown and mention one visible row naturally.",
-                }
-            )
-
-        if page_type in {PageType.RESALE_CITY, PageType.RESALE_MICROMARKET}:
-            tables.append(
-                {
-                    "id": "coverage_summary_table",
-                    "title": "Coverage Summary",
-                    "source_data_path": "listing_summary",
-                    "render_type": "deterministic",
-                    "columns": ["sale_count", "total_listings", "total_projects"],
-                    "summary_instruction": "Explain that this table gives a quick scale view of the page using only visible values.",
-                }
-            )
+        # property_status_table and coverage_summary_table are intentionally excluded:
+        # - property_status_table carries New Launch / Under Construction data which is
+        #   new-project data, not resale data, and is misleading on a resale page.
+        # - coverage_summary_table adds no actionable buyer value on a resale page.
+        # Both are listed in RESALE_BLOCKED_TABLE_IDS for downstream enforcement.
 
         return tables
 
@@ -698,36 +750,50 @@ class ContentPlanBuilder:
     @staticmethod
     def _build_faq_plan(entity: dict, keyword_clusters: dict, normalized: dict) -> dict:
         location_label = ContentPlanBuilder._display_location(entity)
+        entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
+        page_type_str = str(entity.get("page_type") or "").lower()
         faq_keywords = keyword_clusters.get("faq_keyword_candidates", [])
 
         faq_intents = [
             {
                 "id": "pricing",
-                "question_template": f"What is the asking price signal for resale properties in {location_label}?",
+                "question_template": f"What is the asking price for resale properties in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
                 "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
             },
             {
+                "id": "price_range",
+                "question_template": f"What is the price range for resale flats in {location_label}?",
+                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
+                "data_dependencies": ["listing_ranges.sale_listing_range", "pricing_summary.asking_price"],
+            },
+            {
                 "id": "inventory",
-                "question_template": f"How many resale properties are currently visible in {location_label}?",
+                "question_template": f"How many resale properties are currently available in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
                 "data_dependencies": ["listing_summary.sale_count", "listing_summary.total_listings"],
             },
             {
                 "id": "bhk_availability",
-                "question_template": f"Which BHK options are commonly visible in {location_label}?",
+                "question_template": f"Which BHK configurations are available in resale properties in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 5),
                 "data_dependencies": ["distributions.sale_unit_type_distribution"],
             },
             {
+                "id": "price_trend",
+                "question_template": f"How have resale property prices changed in {location_label} recently?",
+                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
+                "data_dependencies": ["pricing_summary.price_trend"],
+            },
+            {
                 "id": "nearby_localities",
-                "question_template": f"Which nearby localities can buyers also consider around {location_label}?",
+                "question_template": f"Which areas near {location_label} can buyers also explore for resale properties?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["nearby_localities"],
             },
             {
                 "id": "property_type_signals",
-                "question_template": f"What residential property-type signals are visible for resale listings in {location_label}?",
+                "question_template": f"What types of residential properties are available for resale in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["pricing_summary.property_types", "distributions.sale_property_type_distribution"],
             },
@@ -769,32 +835,73 @@ class ContentPlanBuilder:
             faq_intents.append(
                 {
                     "id": "demand_supply",
-                    "question_template": f"What demand and supply signals are available for resale listings in {location_label}?",
+                    "question_template": f"What does the supply picture look like for resale listings in {location_label}?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                     "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
                 }
             )
-
-        if ContentPlanBuilder._has_price_range_data(normalized):
-            faq_intents.append(
-                {
-                    "id": "price_range",
-                    "question_template": f"What price range is visible for resale listings in {location_label}?",
-                    "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
-                    "data_dependencies": ["listing_ranges.sale_listing_range"],
-                }
-            )
+            # Add a BHK-split demand intent if unit-type demand data is available
+            demand_data = normalized.get("demand_supply", {}) or {}
+            if demand_data.get("unit_type_splits") or demand_data.get("bhk_split"):
+                faq_intents.append(
+                    {
+                        "id": "demand_supply_bhk_split",
+                        "question_template": f"Which BHK sizes are in higher supply in {location_label} resale market?",
+                        "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 4),
+                        "data_dependencies": ["demand_supply.unit_type_splits", "demand_supply.bhk_split"],
+                    }
+                )
 
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
         if rera_context:
             faq_intents.append(
                 {
                     "id": "rera_buyer_protection",
-                    "question_template": f"What RERA or buyer-protection details are available for {location_label} on this page?",
+                    "question_template": f"Are resale properties in {location_label} RERA-registered?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                     "data_dependencies": ["rera_context"],
                 }
             )
+
+        # Location comparison: how does this location compare to the broader city/micromarket?
+        price_trend = normalized.get("pricing_summary", {}).get("price_trend", [])
+        if price_trend and len(price_trend) > 0:
+            faq_intents.append(
+                {
+                    "id": "location_vs_benchmark",
+                    "question_template": (
+                        f"How do resale property prices in {location_label} compare to the broader {city_name} market?"
+                    ),
+                    "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
+                    "data_dependencies": ["pricing_summary.price_trend"],
+                }
+            )
+
+        # City-page specific: coverage of micromarkets
+        if "city" in page_type_str:
+            listing_summary = normalized.get("listing_summary", {}) or {}
+            if listing_summary.get("total_listings") or listing_summary.get("sale_count"):
+                faq_intents.append(
+                    {
+                        "id": "city_market_coverage",
+                        "question_template": f"How much of the {city_name} resale market does this page cover?",
+                        "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+                        "data_dependencies": ["listing_summary"],
+                    }
+                )
+
+        # Micromarket-page specific: locality coverage
+        if "micromarket" in page_type_str:
+            listing_summary = normalized.get("listing_summary", {}) or {}
+            if listing_summary.get("total_listings") or listing_summary.get("sale_count"):
+                faq_intents.append(
+                    {
+                        "id": "micromarket_locality_coverage",
+                        "question_template": f"Which localities in {entity_name} have resale properties available?",
+                        "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                        "data_dependencies": ["listing_summary", "nearby_localities"],
+                    }
+                )
 
         return {
             "total_faq_intents": len(faq_intents),
@@ -1013,6 +1120,7 @@ class ContentPlanBuilder:
         normalized: dict,
         entity: dict,
         keyword_clusters: dict,
+        page_type: PageType | None = None,
     ) -> dict[str, dict]:
         context_map: dict[str, dict] = {}
 
@@ -1023,6 +1131,7 @@ class ContentPlanBuilder:
         body_keyword_priority = ContentPlanBuilder._body_keyword_priority(
             keyword_clusters,
             entity,
+            page_type=page_type,
         )
         page_property_type_context = ContentPlanBuilder._page_property_type_context(
             normalized,
@@ -1032,14 +1141,56 @@ class ContentPlanBuilder:
             normalized.get("pricing_summary", {}) or {}
         )
 
+        # Build entity-type framing notes once, used per-section below.
+        page_type_value = page_type.value if page_type else entity.get("page_type", "")
+        _entity_type_framing: dict[str, str] = {
+            "resale_city": (
+                "This is a city-level page. The reader is comparing broad zones or micromarkets within the city. "
+                "Frame all data in terms of which zones offer which price bands. Avoid hyper-local detail."
+            ),
+            "resale_micromarket": (
+                "This is a micromarket-level page. The reader has shortlisted this area and is comparing "
+                "localities within it. Frame data to help them navigate sub-areas and price tiers inside the micromarket."
+            ),
+            "resale_locality": (
+                "This is a locality-level page. The reader is actively evaluating a specific neighbourhood. "
+                "Lead with what the locality offers: BHK mix, asking price, nearby alternatives, and walkability signals."
+            ),
+        }
+        entity_type_context: dict[str, Any] = {
+            "page_type": page_type_value,
+            "framing_note": _entity_type_framing.get(page_type_value, "Frame data in terms of what a resale buyer needs."),
+        }
+        # Inject locality ai_summary for LOCALITY pages (D1 — locality character into entity_type_context)
+        if page_type == PageType.RESALE_LOCALITY:
+            ai_summary = normalized.get("ai_summary") or {}
+            locality_summary = ai_summary.get("locality_summary") or ""
+            if locality_summary:
+                entity_type_context["locality_character_summary"] = locality_summary
+
         for section in section_plan:
             section_context: dict[str, Any] = {"entity": entity}
 
             for dependency in section.get("data_dependencies", []):
+                # D1: For LOCALITY market_snapshot, also resolve ai_summary so the
+                # locality character summary is available to the LLM without changing section_plan.
+                if (
+                    dependency == "listing_summary"
+                    and section.get("id") == "market_snapshot"
+                    and page_type == PageType.RESALE_LOCALITY
+                ):
+                    ai_summary = normalized.get("ai_summary")
+                    if ai_summary:
+                        section_context["ai_summary"] = ai_summary
+
                 value = ContentPlanBuilder._resolve_dependency_value(normalized, dependency)
                 if value is None:
                     continue
                 section_context[dependency] = value
+
+            # Inject the entity_type_context into every section so the LLM understands
+            # the page scope and frames content accordingly (A2).
+            section_context["entity_type_context"] = entity_type_context
 
             section_context["writing_style"] = {
                 "target_tone": "human, descriptive, grounded, SEO-friendly",
@@ -1151,9 +1302,44 @@ class ContentPlanBuilder:
                     "instruction": (
                         "For city pages, explain covered zones using the visible location-rate rows. "
                         "Where clear tiers exist, explain them simply as pricing bands. "
+                        "If buyer_segmentation is absent, fall back to framing by asking-price tier from location_rates. "
                         "Do not add unsupported investment or growth claims."
                     ),
                 }
+
+            # A2: Locality_coverage guardrails for MICROMARKET pages — previously had no framing.
+            if section["id"] == "locality_coverage":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["pricing_summary.location_rates", "nearby_localities", "listing_summary"],
+                    "instruction": (
+                        "Explain which localities are visible inside this micromarket. "
+                        "Mention the count of localities covered if visible. "
+                        "Highlight the top-priced and lowest-priced localities if data allows. "
+                        "Help the buyer understand how to navigate across the localities — what each sub-area is known for in pricing terms. "
+                        "Avoid repeating the market_snapshot section. Do not add investment advice."
+                    ),
+                }
+
+            # A3: Narrative rules for nearby_alternatives section (LOCALITY pages).
+            if section["id"] == "nearby_alternatives":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["nearby_localities"],
+                    "instruction": (
+                        "Highlight at most 4–5 nearby locality alternatives. "
+                        "For each, frame by distance from current locality and asking-price comparison where data allows. "
+                        "Note which alternatives have more inventory visible. "
+                        "The table already lists all options — prose should highlight only the most relevant alternatives, not list all rows."
+                    ),
+                }
+
+            # B2: Inject BHK keyword phrases into bhk_and_inventory_mix so the LLM
+            # has both the data distribution AND the exact keyword forms to use.
+            if section["id"] == "bhk_and_inventory_mix":
+                bhk_phrases = ContentPlanBuilder._top_keywords(
+                    keyword_clusters.get("bhk_keywords", []), 6
+                )
+                if bhk_phrases:
+                    section_context["target_bhk_phrases"] = bhk_phrases
 
             context_map[section["id"]] = section_context
 
@@ -1218,6 +1404,7 @@ class ContentPlanBuilder:
                 "body_keyword_priority": ContentPlanBuilder._body_keyword_priority(
                     keyword_clusters,
                     entity,
+                    page_type=page_type,
                 ),
                 "secondary_keywords": keyword_clusters.get("secondary_keywords", []),
                 "bhk_keywords": keyword_clusters.get("bhk_keywords", []),
@@ -1237,6 +1424,7 @@ class ContentPlanBuilder:
                 normalized,
                 entity,
                 keyword_clusters,
+                page_type=page_type,
             ),
             "table_plan": table_plan,
             "comparison_plan": ContentPlanBuilder._build_comparison_plan(normalized),
