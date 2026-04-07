@@ -577,15 +577,15 @@ class ContentPlanBuilder:
         ]
 
         description_candidates = [
-            f"Explore {primary_keyword_text.lower()} with asking price details, BHK options, nearby localities, and resale market context on Square Yards.",
-            f"Find {secondary_primary_keyword.lower()} with asking price trends, inventory mix, and nearby area insights on Square Yards.",
+            f"Explore {primary_keyword_text.lower()} with sale price details, BHK options, nearby localities, and resale market context on Square Yards.",
+            f"Find {secondary_primary_keyword.lower()} with sale price trends, inventory mix, and nearby area insights on Square Yards.",
             f"Browse {tertiary_primary_keyword.lower()} with rates, property mix, and grounded resale information on Square Yards.",
-            f"Check resale property options in {location_label} with asking price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
+            f"Check resale property options in {location_label} with sale price trends, BHK availability, locality comparisons, and source-backed data on Square Yards.",
         ]
 
         canonical_pricing = {
             "metric_name": "asking_price",
-            "label": "asking price",
+            "label": "sale price",
             "value": entity.get("canonical_asking_price"),
         }
 
@@ -609,11 +609,14 @@ class ContentPlanBuilder:
     )
 
     @staticmethod
-    def _build_table_plan(page_type: PageType, normalized: dict) -> list[dict]:
+    def _build_table_plan(page_type: PageType, normalized: dict, entity: dict | None = None) -> list[dict]:
+        _entity_name, _city_name = ContentPlanBuilder._entity_label_parts(entity or {})
+        _eloc = _entity_name if _entity_name.lower() != _city_name.lower() else _city_name
+
         tables = [
             {
                 "id": "price_trend_table",
-                "title": "Price Trend Snapshot",
+                "title": f"Resale Price Trend — {_eloc}" if _eloc else "Price Trend Snapshot",
                 "source_data_path": "pricing_summary.price_trend",
                 "render_type": "deterministic",
                 "columns": ["quarterName", "locationRate", "micromarketRate", "cityRate"],
@@ -621,7 +624,7 @@ class ContentPlanBuilder:
             },
             {
                 "id": "sale_unit_type_distribution_table",
-                "title": "Available BHK Mix",
+                "title": f"BHK Options in {_eloc}" if _eloc else "Available BHK Mix",
                 "source_data_path": "distributions.sale_unit_type_distribution",
                 "render_type": "deterministic",
                 "columns": ["key", "doc_count"],
@@ -637,7 +640,7 @@ class ContentPlanBuilder:
             tables.append(
                 {
                     "id": "nearby_localities_table",
-                    "title": "Nearby Localities to Explore",
+                    "title": f"Localities Near {_eloc}" if _eloc else "Nearby Localities to Explore",
                     "source_data_path": "nearby_localities",
                     "render_type": "deterministic",
                     "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
@@ -649,14 +652,14 @@ class ContentPlanBuilder:
         if location_rates:
             # D2: Type-aware table title and summary so the table label reflects what "name" means.
             _location_rates_title = {
-                PageType.RESALE_CITY: "Micromarket Rate Snapshot",
-                PageType.RESALE_MICROMARKET: "Locality Rate Snapshot",
-                PageType.RESALE_LOCALITY: "Sub-Locality Rate Snapshot",
-            }.get(page_type, "Location Rate Snapshot")
+                PageType.RESALE_CITY: f"Micromarket Rates in {_city_name}" if _city_name else "Micromarket Rate Snapshot",
+                PageType.RESALE_MICROMARKET: f"Locality Rates in {_eloc}" if _eloc else "Locality Rate Snapshot",
+                PageType.RESALE_LOCALITY: f"Sub-Locality Rates in {_eloc}" if _eloc else "Sub-Locality Rate Snapshot",
+            }.get(page_type, f"Location Rates — {_eloc}" if _eloc else "Location Rate Snapshot")
             _location_rates_summary_instruction = {
                 PageType.RESALE_CITY: (
                     "Each row represents a micromarket or zone within the city. "
-                    "Explain how the asking-rate signals vary across zones and mention one visible row naturally."
+                    "Explain how the sale price signals vary across zones and mention one visible row naturally."
                 ),
                 PageType.RESALE_MICROMARKET: (
                     "Each row represents a locality within this micromarket. "
@@ -685,7 +688,7 @@ class ContentPlanBuilder:
             tables.append(
                 {
                     "id": "property_types_table",
-                    "title": "Property Type Rate Snapshot",
+                    "title": f"Property Type Rates in {_eloc}" if _eloc else "Property Type Rate Snapshot",
                     "source_data_path": "pricing_summary.property_types",
                     "render_type": "deterministic",
                     "columns": ["propertyType", "avgPrice", "changePercent"],
@@ -771,7 +774,7 @@ class ContentPlanBuilder:
         faq_intents = [
             {
                 "id": "pricing",
-                "question_template": f"What is the asking price for resale properties in {location_label}?",
+                "question_template": f"What is the sale price for resale properties in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
                 "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
             },
@@ -960,6 +963,11 @@ class ContentPlanBuilder:
 
     @staticmethod
     def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
+        entity_name, city_name = ContentPlanBuilder._entity_label_parts(entity)
+        # Use city_name as fallback if entity_name equals city_name (CITY pages)
+        _loc = entity_name if entity_name.lower() != city_name.lower() else city_name
+        _loc_with_city = f"{entity_name}, {city_name}" if entity_name.lower() != city_name.lower() else city_name
+
         has_review_signals = ContentPlanBuilder._has_review_signals(normalized)
         has_demand_supply = ContentPlanBuilder._has_demand_supply_data(normalized)
         has_residential_property_signals = ContentPlanBuilder._has_residential_property_type_data(normalized)
@@ -970,7 +978,7 @@ class ContentPlanBuilder:
         common_sections = [
             {
                 "id": "market_snapshot",
-                "title": "Resale Market Snapshot",
+                "title": f"Resale Market Overview — {_loc}",
                 "objective": (
                     "What is a buyer actually looking at on this page right now? "
                     "Open with a grounded overview of the visible resale market, and keep it residential-first."
@@ -981,9 +989,9 @@ class ContentPlanBuilder:
             },
             {
                 "id": "price_trends_and_rates",
-                "title": "Price Trends and Rates",
+                "title": f"Resale Price Trends in {_loc}",
                 "objective": (
-                    "What does the current asking-price view look like, and what does the trend table help a buyer compare?"
+                    "What does the current sale price view look like, and what does the trend table help a buyer compare?"
                 ),
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 5),
@@ -995,7 +1003,7 @@ class ContentPlanBuilder:
             },
             {
                 "id": "bhk_and_inventory_mix",
-                "title": "BHK and Inventory Mix",
+                "title": f"BHK Options and Inventory in {_loc}",
                 "objective": (
                     "Which home sizes and visible inventory buckets are showing up here, and how should a buyer read that mix?"
                 ),
@@ -1036,7 +1044,7 @@ class ContentPlanBuilder:
 
         locality_specific = {
             "id": "nearby_alternatives",
-            "title": "Nearby Localities Buyers Can Also Explore",
+            "title": f"Localities Near {_loc} to Explore",
             "objective": (
                 "Which nearby areas can a buyer compare without leaving the resale context, and what does the nearby view help with?"
             ),
@@ -1047,7 +1055,7 @@ class ContentPlanBuilder:
 
         review_signals_section = {
             "id": "review_and_rating_signals",
-            "title": "Review and Rating Signals",
+            "title": f"Resident Reviews and Ratings — {_loc}",
             "objective": (
                 "What do the available review counts, ratings, and tags say about the feedback visible on this page?"
             ),
@@ -1058,7 +1066,7 @@ class ContentPlanBuilder:
 
         property_rates_ai_section = {
             "id": "property_rates_ai_signals",
-            "title": "Market Strengths, Challenges, and Opportunities",
+            "title": f"Market Insights for {_loc_with_city}",
             "objective": (
                 "Present the property-rates AI notes exactly as a restrained summary of the supplied snapshot and lists, without interpreting them."
             ),
@@ -1069,7 +1077,7 @@ class ContentPlanBuilder:
 
         demand_supply_section = {
             "id": "demand_and_supply_signals",
-            "title": "Demand and Supply Signals",
+            "title": f"Resale Supply Signals — {_loc}",
             "objective": (
                 "What resale breadth, configuration split, or listing-range cues are actually visible in this sample?"
             ),
@@ -1080,7 +1088,7 @@ class ContentPlanBuilder:
 
         property_type_signals_section = {
             "id": "property_type_signals",
-            "title": "Property Type Signals",
+            "title": f"Property Types in {_loc}",
             "objective": (
                 "Which residential property formats are visible here, and how do they appear in the current resale mix?"
             ),
@@ -1095,7 +1103,7 @@ class ContentPlanBuilder:
 
         property_type_rate_snapshot_section = {
             "id": "property_type_rate_snapshot",
-            "title": "Property Type Rate Snapshot",
+            "title": f"Property Type Rates in {_loc_with_city}",
             "objective": (
                 "How should a buyer read the residential property-type and location-rate view without turning it into a generic market recap?"
             ),
@@ -1111,7 +1119,7 @@ class ContentPlanBuilder:
 
         micromarket_specific = {
             "id": "locality_coverage",
-            "title": "Localities Covered in This Micromarket",
+            "title": f"Localities in {_loc_with_city}",
             "objective": (
                 "Which localities are visible inside this micromarket view, and what does that help a buyer compare?"
             ),
@@ -1122,7 +1130,7 @@ class ContentPlanBuilder:
 
         city_specific = {
             "id": "micromarket_coverage",
-            "title": "Key Resale Zones Across the City",
+            "title": f"Key Resale Zones Across {city_name}",
             "objective": (
                 "How are visible resale rate signals distributed across the city, and where do the higher and lower visible bands sit?"
             ),
@@ -1134,7 +1142,7 @@ class ContentPlanBuilder:
         # D6: Neighbourhood essentials — landmarks summary for LOCALITY/MICROMARKET pages
         neighbourhood_essentials_section = {
             "id": "neighbourhood_essentials",
-            "title": "Neighbourhood Essentials and Connectivity",
+            "title": f"Neighbourhood Essentials Near {_loc}",
             "objective": (
                 "What day-to-day infrastructure is visible near this location? "
                 "Describe the landmark categories present (hospitals, schools, banks, etc.) "
@@ -1148,7 +1156,7 @@ class ContentPlanBuilder:
         # D7: Market registration activity — govt registration + top developers for all entity types
         market_registration_section = {
             "id": "market_registration_activity",
-            "title": "Registration Activity and Developer Presence",
+            "title": f"Property Registrations in {_loc_with_city}",
             "objective": (
                 "What do the government registration transaction count and gross value say about buyer activity? "
                 "Which developers have a visible presence in this market?"
@@ -1241,7 +1249,7 @@ class ContentPlanBuilder:
             ),
             "resale_locality": (
                 "This is a locality-level page. The reader is actively evaluating a specific neighbourhood. "
-                "Lead with what the locality offers: BHK mix, asking price, nearby alternatives, and walkability signals."
+                "Lead with what the locality offers: BHK mix, sale price, nearby alternatives, and walkability signals."
             ),
         }
         entity_type_context: dict[str, Any] = {
@@ -1321,8 +1329,8 @@ class ContentPlanBuilder:
                     "allowed_pricing_metrics": ["asking_price"],
                     "disallowed_pricing_metrics": ["registration_rate", "sale_avg_price_per_sqft"],
                     "instruction": (
-                        "Use only asking_price and price_trend in prose. "
-                        "Explain what the asking signal is and what the trend comparison helps a buyer understand."
+                        "Use only sale price and price_trend in prose. "
+                        "Explain what the sale price signal is and what the trend comparison helps a buyer understand."
                     ),
                 }
 
@@ -1389,7 +1397,7 @@ class ContentPlanBuilder:
                     "instruction": (
                         "For city pages, explain covered zones using the visible location-rate rows. "
                         "Where clear tiers exist, explain them simply as pricing bands. "
-                        "If buyer_segmentation is absent, fall back to framing by asking-price tier from location_rates. "
+                        "If buyer_segmentation is absent, fall back to framing by sale price tier from location_rates. "
                         "Do not add unsupported investment or growth claims."
                     ),
                 }
@@ -1439,7 +1447,7 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["nearby_localities"],
                     "instruction": (
                         "Highlight at most 4–5 nearby locality alternatives. "
-                        "For each, frame by distance from current locality and asking-price comparison where data allows. "
+                        "For each, frame by distance from current locality and sale price comparison where data allows. "
                         "Note which alternatives have more inventory visible. "
                         "The table already lists all options — prose should highlight only the most relevant alternatives, not list all rows."
                     ),
@@ -1487,7 +1495,7 @@ class ContentPlanBuilder:
         )
 
         table_plan = ContentPlanBuilder._apply_competitor_table_priority(
-            ContentPlanBuilder._build_table_plan(page_type, normalized),
+            ContentPlanBuilder._build_table_plan(page_type, normalized, entity),
             competitor_intelligence,
         )
 

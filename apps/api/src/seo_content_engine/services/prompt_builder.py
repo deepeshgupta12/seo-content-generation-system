@@ -10,7 +10,7 @@ class PromptBuilder:
             "You generate SEO metadata for Square Yards resale listing pages. "
             "Stay fully grounded in the provided data and keyword plan. "
             "Do not invent facts, amenities, popularity claims, demand claims, investment claims, growth claims, or numbers. "
-            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "Write like a strong human editor, not like an SEO template engine. "
             "Avoid phrases such as premium, most sought-after, excellent connectivity, strong demand, luxury, prime destination, investment potential. "
             "Avoid robotic phrasing, stacked keyword strings, and repetitive search language. "
@@ -18,11 +18,11 @@ class PromptBuilder:
             "The title should read like a clean, high-trust search result — specific, location-anchored, and useful to a real buyer. "
             "Good title examples: "
             "'2 & 3 BHK Resale Flats in Andheri West — Prices, Listings & Market Data | Square Yards', "
-            "'Resale Properties in Bandra East — Asking Prices & BHK Options | Square Yards', "
+            "'Resale Properties in Bandra East — Sale Prices & BHK Options | Square Yards', "
             "'Mumbai Resale Property Market — Prices by Micromarket | Square Yards'. "
             "The meta description should answer what a buyer gets from this page in one direct sentence — price signals, BHK options, or locality context. "
             "Good meta description examples: "
-            "'Browse resale flats in Andheri West with current asking prices starting from ₹X, BHK availability, and nearby locality comparisons on Square Yards.', "
+            "'Browse resale flats in Andheri West with current sale prices starting from ₹X, BHK availability, and nearby locality comparisons on Square Yards.', "
             "'Check resale property prices in Bandra East — 1 to 4 BHK options, price trends by quarter, and grounded market context on Square Yards.' "
             "The H1 should be natural and clear — not a keyword dump. "
             "The intro snippet should feel like the first sentence of a page a real buyer would trust, not a metadata echo. "
@@ -87,7 +87,7 @@ class PromptBuilder:
             "This is AEO-style writing: answer first, evidence second. "
             "Use only the provided section-level grounded context and section plan. "
             "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
-            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
             "For review sections, use only explicit review counts, ratings, tag signals, and AI summary text if provided. "
             "For demand and supply sections, use only explicit counts, percentages, unit-type splits, listing ranges, and availability values. "
@@ -106,8 +106,9 @@ class PromptBuilder:
             "Write 3 to 4 paragraphs of 2 to 3 sentences each. "
             "For sections that contain data-driven findings (pricing, BHK mix, inventory, demand/supply), "
             "follow the prose paragraphs with exactly 3 to 4 bullet points in the key_points field. "
-            "Each bullet point must state one specific, grounded fact a buyer would find useful — "
-            "not a restatement of the prose, but a sharp, standalone takeaway. "
+            "CRITICAL — no prose/bullet duplication: bullet points and prose paragraphs must never cover the same information. "
+            "If a fact, figure, or observation is stated in the prose, it must NOT appear in the bullet points. "
+            "Bullet points must add distinct, additional grounded facts not already covered in the prose — sharp standalone takeaways a buyer would want to scan quickly. "
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
             "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
@@ -128,19 +129,19 @@ class PromptBuilder:
         if "city" in page_type.lower():
             buyer_persona = (
                 f"A buyer researching the broader {city_name} resale market — "
-                "comparing micromarkets, understanding price bands across zones, "
+                "comparing micromarkets, understanding sale price bands across zones, "
                 "and deciding which area fits their budget and lifestyle."
             )
         elif "micromarket" in page_type.lower():
             buyer_persona = (
                 f"A buyer who has shortlisted {entity_name} as a target area and is now "
-                "comparing specific localities within it — evaluating price levels, "
+                "comparing specific localities within it — evaluating sale price levels, "
                 "available BHK sizes, and how the area compares to adjacent zones."
             )
         else:
             buyer_persona = (
                 f"A buyer actively evaluating resale flats in {entity_name} — "
-                "checking current asking prices, available BHK configurations, "
+                "checking current sale prices, available BHK configurations, "
                 "nearby alternatives, and what existing residents say about the locality."
             )
 
@@ -176,7 +177,7 @@ class PromptBuilder:
                 "strict_grounding": True,
                 "section_rules": {
                     "use_only_section_generation_context_for_narrative": True,
-                    "price_trends_and_rates_prose_must_use_only_asking_price": True,
+                    "price_trends_and_rates_prose_must_use_only_sale_price": True,
                     "exclude_non_canonical_pricing_metrics_from_prose": True,
                     "review_sections_must_use_explicit_review_inputs_only": True,
                     "demand_supply_sections_must_use_explicit_supply_demand_inputs_only": True,
@@ -191,6 +192,7 @@ class PromptBuilder:
                     "write_3_to_4_paragraphs_of_2_to_3_sentences_each": True,
                     "add_3_to_4_key_points_bullets_for_data_driven_sections": True,
                     "key_points_must_be_grounded_standalone_facts_not_prose_repeats": True,
+                    "no_prose_bullet_duplication": "Facts stated in prose must NOT appear in bullets and vice versa — each must cover distinct information",
                     "aeo_style_lead_sentence_answers_section_question_directly": True,
                     "avoid_template_like_openings": True,
                     "avoid_cross_section_repetition": True,
@@ -246,15 +248,16 @@ class PromptBuilder:
             "This is AEO-style writing: answer first, evidence second. "
             "Use only the provided section-level grounded context. "
             "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
-            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
             "Do not restate the same metric twice. "
             "Do not end with generic filler like 'this helps buyers understand', 'this helps set expectations', 'this provides useful insights'. "
             "Write 3 to 4 paragraphs of 2 to 3 sentences each. "
             "For sections that contain data-driven findings (pricing, BHK mix, inventory, demand/supply), "
             "follow the prose paragraphs with exactly 3 to 4 bullet points in the key_points field. "
-            "Each bullet point must state one specific, grounded fact a buyer would find useful — "
-            "not a restatement of the prose, but a sharp, standalone takeaway. "
+            "CRITICAL — no prose/bullet duplication: bullet points and prose paragraphs must never cover the same information. "
+            "If a fact, figure, or observation is stated in the prose, it must NOT appear in the bullet points. "
+            "Bullet points must add distinct, additional grounded facts not already covered in the prose — sharp standalone takeaways a buyer would want to scan quickly. "
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
             "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
@@ -269,19 +272,19 @@ class PromptBuilder:
         if "city" in page_type.lower():
             buyer_persona = (
                 f"A buyer researching the broader {city_name} resale market — "
-                "comparing micromarkets, understanding price bands across zones, "
+                "comparing micromarkets, understanding sale price bands across zones, "
                 "and deciding which area fits their budget and lifestyle."
             )
         elif "micromarket" in page_type.lower():
             buyer_persona = (
                 f"A buyer who has shortlisted {entity_name} as a target area and is now "
-                "comparing specific localities within it — evaluating price levels, "
+                "comparing specific localities within it — evaluating sale price levels, "
                 "available BHK sizes, and how the area compares to adjacent zones."
             )
         else:
             buyer_persona = (
                 f"A buyer actively evaluating resale flats in {entity_name} — "
-                "checking current asking prices, available BHK configurations, "
+                "checking current sale prices, available BHK configurations, "
                 "nearby alternatives, and what existing residents say about the locality."
             )
 
@@ -328,6 +331,7 @@ class PromptBuilder:
                 "aeo_style_lead_sentence": True,
                 "write_3_to_4_paragraphs": True,
                 "add_3_to_4_key_points_for_data_driven_sections": True,
+                "no_prose_bullet_duplication": "Facts stated in prose must NOT appear in bullets and vice versa — each must cover distinct information",
                 "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
                 "avoid_repeating_same_primary_keyword": True,
                 "use_keywords_naturally": True,
@@ -353,7 +357,7 @@ class PromptBuilder:
             "use it to generate FAQs that cover every major data axis: pricing, BHK availability, "
             "inventory, demand/supply, reviews, property type mix, nearby localities, and any AI signals. "
             "Do not invent numbers or claims. "
-            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, and listing ranges. "
             "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
@@ -382,10 +386,10 @@ class PromptBuilder:
                 "Respect per_axis_target limits to avoid over-indexing on pricing at the expense of other axes."
             ),
             "required_axes": [
-                "asking_price_or_price_range — What does a buyer pay for a resale property here?",
+                "sale_price_or_price_range — What does a buyer pay for a resale property here?",
                 "bhk_availability — Which BHK configurations are available?",
                 "inventory_count — How many resale listings are visible?",
-                "price_trend — How have asking prices moved recently?",
+                "price_trend — How have sale prices moved recently?",
                 "property_type_mix — What types of residential properties are available?",
                 "nearby_localities — What alternatives can buyers explore nearby?",
                 "reviews_and_ratings — What do residents say about this location?",
@@ -534,7 +538,7 @@ class PromptBuilder:
             "You repair a previously generated Square Yards section. "
             "Be surgical. Keep the same section id, title, and purpose. Rewrite only the body. "
             "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, repeated metric restatement, and internal system language. "
-            "If price is mentioned, use only the canonical asking price metric. "
+            "If price is mentioned, use only the canonical sale price metric. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
             "For review-related sections, use only explicit review, rating, tag, or AI-summary inputs. "
             "For demand-supply sections, use only explicit counts, percentages, unit-type splits, and listing-range inputs. "
@@ -559,7 +563,7 @@ class PromptBuilder:
                 "rewrite_body_only": True,
                 "avoid_forbidden_claims": True,
                 "avoid_non_canonical_pricing_terms": True,
-                "price_trends_and_rates_prose_must_use_only_asking_price": True,
+                "price_trends_and_rates_prose_must_use_only_sale_price": True,
                 "review_sections_must_use_explicit_review_inputs_only": True,
                 "demand_supply_sections_must_use_explicit_inputs_only": True,
                 "property_type_sections_must_use_explicit_inputs_only": True,
@@ -583,7 +587,7 @@ class PromptBuilder:
             "You repair a previously generated Square Yards FAQ answer. "
             "Be surgical. Keep the same question. Rewrite only the answer. "
             "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, and internal system language. "
-            "If price is mentioned, use only the canonical asking price metric. "
+            "If price is mentioned, use only the canonical sale price metric. "
             "For review FAQs, use only explicit review, rating, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, or listing-range inputs. "
             "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
@@ -629,7 +633,7 @@ class PromptBuilder:
             "You repair previously generated Square Yards metadata. "
             "Be surgical. Preserve the field structure and rewrite only the fields that need fixing. "
             "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic phrasing, and keyword stuffing. "
-            "If price is mentioned, use only the canonical asking price metric. "
+            "If price is mentioned, use only the canonical sale price metric. "
             "Do not introduce facts beyond the grounded data. "
             "Return only valid JSON."
         )
