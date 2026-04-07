@@ -1,0 +1,686 @@
+{
+  "status": 1,
+  "message": "Property Rates Data Found",
+  "data": {
+    "id": "5",
+    "slug": "property-rates-in-bangalore",
+    "type": "city",
+    "propertyRatesData": {
+      "details": {
+        "id": "5",
+        "name": "Bangalore",
+        "locationId": null,
+        "microMarketId": null,
+        "microMarketName": null,
+        "cityId": null,
+        "cityName": null,
+        "diUrl": "/property-rates-in-bangalore",
+        "type": "CITY"
+      },
+      "marketOverview": {
+        "askingPrice": 12338,
+        "registrationRate": 6135,
+        "listingCount": 10000
+      },
+      "priceTrend": [
+        {
+          "quarterName": "Dec 2025",
+          "cityRate": 12061
+        },
+        {
+          "quarterName": "Sep 2025",
+          "cityRate": 10966
+        },
+        {
+          "quarterName": "Jun 2025",
+          "cityRate": 10653
+        },
+        {
+          "quarterName": "Mar 2025",
+          "cityRate": 10285
+        }
+      ],
+      "micromarketRates": [
+        {
+          "id": "17",
+          "name": "Central Bangalore",
+          "avgRate": 13960,
+          "changePercentage": 13.72,
+          "url": "sale/property-for-sale-in-central-bangalore-bangalore"
+        },
+        {
+          "id": "19",
+          "name": "East Bangalore",
+          "avgRate": 13297,
+          "changePercentage": 9.37,
+          "url": "sale/property-for-sale-in-east-bangalore-bangalore"
+        },
+        {
+          "id": "18",
+          "name": "North Bangalore",
+          "avgRate": 10873,
+          "changePercentage": 10.17,
+          "url": "sale/property-for-sale-in-north-bangalore-bangalore"
+        },
+        {
+          "id": "21",
+          "name": "South Bangalore",
+          "avgRate": 11095,
+          "changePercentage": 9.61,
+          "url": "sale/property-for-sale-in-south-bangalore-bangalore"
+        },
+        {
+          "id": "20",
+          "name": "West Bangalore",
+          "avgRate": 10831,
+          "changePercentage": 15.02,
+          "url": "sale/property-for-sale-in-west-bangalore-bangalore"
+        }
+      ],
+      "propertyTypes": [
+        {
+          "propertyType": "office space",
+          "avgPrice": 12868,
+          "changePercent": 5.49,
+          "url": "sale/office-spaces-for-sale-in-bangalore"
+        },
+        {
+          "propertyType": "villa",
+          "avgPrice": 17548,
+          "changePercent": 2.36,
+          "url": "sale/villas-for-sale-in-bangalore"
+        },
+        {
+          "propertyType": "apartment",
+          "avgPrice": 12338,
+          "changePercent": 2.3,
+          "url": "sale/apartments-for-sale-in-bangalore"
+        }
+      ],
+      "propertyStatus": [
+        {
+          "status": "Ready To Move",
+          "units": 16300,
+          "avgPrice": 8097,
+          "changePercent": 2.22,
+          "url": "ready-to-move-projects-in-bangalore"
+        },
+        {
+          "status": "Well Occupied",
+          "units": 1706,
+          "avgPrice": 8931,
+          "changePercent": 2.47,
+          "url": ""
+        },
+        {
+          "status": "Advanced Stage",
+          "units": 2,
+          "avgPrice": 6410,
+          "changePercent": 5.14,
+          "url": ""
+        },
+        {
+          "status": "Partially Ready To Move",
+          "units": 48,
+          "avgPrice": 11479,
+          "changePercent": 0.91,
+          "url": ""
+        },
+        {
+          "status": "Mid Stage",
+          "units": 183,
+          "avgPrice": 7936,
+          "changePercent": 2.91,
+          "url": ""
+        },
+        {
+          "status": "Under Construction",
+          "units": 483,
+          "avgPrice": 9656,
+          "changePercent": 2.45,
+          "url": "under-construction-projects-in-bangalore"
+        },
+        {
+          "status": "New Launch",
+          "units": 254,
+          "avgPrice": 8072,
+          "changePercent": 4.33,
+          "url": "new-launch-projects-in-bangalore"
+        },
+        {
+          "status": "Near Possession",
+          "units": 1,
+          "avgPrice": 9431,
+          "changePercent": 8.84,
+          "url": "near-possession-projects-in-bangalore"
+        },
+        {
+          "status": "Upcoming",
+          "units": 8,
+          "avgPrice": 7423,
+          "changePercent": 10.83,
+          "url": ""
+        },
+        {
+          "status": "Project On Hold",
+          "units": 5,
+          "avgPrice": 8219,
+          "changePercent": -4.44,
+          "url": ""
+        },
+        {
+          "status": "Early Stage",
+          "units": 0,
+          "avgPrice": 0,
+          "changePercent": 0,
+          "url": ""
+        }
+      ],
+      "topProjects": {
+        "byListingRates": {
+          "projects": [
+            {
+              "changePercentage": 5.14,
+              "changeValue": null,
+              "currentRate": 33084,
+              "location": "central bangalore",
+              "locality": "vasanth nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-kenilworth/1420/project",
+              "projectName": "Prestige Kenilworth",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.19,
+              "changeValue": null,
+              "currentRate": 30833,
+              "location": "Central Bangalore",
+              "locality": "Vasanth Nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-shangrila/14728/project",
+              "projectName": "Prestige Shangrila",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 33.8,
+              "changeValue": null,
+              "currentRate": 30833,
+              "location": "Central Bangalore",
+              "locality": "Vasanth Nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-abshot/1908/project",
+              "projectName": "Prestige Abshot",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.19,
+              "changeValue": null,
+              "currentRate": 30833,
+              "location": "Central Bangalore",
+              "locality": "Vasanth Nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-royal-manor/1832/project",
+              "projectName": "Prestige Royal Manor",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 44.65,
+              "changeValue": null,
+              "currentRate": 30833,
+              "location": "central bangalore",
+              "locality": "vasanth nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/brigade-coronet/1686/project",
+              "projectName": "Brigade Coronet",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.19,
+              "changeValue": null,
+              "currentRate": 30833,
+              "location": "central bangalore",
+              "locality": "palace road",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/brigade-palace/1971/project",
+              "projectName": "Brigade Palace",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.26,
+              "changeValue": null,
+              "currentRate": 30633,
+              "location": "central bangalore",
+              "locality": "vasanth nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/the-embassy/18501/project",
+              "projectName": "The Embassy",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.26,
+              "changeValue": null,
+              "currentRate": 30633,
+              "location": "Central Bangalore",
+              "locality": "Vasanth Nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-el-palacio/1899/project",
+              "projectName": "Prestige El Palacio",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.26,
+              "changeValue": null,
+              "currentRate": 30633,
+              "location": "Central Bangalore",
+              "locality": "Queens Road",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-el-dorado/1771/project",
+              "projectName": "Prestige El Dorado",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 11.26,
+              "changeValue": null,
+              "currentRate": 30633,
+              "location": "Central Bangalore",
+              "locality": "Vasanth Nagar",
+              "noOfTransactions": null,
+              "productUrl": "bangalore-residential-property/prestige-d-villa/17225/project",
+              "projectName": "Prestige D Villa",
+              "priority": null,
+              "saleRentValue": null
+            }
+          ]
+        }
+      },
+      "govtRegistration": {
+        "transactionCount": 18026,
+        "grossValue": "₹ 16,408 Cr",
+        "dateRange": "Apr 25 to Mar 26",
+        "registeredRate": 6150,
+        "description": ""
+      },
+      "topDevelopers": {},
+      "rentalRates": {
+        "avgRentalRate": 35,
+        "rentalYield": "3.40",
+        "rentalBHKStats": [
+          {
+            "unitType": "Studio",
+            "avgRate": 15321,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/studio-for-rent-in-bangalore"
+          },
+          {
+            "unitType": "1 BHK",
+            "avgRate": 25233,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/1-bhk-for-rent-in-bangalore"
+          },
+          {
+            "unitType": "2 BHK",
+            "avgRate": 36370,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/2-bhk-for-rent-in-bangalore"
+          },
+          {
+            "unitType": "3 BHK",
+            "avgRate": 61473,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/3-bhk-for-rent-in-bangalore"
+          },
+          {
+            "unitType": "4 BHK",
+            "avgRate": 126753,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/4-bhk-for-rent-in-bangalore"
+          },
+          {
+            "unitType": "5 BHK",
+            "avgRate": 144100,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/5-bhk-for-rent-in-bangalore"
+          }
+        ],
+        "micromarketRates": [
+          {
+            "id": "17",
+            "name": "Central Bangalore",
+            "avgRentalRate": 45,
+            "changePercentage": -4.26,
+            "url": "rent/property-for-rent-in-central-bangalore-bangalore"
+          },
+          {
+            "id": "19",
+            "name": "East Bangalore",
+            "avgRentalRate": 35,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-east-bangalore-bangalore"
+          },
+          {
+            "id": "18",
+            "name": "North Bangalore",
+            "avgRentalRate": 32,
+            "changePercentage": 6.67,
+            "url": "rent/property-for-rent-in-north-bangalore-bangalore"
+          },
+          {
+            "id": "21",
+            "name": "South Bangalore",
+            "avgRentalRate": 32,
+            "changePercentage": -8.57,
+            "url": "rent/property-for-rent-in-south-bangalore-bangalore"
+          },
+          {
+            "id": "20",
+            "name": "West Bangalore",
+            "avgRentalRate": 32,
+            "changePercentage": -17.95,
+            "url": "rent/property-for-rent-in-west-bangalore-bangalore"
+          }
+        ],
+        "propertyTypes": [
+          {
+            "propertyType": "shop",
+            "avgRentalRate": 112,
+            "changePercent": -5.88,
+            "url": "rent/shops-for-rent-in-bangalore"
+          },
+          {
+            "propertyType": "office space",
+            "avgRentalRate": 101,
+            "changePercent": 6.32,
+            "url": "rent/office-spaces-for-rent-in-bangalore"
+          },
+          {
+            "propertyType": "villa",
+            "avgRentalRate": 22,
+            "changePercent": 0,
+            "url": "rent/villas-for-rent-in-bangalore"
+          },
+          {
+            "propertyType": "apartment",
+            "avgRentalRate": 35,
+            "changePercent": 0,
+            "url": "rent/apartments-for-rent-in-bangalore"
+          },
+          {
+            "propertyType": "co-working space",
+            "avgRentalRate": 92,
+            "changePercent": 5.75,
+            "url": "rent/co-working-spaces-for-rent-in-bangalore"
+          }
+        ],
+        "topProjects": {
+          "topProjectsByRent": [
+            {
+              "projectName": "Keshwell Apartment",
+              "projectId": "96594",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "lavelle road",
+              "listingCount": 1,
+              "currentRentalRate": 124,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/keshwell-apartment/96594/project"
+            },
+            {
+              "projectName": "Brigade Homestead",
+              "projectId": "17835",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "lavelle road",
+              "listingCount": 1,
+              "currentRentalRate": 122,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/brigade-homestead/17835/project"
+            },
+            {
+              "projectName": "Manipal Center Apartments",
+              "projectId": "95886",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "mg road",
+              "listingCount": 1,
+              "currentRentalRate": 105,
+              "changePercentage": 20.69,
+              "productUrl": "bangalore-residential-property/manipal-center-apartments/95886/project"
+            },
+            {
+              "projectName": "Embassy Casabella",
+              "projectId": "1783",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "ashok nagar",
+              "listingCount": 1,
+              "currentRentalRate": 100,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/embassy-casabella/1783/project"
+            },
+            {
+              "projectName": "Brigade Lavelle 1",
+              "projectId": "17548",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "lavelle road",
+              "listingCount": 1,
+              "currentRentalRate": 99,
+              "changePercentage": -13.91,
+              "productUrl": "bangalore-residential-property/brigade-lavelle-1/17548/project"
+            },
+            {
+              "projectName": "UB City",
+              "projectId": "146738",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "ashok nagar",
+              "listingCount": 1,
+              "currentRentalRate": 94,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/ub-city/146738/project"
+            },
+            {
+              "projectName": "Hulkul Residency Apartments",
+              "projectId": "97088",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "lavelle road",
+              "listingCount": 1,
+              "currentRentalRate": 94,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/hulkul-residency-apartments/97088/project"
+            },
+            {
+              "projectName": "Shivaganga Dwarkamai",
+              "projectId": "17312",
+              "city": "bangalore",
+              "micromarket": "south bangalore",
+              "locality": "raja rajeshwari nagar",
+              "listingCount": 1,
+              "currentRentalRate": 93,
+              "changePercentage": -1.06,
+              "productUrl": "bangalore-residential-property/shivaganga-dwarkamai/17312/project"
+            },
+            {
+              "projectName": "Puravankara Purva Grande",
+              "projectId": "1830",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "ashok nagar",
+              "listingCount": 1,
+              "currentRentalRate": 90,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/puravankara-purva-grande/1830/project"
+            },
+            {
+              "projectName": "Vaishnavi Premiere",
+              "projectId": "147263",
+              "city": "bangalore",
+              "micromarket": "central bangalore",
+              "locality": "st johns road",
+              "listingCount": 1,
+              "currentRentalRate": 88,
+              "changePercentage": 0,
+              "productUrl": "bangalore-residential-property/vaishnavi-premiere/147263/project"
+            }
+          ]
+        }
+      }
+    },
+    "propertyRatesAiData": {
+      "marketSnapshotOverview": "Bangalore's property market continues to demonstrate strong growth, with an average asking price of ₹12,338 per sq ft. The city's real estate sector is vibrant, supported by a healthy registration rate of ₹6,135 per sq ft. For investors and residents, the average rental rate stands at ₹35 per sq ft, offering a rental yield of 3.40%. This dynamic environment makes Bangalore an attractive destination for property investment and living.<ul><li>The average asking price in Bangalore has shown a consistent upward trend, reaching ₹12,061 per sq ft by December 2025 from ₹10,285 per sq ft in March 2025.</li><li>West Bangalore leads micromarket growth with a significant 15.02% change, reflecting its increasing appeal.</li><li>Villas command the highest average prices among property types, at ₹17,548 per sq ft.</li><li>The \"Ready To Move\" segment dominates supply, with 16,300 units available at an average of ₹8,097 per sq ft.</li><li>Central Bangalore offers the highest average rental rate at ₹45 per sq ft, despite a slight decline in change percentage.</li></ul>",
+      "insightsLong": "Bangalore's real estate market exhibits robust activity and appreciation, with the average asking price currently at ₹12,338 per sq ft. Quarterly price trends indicate a steady upward trajectory, climbing from ₹10,285 per sq ft in March 2025 to ₹12,061 per sq ft by December 2025, underscoring sustained demand. The rental market is equally dynamic, with an average rental rate of ₹35 per sq ft and a rental yield of 3.40%, making it appealing for income-generating assets. Government registrations reflect a healthy transaction volume, with 18,026 transactions totaling ₹16,408 Cr between April 2025 and March 2026, at a registered rate of ₹6,150 per sq ft. This robust activity across both sales and rental segments confirms Bangalore's position as a leading property market.<ul><li>West Bangalore recorded the highest appreciation among micromarkets, with a 15.02% increase in average rates.</li><li>Villas are the most premium property type for sale, priced at an average of ₹17,548 per sq ft.</li><li>New Launch projects show promising growth, with a 4.33% change and 254 units available.</li><li>For rentals, 4 BHK and 5 BHK apartments command the highest monthly rates, averaging ₹1.27 Lakh and ₹1.44 Lakh respectively.</li><li>Office spaces and co-working spaces in the rental market demonstrate positive growth, with 6.32% and 5.75% increases respectively.</li></ul>",
+      "insightsShort": "Bangalore's property market is experiencing significant growth, with the average asking price reaching ₹12,338 per sq ft and quarterly price trends showing a consistent increase. The rental market is robust, offering an average rental rate of ₹35 per sq ft and a rental yield of 3.40%, with Central Bangalore leading in rental rates. This dynamic environment, supported by healthy transaction volumes, highlights Bangalore as a prime real estate investment destination.",
+      "askingPriceTrendsDescription": "Bangalore's property market has shown a notable upward trend in asking prices over recent quarters. Starting at ₹10,285 per sq ft in March 2025, the average city rate steadily climbed to ₹10,653 per sq ft by June 2025. This positive momentum continued, reaching ₹10,966 per sq ft in September 2025, and further solidifying at ₹12,061 per sq ft by December 2025, reflecting sustained demand and appreciation.",
+      "byAreaDescription": "Bangalore's diverse micromarkets present varied investment opportunities. Central Bangalore commands the highest average rate at ₹13,960 per sq ft, experiencing a 13.72% change. East Bangalore follows closely, averaging ₹13,297 per sq ft with a 9.37% increase. Meanwhile, West Bangalore leads in growth, showing a significant 15.02% change, with properties averaging ₹10,831 per sq ft. North Bangalore and South Bangalore offer competitive rates at ₹10,873 per sq ft and ₹11,095 per sq ft respectively, both reflecting robust growth above 9%.",
+      "ratesByPropertyTypesDescription": "Bangalore's real estate market caters to diverse preferences across property categories. Villas lead the premium residential segment, commanding an average price of ₹17,548 per sq ft, with a 2.36% change. Office spaces are also a strong segment, priced at ₹12,868 per sq ft and showing a healthy 5.49% change. Apartments, representing the city's most common housing type, average ₹12,338 per sq ft, experiencing a 2.3% change, reflecting a stable and growing market.",
+      "ratesByProjectStatusDescription": "The Bangalore market offers properties across various development stages, catering to different buyer timelines and preferences. Ready To Move inventory, comprising a substantial 16,300 units, averages ₹8,097 per sq ft with a 2.22% change, appealing to immediate occupancy seekers. Under Construction projects present 483 opportunities at ₹9,656 per sq ft, showing a 2.45% change. New Launch properties, totaling 254 units, are priced at ₹8,072 per sq ft, demonstrating a robust 4.33% change, indicative of new market entrants and future growth potential.",
+      "topProjectsAskingDescription": "Premium residential developments in Bangalore are commanding significant asking prices, reflecting their luxury positioning and prime locations. Prestige Kenilworth in Vasanth Nagar, Central Bangalore, leads the segment with an impressive current rate of ₹33,084 per sq ft. Other top projects like Prestige Shangrila and Prestige Abshot, also in Vasanth Nagar, closely follow at ₹30,833 per sq ft, demonstrating strong market value. Brigade Coronet and Brigade Palace further highlight the high-value offerings in Central Bangalore, with rates also around ₹30,833 per sq ft, underscoring the area's desirability.",
+      "registrationOverviewDescription": "Official government data reveals robust transaction activity in Bangalore between April 2025 and March 2026. The market recorded 18,026 property registrations, totaling a gross value of ₹16,408 Cr. The average registered rate for these transactions stood at ₹6,150 per sq ft, indicating a healthy and active real estate market across the city.",
+      "topProjectsByTransactionsDescription": "",
+      "topProjectsByValueDescription": "",
+      "topDevelopersByTransactionsDescription": "",
+      "topDevelopersByValueDescription": "",
+      "investmentOpportunities": [
+        "Investing in West Bangalore micromarket for potential high returns, given its leading 15.02% growth in average asking price.",
+        "Considering villas as a premium property type, commanding the highest average price of ₹17,548 per sq ft, for high-value investments.",
+        "Exploring New Launch projects, which show a robust 4.33% change, indicating strong future appreciation potential.",
+        "Investing in properties for rental income, particularly 4 BHK and 5 BHK apartments, which yield high monthly rents of ₹1.27 Lakh and ₹1.44 Lakh respectively.",
+        "Targeting office spaces and co-working spaces for rental investments, as they exhibit positive growth of 6.32% and 5.75% respectively."
+      ],
+      "marketChallenges": [
+        "Project On Hold status shows a negative change of -4.44%, indicating potential risks for properties in this stage.",
+        "Central Bangalore's rental market experienced a -4.26% change, suggesting a slight decline in rental rates despite high asking prices.",
+        "West Bangalore's rental market saw a significant decline of -17.95%, indicating potential challenges for rental yield in this area.",
+        "South Bangalore's rental market also experienced a decline of -8.57%, posing a challenge for rental investors in this region."
+      ],
+      "marketStrengths": [
+        "Consistent quarterly price appreciation in the city's asking rates, demonstrating strong market confidence.",
+        "High volume of government registrations (18,026 transactions) and substantial gross value (₹16,408 Cr), indicating a liquid market.",
+        "Significant growth in micromarkets like West Bangalore (15.02%) and Central Bangalore (13.72%), showing localized demand hotspots.",
+        "Villas and office spaces performing strongly in the sales market, indicating diverse high-value property segments.",
+        "A healthy rental yield of 3.40% across the city, making rental properties attractive for investors.",
+        "North Bangalore's rental market showing positive growth with a 6.67% change, indicating emerging rental hotspots.",
+        "Robust demand for 4 BHK and 5 BHK rental units, commanding high monthly rents, suggesting a strong luxury rental segment."
+      ],
+      "recentTransactionsDescription": "Government registration data for Bangalore from April 2025 to March 2026 highlights a dynamic market, with 18,026 property transactions successfully registered. These transactions collectively generated a gross value of ₹16,408 Cr. The average registered rate during this period stood at ₹6,150 per sq ft, reflecting sustained buyer activity and a healthy real estate environment.",
+      "rentalTrendsByBHK": "Bangalore's rental market showcases varied rates across different BHK configurations, catering to diverse tenant needs. Studio apartments average ₹15,321 per month, while 1 BHK units command ₹25,233 per month. Larger residential options like 2 BHK apartments are available for an average of ₹36,370 per month, and 3 BHK units are priced at ₹61,473 per month. For luxury living, 4 BHK apartments average ₹1.27 Lakh per month, and the most spacious 5 BHK units command ₹1.44 Lakh per month, reflecting strong demand for larger residential spaces.",
+      "rentalTrendsbyLocation": "Rental rates across Bangalore's micromarkets show distinct patterns. Central Bangalore leads with the highest average rental rate of ₹45 per sq ft, though it experienced a -4.26% change. East Bangalore maintains a steady rate of ₹35 per sq ft with no change. Notably, North Bangalore shows positive growth, with rates averaging ₹32 per sq ft and a 6.67% change. In contrast, South Bangalore and West Bangalore both average ₹32 per sq ft, but experienced declines of -8.57% and -17.95% respectively, indicating varied performance across regions.",
+      "rentalTrendsByPropertyType": "Bangalore's rental market offers diverse property types with varying rates. Shops command the highest average rental rate at ₹112 per sq ft, despite a -5.88% change. Office spaces are also highly sought after, averaging ₹101 per sq ft and showing a healthy 6.32% change. Co-working spaces are competitive at ₹92 per sq ft with a 5.75% change. Residential options like apartments average ₹35 per sq ft, while villas are available at ₹22 per sq ft, both showing stable trends.",
+      "rentalTrendsByTopProjects": "Central Bangalore features several top projects commanding premium rental rates. Keshwell Apartment in Lavelle Road leads with an average current rental rate of ₹124 per sq ft. Brigade Homestead, also in Lavelle Road, closely follows at ₹122 per sq ft. Manipal Center Apartments in MG Road show significant appreciation with a 20.69% change, averaging ₹105 per sq ft. Other notable projects like Embassy Casabella in Ashok Nagar and Brigade Lavelle 1 in Lavelle Road also command high rates around ₹100 per sq ft, reflecting the strong appeal of prime Central Bangalore locations."
+    },
+    "seoFooter": [
+      {
+        "id": "5",
+        "type": "city",
+        "slug": "property-rates-in-bangalore",
+        "name": "Bangalore",
+        "registeredRate": 6150,
+        "askingPrice": 12338
+      },
+      {
+        "id": "8",
+        "type": "city",
+        "slug": "property-rates-in-chennai",
+        "name": "Chennai",
+        "registeredRate": 0,
+        "askingPrice": 8082
+      },
+      {
+        "id": "4",
+        "type": "city",
+        "slug": "property-rates-in-delhi",
+        "name": "Delhi",
+        "registeredRate": 0,
+        "askingPrice": 18190
+      },
+      {
+        "id": "59",
+        "type": "city",
+        "slug": "property-rates-in-gurgaon",
+        "name": "Gurgaon",
+        "registeredRate": 7750,
+        "askingPrice": 14814
+      },
+      {
+        "id": "6",
+        "type": "city",
+        "slug": "property-rates-in-hyderabad",
+        "name": "Hyderabad",
+        "registeredRate": 3650,
+        "askingPrice": 9430
+      },
+      {
+        "id": "9",
+        "type": "city",
+        "slug": "property-rates-in-kolkata",
+        "name": "Kolkata",
+        "registeredRate": 0,
+        "askingPrice": 6196
+      },
+      {
+        "id": "13",
+        "type": "city",
+        "slug": "property-rates-in-lucknow",
+        "name": "Lucknow",
+        "registeredRate": 3000,
+        "askingPrice": 6810
+      },
+      {
+        "id": "3",
+        "type": "city",
+        "slug": "property-rates-in-mumbai",
+        "name": "Mumbai",
+        "registeredRate": 18150,
+        "askingPrice": 38179
+      },
+      {
+        "id": "287",
+        "type": "city",
+        "slug": "property-rates-in-navi-mumbai",
+        "name": "Navi Mumbai",
+        "registeredRate": 13500,
+        "askingPrice": 19289
+      },
+      {
+        "id": "72",
+        "type": "city",
+        "slug": "property-rates-in-noida",
+        "name": "Noida",
+        "registeredRate": 8350,
+        "askingPrice": 11737
+      },
+      {
+        "id": "11",
+        "type": "city",
+        "slug": "property-rates-in-pune",
+        "name": "Pune",
+        "registeredRate": 8700,
+        "askingPrice": 12895
+      },
+      {
+        "id": "18",
+        "type": "city",
+        "slug": "property-rates-in-thane",
+        "name": "Thane",
+        "registeredRate": 9200,
+        "askingPrice": 15509
+      }
+    ]
+  }
+}

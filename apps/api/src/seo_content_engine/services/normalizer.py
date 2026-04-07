@@ -396,6 +396,182 @@ class EntityNormalizer:
             )
         return nearby
 
+    # ------------------------------------------------------------------ #
+    # D-series: New data extraction helpers                               #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _extract_landmarks(root: dict[str, Any]) -> dict[str, Any]:
+        """D1: Extract landmark data from root['landmarks'].
+
+        The 'landmarks' key is a dict of category-name → list-of-items, where
+        each item has at least 'landmarkname', 'distance', 'latitude', 'longitude'.
+        Returns a summary with counts and top-5 names per category.
+        """
+        raw_landmarks = root.get("landmarks")
+        if not isinstance(raw_landmarks, dict) or not raw_landmarks:
+            return {}
+
+        categories: list[dict[str, Any]] = []
+
+        for category_name, items in raw_landmarks.items():
+            if not isinstance(items, list) or not items:
+                continue
+
+            top_items: list[dict[str, Any]] = []
+            for item in items[:5]:
+                if not isinstance(item, dict):
+                    continue
+                name = item.get("landmarkname") or item.get("name")
+                if not name:
+                    continue
+
+                raw_distance = item.get("distance")
+                if isinstance(raw_distance, list):
+                    distance = raw_distance[0] if raw_distance else None
+                else:
+                    distance = raw_distance if isinstance(raw_distance, (int, float)) else None
+
+                top_items.append(
+                    compact_dict(
+                        {
+                            "name": name,
+                            "distance_km": round(float(distance), 2) if distance is not None else None,
+                        }
+                    )
+                )
+
+            categories.append(
+                compact_dict(
+                    {
+                        "category": category_name,
+                        "count": len(items),
+                        "top_landmarks": top_items,
+                    }
+                )
+            )
+
+        return {"categories": categories, "total_categories": len(categories)}
+
+    @staticmethod
+    def _extract_govt_registration(rates_root: dict[str, Any]) -> dict[str, Any]:
+        """D2: Extract government registration stats from property rates data."""
+        raw = rates_root.get("govtRegistration")
+        if not isinstance(raw, dict) or not raw:
+            return {}
+
+        return compact_dict(
+            {
+                "transaction_count": raw.get("transactionCount"),
+                "gross_value": raw.get("grossValue"),
+                "registered_rate": raw.get("registeredRate"),
+                "date_range": raw.get("dateRange"),
+                "description": raw.get("description") or None,
+            }
+        )
+
+    @staticmethod
+    def _extract_top_developers(rates_root: dict[str, Any]) -> list[dict[str, Any]]:
+        """D3: Extract top developer names and transaction/value info from rates data."""
+        raw = rates_root.get("topDevelopers")
+        if not isinstance(raw, list) or not raw:
+            return []
+
+        developers: list[dict[str, Any]] = []
+        for item in raw[:10]:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or item.get("developerName") or item.get("key")
+            if not name:
+                continue
+            developers.append(
+                compact_dict(
+                    {
+                        "name": name,
+                        "transaction_count": item.get("transactionCount") or item.get("doc_count"),
+                        "gross_value": item.get("grossValue") or item.get("totalValue"),
+                        "avg_rate": item.get("avgRate"),
+                    }
+                )
+            )
+        return developers
+
+    @staticmethod
+    def _extract_city_insights(root: dict[str, Any]) -> dict[str, Any]:
+        """D4: Extract city-level hotSellingProjects and insightsData.
+
+        hotSellingProjects: top localities by listing activity in the city.
+        insightsData: city-level market overview with govtRegistration, marketSupply, etc.
+        """
+        # hotSellingProjects
+        raw_hsp = root.get("hotSellingProjects")
+        hot_selling: list[dict[str, Any]] = []
+        if isinstance(raw_hsp, list):
+            for item in raw_hsp[:10]:
+                if not isinstance(item, dict):
+                    continue
+                locality_name = item.get("key") or item.get("name")
+                if not locality_name:
+                    continue
+                hot_selling.append(
+                    compact_dict(
+                        {
+                            "locality_name": locality_name,
+                            "listing_count": item.get("doc_count"),
+                            "project_count": len(item.get("projects", [])) if isinstance(item.get("projects"), list) else None,
+                        }
+                    )
+                )
+
+        # insightsData
+        raw_insights = root.get("insightsData")
+        insights: dict[str, Any] = {}
+        if isinstance(raw_insights, dict):
+            # govtRegistration at city level (may differ from rates govtRegistration)
+            city_govt_reg = raw_insights.get("govtRegistration")
+            if isinstance(city_govt_reg, dict):
+                insights["govt_registration"] = compact_dict(
+                    {
+                        "transaction_count": city_govt_reg.get("transactionCount"),
+                        "gross_value": city_govt_reg.get("grossValue"),
+                        "registered_rate": city_govt_reg.get("registeredRate"),
+                        "date_range": city_govt_reg.get("dateRange"),
+                    }
+                )
+
+            # marketSupply
+            market_supply = raw_insights.get("marketSupply")
+            if isinstance(market_supply, dict):
+                insights["market_supply"] = compact_dict(
+                    {
+                        "total_listings": market_supply.get("totalListings") or market_supply.get("total"),
+                        "new_launches": market_supply.get("newLaunches"),
+                        "ready_to_move": market_supply.get("readyToMove"),
+                    }
+                )
+
+            # rentalStats
+            rental_stats = raw_insights.get("rentalStats")
+            if isinstance(rental_stats, dict):
+                insights["rental_stats"] = compact_dict(
+                    {
+                        "avg_rental_rate": rental_stats.get("avgRentalRate") or rental_stats.get("avgRate"),
+                        "rental_count": rental_stats.get("rentalCount") or rental_stats.get("count"),
+                    }
+                )
+
+            # priceTrend
+            price_trend = raw_insights.get("priceTrend")
+            if price_trend:
+                insights["price_trend"] = price_trend
+
+        return compact_dict(
+            {
+                "hot_selling_localities": hot_selling,
+                "insights": insights,
+            }
+        )
+
     @staticmethod
     def normalize(main_data: dict[str, Any], rates_data: dict[str, Any], listing_type: ListingType) -> dict[str, Any]:
         root = main_data.get("data", {})
@@ -588,6 +764,19 @@ class EntityNormalizer:
             if isinstance(item, dict)
         ]
 
+        # D1: Landmarks (all entity types — present in locality/micromarket main JSONs;
+        #     absent for city pages, returns {} gracefully)
+        landmarks = EntityNormalizer._extract_landmarks(root)
+
+        # D2: Government registration stats (from property rates, all entity types)
+        govt_registration = EntityNormalizer._extract_govt_registration(rates_root)
+
+        # D3: Top developers (from property rates)
+        top_developers = EntityNormalizer._extract_top_developers(rates_root)
+
+        # D4: City-level insights (hotSellingProjects + insightsData) — city only
+        city_insights = EntityNormalizer._extract_city_insights(root) if entity_type == EntityType.CITY else {}
+
         return {
             "entity": entity,
             "listing_summary": listing_summary,
@@ -605,6 +794,10 @@ class EntityNormalizer:
             "cms_faq": normalized_cms_faq,
             "featured_projects": normalized_featured_projects,
             "projects_by_status": projects_by_status,
+            "landmarks": landmarks,
+            "govt_registration": govt_registration,
+            "top_developers": top_developers,
+            "city_insights": city_insights,
             "page_property_type_context": page_property_type_context,
             "raw_source_meta": {
                 "main_message": main_data.get("message"),

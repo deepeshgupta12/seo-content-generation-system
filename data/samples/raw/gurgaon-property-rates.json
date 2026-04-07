@@ -1,0 +1,756 @@
+{
+  "status": 1,
+  "message": "Property Rates Data Found",
+  "data": {
+    "id": "59",
+    "slug": "property-rates-in-gurgaon",
+    "type": "city",
+    "propertyRatesData": {
+      "details": {
+        "id": "59",
+        "name": "Gurgaon",
+        "locationId": null,
+        "microMarketId": null,
+        "microMarketName": null,
+        "cityId": null,
+        "cityName": null,
+        "diUrl": "/property-rates-in-gurgaon",
+        "type": "CITY"
+      },
+      "marketOverview": {
+        "askingPrice": 14814,
+        "registrationRate": 2200,
+        "listingCount": 10000
+      },
+      "priceTrend": [
+        {
+          "quarterName": "Dec 2025",
+          "cityRate": 15119
+        },
+        {
+          "quarterName": "Sep 2025",
+          "cityRate": 14887
+        },
+        {
+          "quarterName": "Jun 2025",
+          "cityRate": 13470
+        },
+        {
+          "quarterName": "Mar 2025",
+          "cityRate": 14299
+        }
+      ],
+      "micromarketRates": [
+        {
+          "id": "90",
+          "name": "Central Gurgaon",
+          "avgRate": 18036,
+          "changePercentage": 25.76,
+          "url": "sale/property-for-sale-in-central-gurgaon-gurgaon"
+        },
+        {
+          "id": "93",
+          "name": "Dwarka Expressway",
+          "avgRate": 13703,
+          "changePercentage": 3.2,
+          "url": "sale/property-for-sale-in-dwarka-expressway-gurgaon"
+        },
+        {
+          "id": "88",
+          "name": "Golf Course Extension",
+          "avgRate": 19570,
+          "changePercentage": 5.57,
+          "url": "sale/property-for-sale-in-golf-course-extension-gurgaon"
+        },
+        {
+          "id": "86",
+          "name": "Golf Course Road",
+          "avgRate": 23263,
+          "changePercentage": -12.5,
+          "url": "sale/property-for-sale-in-golf-course-road-gurgaon"
+        },
+        {
+          "id": "735",
+          "name": "Manesar",
+          "avgRate": 11060,
+          "changePercentage": 45.97,
+          "url": "sale/property-for-sale-in-manesar-gurgaon"
+        },
+        {
+          "id": "92",
+          "name": "New Gurgaon",
+          "avgRate": 11992,
+          "changePercentage": 8.01,
+          "url": "sale/property-for-sale-in-new-gurgaon-gurgaon"
+        },
+        {
+          "id": "91",
+          "name": "Sohna",
+          "avgRate": 10661,
+          "changePercentage": -4.51,
+          "url": "sale/property-for-sale-in-sohna-gurgaon"
+        },
+        {
+          "id": "87",
+          "name": "Sohna Road",
+          "avgRate": 17364,
+          "changePercentage": 11.59,
+          "url": "sale/property-for-sale-in-sohna-road-gurgaon"
+        },
+        {
+          "id": "89",
+          "name": "Southern Peripheral Road",
+          "avgRate": 15572,
+          "changePercentage": 8.99,
+          "url": "sale/property-for-sale-in-southern-peripheral-road-gurgaon"
+        }
+      ],
+      "propertyTypes": [
+        {
+          "propertyType": "shop",
+          "avgPrice": 35624,
+          "changePercent": 13.6,
+          "url": "sale/shops-for-sale-in-gurgaon"
+        },
+        {
+          "propertyType": "office space",
+          "avgPrice": 13148,
+          "changePercent": -3.09,
+          "url": "sale/office-spaces-for-sale-in-gurgaon"
+        },
+        {
+          "propertyType": "villa",
+          "avgPrice": 25262,
+          "changePercent": 0.87,
+          "url": "sale/villas-for-sale-in-gurgaon"
+        },
+        {
+          "propertyType": "apartment",
+          "avgPrice": 14814,
+          "changePercent": -2.02,
+          "url": "sale/apartments-for-sale-in-gurgaon"
+        }
+      ],
+      "propertyStatus": [
+        {
+          "status": "Ready To Move",
+          "units": 1144,
+          "avgPrice": 13490,
+          "changePercent": 1.73,
+          "url": "ready-to-move-projects-in-gurgaon"
+        },
+        {
+          "status": "Well Occupied",
+          "units": 152,
+          "avgPrice": 14909,
+          "changePercent": 2.05,
+          "url": ""
+        },
+        {
+          "status": "Advanced Stage",
+          "units": 0,
+          "avgPrice": 0,
+          "changePercent": 0,
+          "url": ""
+        },
+        {
+          "status": "Partially Ready To Move",
+          "units": 31,
+          "avgPrice": 13043,
+          "changePercent": 2.43,
+          "url": ""
+        },
+        {
+          "status": "Mid Stage",
+          "units": 59,
+          "avgPrice": 11213,
+          "changePercent": -1.31,
+          "url": ""
+        },
+        {
+          "status": "Under Construction",
+          "units": 177,
+          "avgPrice": 14867,
+          "changePercent": 4.3,
+          "url": "under-construction-projects-in-gurgaon"
+        },
+        {
+          "status": "New Launch",
+          "units": 49,
+          "avgPrice": 15119,
+          "changePercent": -5.42,
+          "url": "new-launch-projects-in-gurgaon"
+        },
+        {
+          "status": "Near Possession",
+          "units": 1,
+          "avgPrice": 8447,
+          "changePercent": -6.69,
+          "url": "near-possession-projects-in-gurgaon"
+        },
+        {
+          "status": "Project On Hold",
+          "units": 5,
+          "avgPrice": 12722,
+          "changePercent": 22.65,
+          "url": ""
+        },
+        {
+          "status": "Early Stage",
+          "units": 2,
+          "avgPrice": 16616,
+          "changePercent": -5.61,
+          "url": ""
+        }
+      ],
+      "topProjects": {
+        "byListingRates": {
+          "projects": [
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 84638,
+              "location": "southern peripheral road",
+              "locality": "sector 70a",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/bptp-green-oaks/113881/project",
+              "projectName": "BPTP Green Oaks",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 71478,
+              "location": "golf course extension",
+              "locality": "sector 63a",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/anant-raj-ashok-estate/171094/project",
+              "projectName": "Anant Raj Ashok Estate",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 3.68,
+              "changeValue": null,
+              "currentRate": 70037,
+              "location": "golf course road",
+              "locality": "sector 42",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-the-magnolias/333/project",
+              "projectName": "DLF The Magnolias",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 61274,
+              "location": "central gurgaon",
+              "locality": "sector 46",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/rwa-residential-society-sector-46/153420/project",
+              "projectName": "RWA Residential Society Sector 46",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": -5.39,
+              "changeValue": null,
+              "currentRate": 54935,
+              "location": "golf course road",
+              "locality": "sector 54",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-the-crest/342/project",
+              "projectName": "DLF The Crest",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 47368,
+              "location": "golf course road",
+              "locality": "sector 54",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-the-dahlias/181205/project",
+              "projectName": "DLF The Dahlias",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": -31.73,
+              "changeValue": null,
+              "currentRate": 39820,
+              "location": "golf course road",
+              "locality": "sector 42",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-the-aralias/328/project",
+              "projectName": "DLF The Aralias",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 39369,
+              "location": "golf course extension",
+              "locality": "sector 67",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/ansal-api-esencia/100066/project",
+              "projectName": "Ansal API Esencia",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": -60.48,
+              "changeValue": null,
+              "currentRate": 38846,
+              "location": "golf course road",
+              "locality": "sector 42",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-the-camellias/358/project",
+              "projectName": "DLF The Camellias",
+              "priority": null,
+              "saleRentValue": null
+            },
+            {
+              "changePercentage": 0,
+              "changeValue": null,
+              "currentRate": 38235,
+              "location": "golf course road",
+              "locality": "sector 54",
+              "noOfTransactions": null,
+              "productUrl": "gurgaon-residential-property/dlf-summit-plaza/113437/project",
+              "projectName": "DLF Summit Plaza",
+              "priority": null,
+              "saleRentValue": null
+            }
+          ]
+        }
+      },
+      "govtRegistration": {
+        "transactionCount": 0,
+        "grossValue": "₹ 0",
+        "dateRange": "Apr 25 to Mar 26",
+        "registeredRate": 7750,
+        "description": ""
+      },
+      "topDevelopers": {},
+      "rentalRates": {
+        "avgRentalRate": 31,
+        "rentalYield": "2.51",
+        "rentalBHKStats": [
+          {
+            "unitType": "Studio",
+            "avgRate": 20853,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/studio-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "1 BHK",
+            "avgRate": 28393,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/1-bhk-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "2 BHK",
+            "avgRate": 34282,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/2-bhk-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "3 BHK",
+            "avgRate": 53477,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/3-bhk-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "4 BHK",
+            "avgRate": 84126,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/4-bhk-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "5 BHK",
+            "avgRate": 105521,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/5-bhk-for-rent-in-gurgaon"
+          },
+          {
+            "unitType": "6 BHK",
+            "avgRate": 126917,
+            "buildingType": "residential",
+            "propertyType": "apartment",
+            "url": "rent/6-bhk-for-rent-in-gurgaon"
+          }
+        ],
+        "micromarketRates": [
+          {
+            "id": "90",
+            "name": "Central Gurgaon",
+            "avgRentalRate": 31,
+            "changePercentage": 3.33,
+            "url": "rent/property-for-rent-in-central-gurgaon-gurgaon"
+          },
+          {
+            "id": "93",
+            "name": "Dwarka Expressway",
+            "avgRentalRate": 26,
+            "changePercentage": -7.14,
+            "url": "rent/property-for-rent-in-dwarka-expressway-gurgaon"
+          },
+          {
+            "id": "88",
+            "name": "Golf Course Extension",
+            "avgRentalRate": 37,
+            "changePercentage": 2.78,
+            "url": "rent/property-for-rent-in-golf-course-extension-gurgaon"
+          },
+          {
+            "id": "86",
+            "name": "Golf Course Road",
+            "avgRentalRate": 45,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-golf-course-road-gurgaon"
+          },
+          {
+            "id": "735",
+            "name": "Manesar",
+            "avgRentalRate": 89,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-manesar-gurgaon"
+          },
+          {
+            "id": "92",
+            "name": "New Gurgaon",
+            "avgRentalRate": 24,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-new-gurgaon-gurgaon"
+          },
+          {
+            "id": "91",
+            "name": "Sohna",
+            "avgRentalRate": 24,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-sohna-gurgaon"
+          },
+          {
+            "id": "87",
+            "name": "Sohna Road",
+            "avgRentalRate": 32,
+            "changePercentage": 0,
+            "url": "rent/property-for-rent-in-sohna-road-gurgaon"
+          },
+          {
+            "id": "89",
+            "name": "Southern Peripheral Road",
+            "avgRentalRate": 31,
+            "changePercentage": -3.12,
+            "url": "rent/property-for-rent-in-southern-peripheral-road-gurgaon"
+          }
+        ],
+        "propertyTypes": [
+          {
+            "propertyType": "showroom",
+            "avgRentalRate": 113,
+            "changePercent": 5.61,
+            "url": "rent/showrooms-for-rent-in-gurgaon"
+          },
+          {
+            "propertyType": "shop",
+            "avgRentalRate": 102,
+            "changePercent": -0.97,
+            "url": "rent/shops-for-rent-in-gurgaon"
+          },
+          {
+            "propertyType": "plot",
+            "avgRentalRate": 47,
+            "changePercent": 2.17,
+            "url": "rent/plots-for-rent-in-gurgaon"
+          },
+          {
+            "propertyType": "office space",
+            "avgRentalRate": 66,
+            "changePercent": 4.76,
+            "url": "rent/office-spaces-for-rent-in-gurgaon"
+          },
+          {
+            "propertyType": "villa",
+            "avgRentalRate": 31,
+            "changePercent": 0,
+            "url": "rent/villas-for-rent-in-gurgaon"
+          },
+          {
+            "propertyType": "apartment",
+            "avgRentalRate": 31,
+            "changePercent": 0,
+            "url": "rent/apartments-for-rent-in-gurgaon"
+          }
+        ],
+        "topProjects": {
+          "topProjectsByRent": [
+            {
+              "projectName": "DLF Express Greens",
+              "projectId": "21222",
+              "city": "gurgaon",
+              "micromarket": "manesar",
+              "locality": "manesar sector 1a",
+              "listingCount": 1,
+              "currentRentalRate": 89,
+              "changePercentage": -1.11,
+              "productUrl": "gurgaon-residential-property/dlf-express-greens/21222/project"
+            },
+            {
+              "projectName": "DLF The Crest",
+              "projectId": "342",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 89,
+              "changePercentage": 3.49,
+              "productUrl": "gurgaon-residential-property/dlf-the-crest/342/project"
+            },
+            {
+              "projectName": "Suncity Heights",
+              "projectId": "334",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 85,
+              "changePercentage": 0,
+              "productUrl": "gurgaon-residential-property/suncity-heights/334/project"
+            },
+            {
+              "projectName": "Salcon The Verandas",
+              "projectId": "327",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 73,
+              "changePercentage": -1.35,
+              "productUrl": "gurgaon-residential-property/salcon-the-verandas/327/project"
+            },
+            {
+              "projectName": "DLF Park Place",
+              "projectId": "336",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 73,
+              "changePercentage": -1.35,
+              "productUrl": "gurgaon-residential-property/dlf-park-place/336/project"
+            },
+            {
+              "projectName": "Krisumi Waterfall Residences",
+              "projectId": "10781",
+              "city": "gurgaon",
+              "micromarket": "dwarka expressway",
+              "locality": "sector 36a",
+              "listingCount": 1,
+              "currentRentalRate": 71,
+              "changePercentage": -7.79,
+              "productUrl": "gurgaon-residential-property/krisumi-waterfall-residences/10781/project"
+            },
+            {
+              "projectName": "Krisumi Waterfall Suites",
+              "projectId": "339846",
+              "city": "gurgaon",
+              "micromarket": "dwarka expressway",
+              "locality": "sector 36a",
+              "listingCount": 1,
+              "currentRentalRate": 69,
+              "changePercentage": 11.29,
+              "productUrl": "gurgaon-residential-property/krisumi-waterfall-suites/339846/project"
+            },
+            {
+              "projectName": "Krisumi Waterside Residences",
+              "projectId": "247870",
+              "city": "gurgaon",
+              "micromarket": "dwarka expressway",
+              "locality": "sector 36a",
+              "listingCount": 1,
+              "currentRentalRate": 65,
+              "changePercentage": -9.72,
+              "productUrl": "gurgaon-residential-property/krisumi-waterside-residences/247870/project"
+            },
+            {
+              "projectName": "Emaar The Palm Springs",
+              "projectId": "320",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 62,
+              "changePercentage": -44.14,
+              "productUrl": "gurgaon-residential-property/emaar-the-palm-springs/320/project"
+            },
+            {
+              "projectName": "DLF The Belaire",
+              "projectId": "338",
+              "city": "gurgaon",
+              "micromarket": "golf course road",
+              "locality": "sector 54",
+              "listingCount": 1,
+              "currentRentalRate": 61,
+              "changePercentage": -1.61,
+              "productUrl": "gurgaon-residential-property/dlf-the-belaire/338/project"
+            }
+          ]
+        }
+      }
+    },
+    "propertyRatesAiData": {
+      "marketSnapshotOverview": "Gurgaon's property market exhibits an average asking price of ₹14,814 per sq ft, with a registered rate of ₹2,200 per sq ft. The rental segment presents an average rental rate of ₹31 per sq ft and a healthy rental yield of 2.51%. Price trends show an upward trajectory towards the end of 2025, reaching ₹15,119 per sq ft in December. Diverse micromarkets offer a range of values, while various property types cater to different investment goals.<ul><li>Manesar stands out with a significant 45.97% increase in asking prices, averaging ₹11,060 per sq ft.</li><li>Shops are the most expensive property type for sale, commanding ₹35,624 per sq ft, reflecting a 13.6% growth.</li><li>Ready To Move properties dominate the supply with 1144 units, priced at an average of ₹13,490 per sq ft.</li><li>Golf Course Road registers the highest asking prices among micromarkets at ₹23,263 per sq ft and also leads in rental rates at ₹45 per sq ft.</li><li>Apartments offer a broad range of rental options, from Studio units at ₹20,853 per month to 6 BHK units averaging ₹1.27 Lakh per month.</li></ul>",
+      "insightsLong": "Gurgaon's real estate market presents a dynamic landscape for buyers and investors, marked by an average asking price of ₹14,814 per sq ft. The market observed quarterly price variations, with the rate reaching ₹15,119 per sq ft in December 2025, indicating an active market responding to various demand and supply factors. The rental segment also shows vitality, with an average rental rate of ₹31 per sq ft and a rental yield of 2.51%, offering attractive prospects for passive income generation. Specific micromarkets contribute significantly to the city's real estate narrative, showcasing diverse price points and growth trajectories. The property types available cater to a broad spectrum of needs, from commercial spaces like shops and office spaces to residential options such as villas and apartments. The presence of ready-to-move properties alongside under-construction projects provides flexibility for different buyer timelines.<ul><li>Micromarkets like Golf Course Road and Golf Course Extension command the highest asking prices, reflecting their premium status and infrastructure, at ₹23,263 and ₹19,570 per sq ft respectively.</li><li>Manesar exhibits remarkable growth in asking prices, with a 45.97% change, making it a high-potential area for capital appreciation.</li><li>Shops are the most expensive property type for sale, averaging ₹35,624 per sq ft, highlighting strong commercial demand.</li><li>Ready To Move properties dominate the market with 1144 units available, priced at an average of ₹13,490 per sq ft, appealing to immediate occupancy seekers.</li><li>The rental market offers attractive returns, particularly in areas like Golf Course Road, where average rental rates reach ₹45 per sq ft, and Manesar, with rates at ₹89 per sq ft.</li></ul>",
+      "insightsShort": "Gurgaon's property market features an average asking price of ₹14,814 per sq ft, complemented by a significant rental yield of 2.51% and an average rental rate of ₹31 per sq ft. Micromarkets like Manesar show strong price appreciation at 45.97%, while shops lead property types in asking price at ₹35,624 per sq ft.",
+      "askingPriceTrendsDescription": "Gurgaon's property market has experienced notable price shifts over recent quarters. The asking price stood at ₹14,299 per sq ft in March 2025, rising to ₹14,887 per sq ft by September 2025. Prices further ascended to ₹15,119 per sq ft in December 2025, demonstrating a consistent upward trend in the latter half of the year.",
+      "byAreaDescription": "Gurgaon's micromarkets display a wide range of property rates, catering to diverse preferences and budgets. Golf Course Road commands the highest average rate at ₹23,263 per sq ft, closely followed by Golf Course Extension at ₹19,570 per sq ft. Central Gurgaon offers properties at an average of ₹18,036 per sq ft, while more accessible options can be found in Sohna at ₹10,661 per sq ft and Manesar at ₹11,060 per sq ft, with Manesar notably experiencing a significant 45.97% increase.",
+      "ratesByPropertyTypesDescription": "Gurgaon's real estate market offers a diverse portfolio across various property types. Commercial spaces, particularly shops, lead the premium segment with an average price of ₹35,624 per sq ft, experiencing a 13.6% growth. Villas are priced at ₹25,262 per sq ft, showing a modest 0.87% increase. Apartments, a major residential segment, average ₹14,814 per sq ft, while office spaces are available at ₹13,148 per sq ft with a -3.09% change.",
+      "ratesByProjectStatusDescription": "The Gurgaon market provides properties across various development stages, appealing to different buyer timelines. Ready To Move inventory, comprising 1144 units, averages ₹13,490 per sq ft with a 1.73% increase, ideal for immediate occupancy. Under Construction projects present 177 opportunities at ₹14,867 per sq ft, showing a 4.3% increase. New Launch properties are priced at ₹15,119 per sq ft, while properties in the Mid Stage average ₹11,213 per sq ft, offering a range of investment entry points.",
+      "topProjectsAskingDescription": "Premium residential developments in Gurgaon are commanding significant asking prices, reflecting their luxury positioning and prime locations. BPTP Green Oaks in Sector 70A, Southern Peripheral Road, leads with an impressive current rate of ₹84,638 per sq ft. Anant Raj Ashok Estate in Sector 63A, Golf Course Extension, follows at ₹71,478 per sq ft, while DLF The Magnolias in Sector 42, Golf Course Road, is priced at ₹70,037 per sq ft, experiencing a 3.68% increase. Other notable projects like DLF The Crest and DLF The Dahlias also contribute to the high-value segment along Golf Course Road.",
+      "registrationOverviewDescription": "The government registration data for Gurgaon indicates an average registered rate of ₹7,750 per sq ft for the period spanning April 2025 to March 2026.",
+      "topProjectsByTransactionsDescription": "",
+      "topProjectsByValueDescription": "",
+      "topDevelopersByTransactionsDescription": "",
+      "topDevelopersByValueDescription": "",
+      "investmentOpportunities": [
+        "Investing in Manesar, which saw a 45.97% price change, could offer significant capital appreciation.",
+        "Commercial properties like shops, averaging ₹35,624 per sq ft with a 13.6% increase, present high-value opportunities.",
+        "Ready To Move apartments, with 1144 units and a 1.73% price increase, offer immediate occupancy and stable growth.",
+        "The overall rental yield of 2.51% suggests a reasonable return on investment for rental properties.",
+        "Properties in Golf Course Extension and Sohna Road have shown positive appreciation of 5.57% and 11.59% respectively, indicating potential.",
+        "Rental projects like Krisumi Waterfall Suites in Dwarka Expressway, with an 11.29% increase in rental rate, signal strong rental demand."
+      ],
+      "marketChallenges": [
+        "Golf Course Road experienced a -12.5% change in average asking rate, indicating a potential price correction or reduced demand in this premium micromarket.",
+        "Office spaces saw a -3.09% decline in average asking price, suggesting caution for this property type.",
+        "New Launch properties experienced a -5.42% change, which might reflect initial pricing adjustments or slower absorption rates.",
+        "Specific projects like DLF The Aralias and DLF The Camellias on Golf Course Road showed significant price decreases of -31.73% and -60.48% respectively.",
+        "Emaar The Palm Springs and Krisumi Waterside Residences experienced notable negative changes in rental rates at -44.14% and -9.72% respectively."
+      ],
+      "marketStrengths": [
+        "Gurgaon's average asking price of ₹14,814 per sq ft reflects a robust and sought-after real estate market.",
+        "The city demonstrates a healthy rental yield of 2.51%, making it attractive for rental income generation.",
+        "Micromarkets like Manesar show exceptional growth, with a 45.97% increase in average asking rates.",
+        "The market offers a wide variety of property types, including high-value shops and villas, catering to diverse investment portfolios.",
+        "A substantial inventory of 1144 Ready To Move units at a competitive average price of ₹13,490 per sq ft provides immediate housing solutions.",
+        "Rental demand is strong across all BHK configurations, with 5 BHK and 6 BHK apartments commanding over ₹1 Lakh per month.",
+        "Under Construction projects are experiencing a 4.3% increase in average price, indicating investor confidence in future growth."
+      ],
+      "recentTransactionsDescription": "The government registration data for Gurgaon indicates an average registered rate of ₹7,750 per sq ft for the period spanning April 2025 to March 2026.",
+      "rentalTrendsByBHK": "Residential rentals in Gurgaon cater to diverse needs, with Studio apartments averaging ₹20,853 per month and 1 BHK units at ₹28,393 per month. Larger configurations like 3 BHK apartments command around ₹53,477 per month, while premium 5 BHK and 6 BHK units average ₹1.06 Lakh and ₹1.27 Lakh per month respectively, primarily for apartment types.",
+      "rentalTrendsbyLocation": "Rental rates across Gurgaon's micromarkets show varied performance. Golf Course Road leads with an average rental rate of ₹45 per sq ft, while Golf Course Extension is close behind at ₹37 per sq ft. Central Gurgaon and Southern Peripheral Road maintain an average of ₹31 per sq ft. Manesar stands out with a higher average of ₹89 per sq ft, though Dwarka Expressway saw a -7.14% change in its average rental rate.",
+      "rentalTrendsByPropertyType": "The rental market in Gurgaon offers diverse options across property types. Showrooms command the highest average rental rate at ₹113 per sq ft, with a 5.61% increase. Shops follow at ₹102 per sq ft, while office spaces average ₹66 per sq ft, showing a 4.76% increase. Residential options like villas and apartments both average ₹31 per sq ft.",
+      "rentalTrendsByTopProjects": "Several projects in Gurgaon stand out for their rental performance. DLF Express Greens in Manesar and DLF The Crest in Golf Course Road both command a current rental rate of ₹89 per sq ft. Suncity Heights on Golf Course Road follows at ₹85 per sq ft. Krisumi Waterfall Suites in Sector 36A, Dwarka Expressway, recorded an 11.29% increase in its rental rate, reaching ₹69 per sq ft."
+    },
+    "seoFooter": [
+      {
+        "id": "5",
+        "type": "city",
+        "slug": "property-rates-in-bangalore",
+        "name": "Bangalore",
+        "registeredRate": 6150,
+        "askingPrice": 12338
+      },
+      {
+        "id": "8",
+        "type": "city",
+        "slug": "property-rates-in-chennai",
+        "name": "Chennai",
+        "registeredRate": 0,
+        "askingPrice": 8082
+      },
+      {
+        "id": "4",
+        "type": "city",
+        "slug": "property-rates-in-delhi",
+        "name": "Delhi",
+        "registeredRate": 0,
+        "askingPrice": 18190
+      },
+      {
+        "id": "59",
+        "type": "city",
+        "slug": "property-rates-in-gurgaon",
+        "name": "Gurgaon",
+        "registeredRate": 7750,
+        "askingPrice": 14814
+      },
+      {
+        "id": "6",
+        "type": "city",
+        "slug": "property-rates-in-hyderabad",
+        "name": "Hyderabad",
+        "registeredRate": 3650,
+        "askingPrice": 9430
+      },
+      {
+        "id": "9",
+        "type": "city",
+        "slug": "property-rates-in-kolkata",
+        "name": "Kolkata",
+        "registeredRate": 0,
+        "askingPrice": 6196
+      },
+      {
+        "id": "13",
+        "type": "city",
+        "slug": "property-rates-in-lucknow",
+        "name": "Lucknow",
+        "registeredRate": 3000,
+        "askingPrice": 6810
+      },
+      {
+        "id": "3",
+        "type": "city",
+        "slug": "property-rates-in-mumbai",
+        "name": "Mumbai",
+        "registeredRate": 18150,
+        "askingPrice": 38179
+      },
+      {
+        "id": "287",
+        "type": "city",
+        "slug": "property-rates-in-navi-mumbai",
+        "name": "Navi Mumbai",
+        "registeredRate": 13500,
+        "askingPrice": 19289
+      },
+      {
+        "id": "72",
+        "type": "city",
+        "slug": "property-rates-in-noida",
+        "name": "Noida",
+        "registeredRate": 8350,
+        "askingPrice": 11737
+      },
+      {
+        "id": "11",
+        "type": "city",
+        "slug": "property-rates-in-pune",
+        "name": "Pune",
+        "registeredRate": 8700,
+        "askingPrice": 12895
+      },
+      {
+        "id": "18",
+        "type": "city",
+        "slug": "property-rates-in-thane",
+        "name": "Thane",
+        "registeredRate": 9200,
+        "askingPrice": 15509
+      }
+    ]
+  }
+}

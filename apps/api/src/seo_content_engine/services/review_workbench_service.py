@@ -94,6 +94,32 @@ class ReviewWorkbenchService:
 
         clusters["metadata_keywords"] = merged_metadata_keywords
 
+        # K3: Also prepend override keywords into faq_keyword_candidates so FAQ prompts
+        # always reference the correct primary term even when DataForSEO returned different top results.
+        faq_candidates = list(clusters.get("faq_keyword_candidates", []) or [])
+        existing_faq_signatures = {
+            (item.get("keyword") or "").strip().lower()
+            for item in faq_candidates
+            if isinstance(item, dict)
+        }
+
+        faq_override_records: list[dict] = []
+        for keyword in reversed(normalized_overrides):
+            if keyword.lower() in existing_faq_signatures:
+                continue
+            faq_override_records.append(
+                {
+                    "keyword": keyword,
+                    "normalized_keyword": keyword.lower(),
+                    "source": "review_session_override",
+                    "is_override": True,
+                    "faq_support_signal": True,
+                }
+            )
+
+        # Prepend override records so they appear first in FAQ candidate lists
+        clusters["faq_keyword_candidates"] = list(reversed(faq_override_records)) + faq_candidates
+
         return updated
 
     @staticmethod

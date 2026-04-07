@@ -81,6 +81,20 @@ class ContentPlanBuilder:
         )
 
     @staticmethod
+    def _has_landmarks_data(normalized: dict) -> bool:
+        """D6: Returns True when at least one landmark category is present."""
+        landmarks = normalized.get("landmarks", {}) or {}
+        categories = landmarks.get("categories", []) or []
+        return bool(categories)
+
+    @staticmethod
+    def _has_registration_data(normalized: dict) -> bool:
+        """D7: Returns True when govt_registration or top_developers data is present."""
+        govt_reg = normalized.get("govt_registration", {}) or {}
+        top_devs = normalized.get("top_developers", []) or []
+        return bool(govt_reg.get("transaction_count") or govt_reg.get("gross_value") or top_devs)
+
+    @staticmethod
     def _has_demand_supply_data(normalized: dict) -> bool:
         demand_supply = normalized.get("demand_supply", {}) or {}
         listing_ranges = normalized.get("listing_ranges", {}) or {}
@@ -863,6 +877,42 @@ class ContentPlanBuilder:
                 }
             )
 
+        # D8: FAQ — neighbourhood essentials (landmarks) for LOCALITY/MICROMARKET pages
+        if ContentPlanBuilder._has_landmarks_data(normalized) and "city" not in page_type_str:
+            faq_intents.append(
+                {
+                    "id": "neighbourhood_essentials_faq",
+                    "question_template": f"What essential facilities and landmarks are accessible from {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                    "data_dependencies": ["landmarks"],
+                }
+            )
+
+        # D8: FAQ — registration activity and developer trust signals
+        if ContentPlanBuilder._has_registration_data(normalized):
+            faq_intents.append(
+                {
+                    "id": "registration_activity_faq",
+                    "question_template": f"How active is the property registration market in {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
+                    "data_dependencies": ["govt_registration", "top_developers"],
+                }
+            )
+
+        # D8: FAQ — hot-selling localities for CITY pages
+        if "city" in page_type_str:
+            city_insights = normalized.get("city_insights", {}) or {}
+            hot_selling = city_insights.get("hot_selling_localities", []) or []
+            if hot_selling:
+                faq_intents.append(
+                    {
+                        "id": "hot_selling_localities_faq",
+                        "question_template": f"Which localities in {city_name} have the highest resale listing activity?",
+                        "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+                        "data_dependencies": ["city_insights.hot_selling_localities"],
+                    }
+                )
+
         # Location comparison: how does this location compare to the broader city/micromarket?
         price_trend = normalized.get("pricing_summary", {}).get("price_trend", [])
         if price_trend and len(price_trend) > 0:
@@ -914,6 +964,8 @@ class ContentPlanBuilder:
         has_demand_supply = ContentPlanBuilder._has_demand_supply_data(normalized)
         has_residential_property_signals = ContentPlanBuilder._has_residential_property_type_data(normalized)
         has_property_rates_ai = bool(normalized.get("property_rates_ai_summary", {}) or {})
+        has_landmarks = ContentPlanBuilder._has_landmarks_data(normalized)
+        has_registration = ContentPlanBuilder._has_registration_data(normalized)
 
         common_sections = [
             {
@@ -1079,6 +1131,33 @@ class ContentPlanBuilder:
             "data_dependencies": ["listing_summary", "pricing_summary.location_rates", "nearby_localities"],
         }
 
+        # D6: Neighbourhood essentials — landmarks summary for LOCALITY/MICROMARKET pages
+        neighbourhood_essentials_section = {
+            "id": "neighbourhood_essentials",
+            "title": "Neighbourhood Essentials and Connectivity",
+            "objective": (
+                "What day-to-day infrastructure is visible near this location? "
+                "Describe the landmark categories present (hospitals, schools, banks, etc.) "
+                "and what they signal about everyday livability."
+            ),
+            "render_type": "generative",
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+            "data_dependencies": ["landmarks"],
+        }
+
+        # D7: Market registration activity — govt registration + top developers for all entity types
+        market_registration_section = {
+            "id": "market_registration_activity",
+            "title": "Registration Activity and Developer Presence",
+            "objective": (
+                "What do the government registration transaction count and gross value say about buyer activity? "
+                "Which developers have a visible presence in this market?"
+            ),
+            "render_type": "generative",
+            "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
+            "data_dependencies": ["govt_registration", "top_developers"],
+        }
+
         sections = list(common_sections)
 
         if has_review_signals:
@@ -1094,6 +1173,14 @@ class ContentPlanBuilder:
         if has_residential_property_signals:
             sections.insert(len(sections) - 2, property_type_signals_section)
             sections.insert(len(sections) - 2, property_type_rate_snapshot_section)
+
+        # D6: Add neighbourhood_essentials for LOCALITY/MICROMARKET pages (before faq and internal_links)
+        if has_landmarks and page_type in {PageType.RESALE_LOCALITY, PageType.RESALE_MICROMARKET}:
+            sections.insert(len(sections) - 2, neighbourhood_essentials_section)
+
+        # D7: Add market_registration_activity for all entity types when data is present
+        if has_registration:
+            sections.insert(len(sections) - 2, market_registration_section)
 
         if page_type == PageType.RESALE_LOCALITY:
             return sections[:3] + [locality_specific] + sections[3:]
@@ -1320,6 +1407,32 @@ class ContentPlanBuilder:
                     ),
                 }
 
+            # D6: Guardrails for neighbourhood_essentials (landmarks section)
+            if section["id"] == "neighbourhood_essentials":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["landmarks"],
+                    "instruction": (
+                        "Use only the landmark category names, counts, and top landmark names from the landmarks data. "
+                        "Group by category (hospitals, schools, banks, etc.). "
+                        "Describe what the visible infrastructure suggests about everyday livability. "
+                        "Do not fabricate landmark names or distances not present in the data. "
+                        "Keep the section factual and scannable."
+                    ),
+                }
+
+            # D7: Guardrails for market_registration_activity section
+            if section["id"] == "market_registration_activity":
+                section_context["narrative_guardrails"] = {
+                    "allowed_inputs": ["govt_registration", "top_developers"],
+                    "instruction": (
+                        "Use only govt_registration fields (transaction_count, gross_value, registered_rate, date_range) "
+                        "and top_developers names and counts to describe market activity. "
+                        "Frame registration data as a signal of buyer demand in the specified time period. "
+                        "Name up to 5 top developers when present. "
+                        "Do not add growth forecasts or investment advice."
+                    ),
+                }
+
             # A3: Narrative rules for nearby_alternatives section (LOCALITY pages).
             if section["id"] == "nearby_alternatives":
                 section_context["narrative_guardrails"] = {
@@ -1384,7 +1497,7 @@ class ContentPlanBuilder:
         )
 
         return {
-            "version": "v1.8",
+            "version": "v1.9",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],
@@ -1450,6 +1563,11 @@ class ContentPlanBuilder:
                 "projects_by_status": normalized.get("projects_by_status"),
                 "page_property_type_context": normalized.get("page_property_type_context", {}),
                 "rera_context": rera_context,
+                # D5: New data fields from enhanced normalizer
+                "landmarks": normalized.get("landmarks"),
+                "govt_registration": normalized.get("govt_registration"),
+                "top_developers": normalized.get("top_developers"),
+                "city_insights": normalized.get("city_insights"),
             },
             "source_meta": {
                 "raw_source_meta": raw_source_meta,

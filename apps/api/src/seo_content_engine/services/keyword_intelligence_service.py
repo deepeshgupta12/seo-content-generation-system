@@ -259,10 +259,14 @@ class KeywordIntelligenceService:
                     language_name=resolved_language,
                     limit=resolved_limit,
                 )
+                suggestions_items = KeywordIntelligenceService._extract_items(suggestions_raw)
+                # K2: warn when API returns a valid response but zero items
+                if not suggestions_items:
+                    warnings.append(f"keyword_suggestions_empty_response:{seed}")
                 suggestions_raw_groups.append(
                     {
                         "seed_keyword": seed,
-                        "raw_items": KeywordIntelligenceService._extract_items(suggestions_raw),
+                        "raw_items": suggestions_items,
                     }
                 )
             except Exception as exc:
@@ -276,10 +280,14 @@ class KeywordIntelligenceService:
                     limit=resolved_limit,
                     depth=settings.dataforseo_related_depth,
                 )
+                related_items = KeywordIntelligenceService._extract_items(related_raw)
+                # K2: warn when API returns a valid response but zero items
+                if not related_items:
+                    warnings.append(f"related_keywords_empty_response:{seed}")
                 related_raw_groups.append(
                     {
                         "seed_keyword": seed,
-                        "raw_items": KeywordIntelligenceService._extract_items(related_raw),
+                        "raw_items": related_items,
                     }
                 )
             except Exception as exc:
@@ -403,6 +411,33 @@ class KeywordIntelligenceService:
         ]
         consolidated_records = KeywordProcessing.consolidate_records(evaluated_records)
         clusters = KeywordProcessing.build_clusters(consolidated_records)
+
+        # K1: Fallback primary keyword — when all DataForSEO calls return no included
+        # records, build_clusters yields primary_keyword=None which would crash downstream
+        # prompt builders. Synthesise a minimal seed-based record so the pipeline never stalls.
+        if clusters["primary_keyword"] is None and seeds:
+            fallback_kw = seeds[0]
+            clusters["primary_keyword"] = {
+                "keyword": fallback_kw,
+                "normalized_keyword": KeywordProcessing.normalize_text(fallback_kw),
+                "core_keyword": fallback_kw,
+                "normalized_core_keyword": KeywordProcessing.normalize_text(fallback_kw),
+                "source": "seed_fallback",
+                "source_seed": fallback_kw,
+                "score": 0,
+                "include": True,
+                "exact_location_match": False,
+                "location_tier": "weak_match",
+                "has_bhk_signal": False,
+                "has_price_signal": False,
+                "has_ready_signal": False,
+                "faq_support_signal": False,
+                "informational_signal": False,
+                "search_volume": None,
+                "serp_validated": False,
+                "semantic_signature": KeywordProcessing._token_signature(fallback_kw),
+            }
+            warnings.append(f"primary_keyword_fallback_to_seed:{fallback_kw}")
 
         included_records = [record for record in consolidated_records if record["include"]]
         excluded_records = [record for record in consolidated_records if not record["include"]]
