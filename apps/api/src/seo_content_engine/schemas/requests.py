@@ -231,6 +231,17 @@ class ReviewFaqUpdateRequest(BaseModel):
     )
 
 
+class ReviewSessionRefreshRequest(BaseModel):
+    """H5 — Incremental refresh: only regenerate sections whose data changed."""
+
+    session_id: str = Field(..., description="Review session identifier")
+    persist_session: bool = True
+    action_label: str = Field(
+        default="incremental_refresh",
+        description="Mutation label to record in version history",
+    )
+
+
 class ReviewSessionExportRequest(BaseModel):
     session_id: str = Field(..., description="Review session identifier")
     export_formats: list[ExportFormat] = Field(

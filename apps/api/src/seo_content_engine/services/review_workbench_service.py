@@ -742,6 +742,69 @@ class ReviewWorkbenchService:
             extra={"question": question},
         )
 
+    # ------------------------------------------------------------------ #
+    # H5 — Incremental Refresh endpoint                                  #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def refresh_session(
+        *,
+        session_id: str,
+        persist_session: bool = True,
+        action_label: str = "incremental_refresh",
+    ) -> tuple[dict, dict]:
+        """H5 — Regenerate only sections whose data dependencies changed.
+
+        Rebuilds the content_plan from the session's stored normalized data and
+        keyword_intelligence.  Compares data fingerprints to identify stale
+        sections, regenerates only those sections in parallel, and returns the
+        updated session with a mutation summary that lists which sections were
+        refreshed.
+        """
+        from seo_content_engine.services.openai_client import OpenAIClient
+
+        session = ReviewSessionStore.load_session(session_id)
+        normalized: dict = session.get("normalized", {})
+        keyword_intelligence: dict = ReviewWorkbenchService._apply_primary_keyword_overrides(
+            session["keyword_intelligence"],
+            session["inputs"].get("primary_keyword_overrides", []),
+        )
+
+        new_content_plan = ReviewWorkbenchService._safe_refresh_content_plan(
+            session, normalized, keyword_intelligence
+        ) or session["content_plan"]
+
+        client = OpenAIClient()
+        updated_draft, regenerated_ids = DraftGenerationService.incremental_refresh(
+            existing_draft=session["draft"],
+            new_content_plan=new_content_plan,
+            openai_client=client,
+        )
+
+        # Recompute validation + quality report on the updated draft
+        updated_draft = ReviewWorkbenchService._recompute_mutated_draft(
+            updated_draft,
+            pass_name="incremental_refresh",
+        )
+
+        updated_session = ReviewWorkbenchService._apply_draft_to_session(
+            session,
+            updated_draft,
+            action_type=action_label,
+        )
+        updated_session["content_plan"] = new_content_plan
+        ReviewWorkbenchService._persist_if_needed(updated_session, persist_session)
+
+        return updated_session, ReviewWorkbenchService._mutation_summary(
+            updated_session,
+            action_type=action_label,
+            extra={
+                "regenerated_section_ids": regenerated_ids,
+                "sections_refreshed": len(regenerated_ids),
+                "sections_preserved": len(updated_draft.get("sections", [])) - len(regenerated_ids),
+            },
+        )
+
     @staticmethod
     def export_session(
         *,

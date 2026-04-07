@@ -11,6 +11,7 @@ from docx.shared import Pt
 
 from seo_content_engine.core.config import settings
 from seo_content_engine.services.output_formatter import OutputFormatter
+from seo_content_engine.services.schema_markup_generator import SchemaMarkupGenerator
 from seo_content_engine.utils.formatters import slugify
 
 logger = logging.getLogger(__name__)
@@ -296,6 +297,18 @@ class ArtifactWriter:
             "</head>",
             "<body>",
         ]
+
+        # H1: Inject JSON-LD schema markup (<script type="application/ld+json">) before </head>.
+        schema_blocks = SchemaMarkupGenerator.generate_all(draft)
+        schema_script_tags = SchemaMarkupGenerator.to_script_tags(schema_blocks)
+        if schema_script_tags:
+            try:
+                head_close_idx = html_parts.index("</head>")
+                for tag in reversed(schema_script_tags):
+                    html_parts.insert(head_close_idx, tag)
+            except ValueError:
+                # Fallback: append before <body> if </head> not found
+                html_parts.extend(schema_script_tags)
 
         # E3: Inject review banner at the top when draft failed hard validation.
         if draft.get("needs_review"):

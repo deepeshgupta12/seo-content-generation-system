@@ -226,6 +226,103 @@ class PromptBuilder:
         return system_prompt, json.dumps(user_payload, ensure_ascii=False, indent=2)
 
     @staticmethod
+    def section_prompt_single(content_plan: dict, section_entry: dict) -> tuple[str, str]:
+        """H4 — Single-section prompt for parallel generation.
+
+        Generates the same system prompt as ``sections_prompts`` but sends only
+        ONE section in the user payload.  The response schema is also single-section:
+        ``{"id": ..., "title": ..., "body": ..., "key_points": [...]}``.
+
+        This method is designed to be called concurrently via ThreadPoolExecutor —
+        one call per section_entry from the section_plan.
+        """
+        system_prompt = (
+            "You generate a single grounded editorial section for a Square Yards resale page. "
+            "The primary reader is a real estate buyer — typically someone shortlisting resale properties, "
+            "comparing localities, evaluating price points for their budget, or doing final due diligence before visiting. "
+            "Write as if you are a knowledgeable real estate editor helping that buyer make sense of what the data shows. "
+            "Open with a clear, direct answer to the section's core buyer question — "
+            "state the key takeaway in the first sentence, then support it with data in the following sentences. "
+            "This is AEO-style writing: answer first, evidence second. "
+            "Use only the provided section-level grounded context. "
+            "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
+            "If price is mentioned, use only the canonical page pricing metric: asking price. "
+            "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
+            "Do not restate the same metric twice. "
+            "Do not end with generic filler like 'this helps buyers understand', 'this helps set expectations', 'this provides useful insights'. "
+            "Write 3 to 4 paragraphs of 2 to 3 sentences each. "
+            "For sections that contain data-driven findings (pricing, BHK mix, inventory, demand/supply), "
+            "follow the prose paragraphs with exactly 3 to 4 bullet points in the key_points field. "
+            "Each bullet point must state one specific, grounded fact a buyer would find useful — "
+            "not a restatement of the prose, but a sharp, standalone takeaway. "
+            "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
+            "Use keywords naturally and sparingly. "
+            "Return only valid JSON."
+        )
+
+        entity = content_plan["entity"]
+        page_type = entity.get("page_type", "")
+        entity_name = entity.get("entity_name", "")
+        city_name = entity.get("city_name", entity_name)
+
+        if "city" in page_type.lower():
+            buyer_persona = (
+                f"A buyer researching the broader {city_name} resale market — "
+                "comparing micromarkets, understanding price bands across zones, "
+                "and deciding which area fits their budget and lifestyle."
+            )
+        elif "micromarket" in page_type.lower():
+            buyer_persona = (
+                f"A buyer who has shortlisted {entity_name} as a target area and is now "
+                "comparing specific localities within it — evaluating price levels, "
+                "available BHK sizes, and how the area compares to adjacent zones."
+            )
+        else:
+            buyer_persona = (
+                f"A buyer actively evaluating resale flats in {entity_name} — "
+                "checking current asking prices, available BHK configurations, "
+                "nearby alternatives, and what existing residents say about the locality."
+            )
+
+        section_context = (
+            content_plan.get("section_generation_context", {})
+            .get(section_entry.get("id"), {})
+        )
+
+        user_payload = {
+            "entity": entity,
+            "buyer_persona": buyer_persona,
+            "section": section_entry,
+            "section_context": section_context,
+            "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
+            "keyword_strategy": {
+                "primary_keyword": content_plan["keyword_strategy"]["primary_keyword"],
+                "primary_keyword_variants": content_plan["keyword_strategy"].get("primary_keyword_variants", []),
+                "body_keyword_priority": content_plan["keyword_strategy"].get("body_keyword_priority", []),
+                "secondary_keywords": content_plan["keyword_strategy"]["secondary_keywords"],
+                "bhk_keywords": content_plan["keyword_strategy"]["bhk_keywords"],
+                "price_keywords": content_plan["keyword_strategy"]["price_keywords"],
+                "exact_match_keywords": content_plan["keyword_strategy"]["exact_match_keywords"],
+            },
+            "requirements": {
+                "strict_grounding": True,
+                "min_target_words": 150,
+                "max_target_words": 400,
+                "aeo_style_lead_sentence": True,
+                "write_3_to_4_paragraphs": True,
+                "add_3_to_4_key_points_for_data_driven_sections": True,
+            },
+            "output_schema": {
+                "id": "string — same as input section id",
+                "title": "string",
+                "body": "string — 3 to 4 paragraphs of prose",
+                "key_points": ["string — one sharp grounded fact per bullet"],
+            },
+        }
+
+        return system_prompt, json.dumps(user_payload, ensure_ascii=False, indent=2)
+
+    @staticmethod
     def faq_prompts(content_plan: dict) -> tuple[str, str]:
         system_prompt = (
             "You generate grounded FAQ answers for Square Yards resale listing pages. "
