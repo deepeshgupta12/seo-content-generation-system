@@ -15,6 +15,8 @@
  *   // To cancel: source.close();
  */
 
+import { useState, useRef, useCallback } from "react";
+
 import { env } from "../config/env";
 
 // ------------------------------------------------------------------ //
@@ -156,8 +158,6 @@ export function streamRegenerate(
  * const { isStreaming, completedSections, totalSections, startStream } =
  *   useStreamRegenerate(sessionId, { onDone: refetchSession });
  */
-
-import { useState, useRef, useCallback } from "react";
 
 export type UseStreamRegenerateState = {
   isStreaming: boolean;
