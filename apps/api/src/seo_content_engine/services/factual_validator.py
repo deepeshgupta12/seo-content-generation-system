@@ -8,52 +8,67 @@ from seo_content_engine.core.config import settings
 
 
 class FactualValidator:
-    FORBIDDEN_CLAIMS = [
+    # Tier 1 — Hard-block: invented superlatives and investment language that are NEVER
+    # factually grounded in resale listing data. Always stripped and always trigger
+    # forbidden_claims_detected.
+    HARD_BLOCK_CLAIMS = [
         "most sought-after",
-        "premium status",
-        "excellent connectivity",
-        "excellent amenities",
-        "growing appeal",
-        "investment potential",
-        "stable market with strong demand",
+        "prime destination",
         "luxury lifestyle",
         "world-class amenities",
-        "prime destination",
-        "strong demand",
+        "investment potential",
+        "growth potential",
+        "healthy appreciation",
+        "indicating healthy appreciation",
+        "active buyer engagement",
+        "stable market with strong demand",
+        "robust demand",
+        "healthy demand",
+        "healthy supply",
+        "steady demand",
         "high demand",
-        "premium",
-        "excellent",
+        "strong demand",
+        "active market participation",
+        "reliability and market acceptance",
+        "luxury interest",
+        "stands out",
+        "diverse offering",
+        "highly liquid",
+        "offers potential",
+        "could provide entry",
+        "growing appeal",
+        "premium status",
         "best property type",
         "better property type",
         "recommended property type",
         "ideal property type",
         "top property type",
+        "healthy 5.72% price increase",
+        "excellent connectivity",
+        "excellent amenities",
+    ]
+
+    # Tier 2 — Conditional: factually valid only when data-backed (a number appears within
+    # 40 characters in the text). If no nearby number is found, treat as a hard block.
+    # Examples: "2 BHK is the largest category" is fine; "largest category" alone is not.
+    CONDITIONAL_CLAIMS = [
         "largest category",
         "most numerous",
         "highest average price",
         "lowest average price",
-        "diverse offering",
-        "highly liquid",
-        "robust demand",
-        "offers potential",
-        "could provide entry",
-        "healthy appreciation",
-        "healthy supply",
-        "healthy demand",
-        "steady demand",
-        "steady growth",
-        "strong activity",
-        "active market participation",
-        "growth potential",
-        "reliability and market acceptance",
-        "market acceptance",
-        "stands out",
-        "reflecting interest in luxury homes",
-        "luxury homes",
-        "active buyer engagement",
-        "indicating healthy appreciation",
-        "indicating steady demand",
     ]
+
+    # Tier 3 — Soft-demote: over-broad terms that are sometimes valid. These are flagged
+    # in the validation report as soft_demote_warnings but are NOT stripped and do NOT
+    # trigger forbidden_claims_detected (so they never cause a safe-body fallback).
+    SOFT_DEMOTE_CLAIMS = [
+        "premium",
+        "excellent",
+    ]
+
+    # Backwards-compat alias — used by _sanitize_text and _find_forbidden_claims.
+    # Populated from HARD_BLOCK_CLAIMS + conditional phrases that failed the data-backed check.
+    FORBIDDEN_CLAIMS = HARD_BLOCK_CLAIMS + CONDITIONAL_CLAIMS
 
     ROBOTIC_PHRASES = [
         "visible dataset",
@@ -81,20 +96,43 @@ class FactualValidator:
         "offers a wide range",
         "adds context",
         "makes it easier to understand",
-        "helps explain the visible",
         "gives a grounded sense",
-        "works as a quick reference point",
+        "this helps explain",
+        "this helps show",
+        "this can help",
+        "this section explains",
+        "this section covers",
     ]
 
-    COMMERCIAL_TERMS = {
+    COMMERCIAL_PROPERTY_TERMS = {
         "shop",
         "office space",
+        "office spaces",
+        "co-working space",
+        "co working space",
         "warehouse",
         "showroom",
         "commercial",
-        "industrial",
-        "co-working space",
-        "co working space",
+    }
+
+    RESIDENTIAL_PROPERTY_TERMS = {
+        "apartment",
+        "apartments",
+        "flat",
+        "flats",
+        "builder floor",
+        "builder floors",
+        "villa",
+        "villas",
+        "plot",
+        "plots",
+        "house",
+        "houses",
+        "independent house",
+        "penthouse",
+        "penthouses",
+        "studio",
+        "studios",
     }
 
     PRICING_SYNONYMS = {
@@ -261,9 +299,37 @@ class FactualValidator:
         return []
 
     @staticmethod
+    def _is_data_backed(text: str, phrase: str, window: int = 40) -> bool:
+        """Return True if a number appears within `window` characters of `phrase` in text."""
+        lowered = text.lower()
+        idx = lowered.find(phrase)
+        if idx == -1:
+            return False
+        region = text[max(0, idx - window): idx + len(phrase) + window]
+        return bool(re.search(r"[\d,]+(?:\.\d+)?", region))
+
+    @staticmethod
+    def _find_soft_demote_warnings(text: str) -> list[str]:
+        """Return soft-demote phrases present in text (flagged but not stripped)."""
+        lowered = text.lower()
+        return [phrase for phrase in FactualValidator.SOFT_DEMOTE_CLAIMS if phrase in lowered]
+
+    @staticmethod
     def _find_forbidden_claims(text: str) -> list[str]:
         lowered = text.lower()
-        return [phrase for phrase in FactualValidator.FORBIDDEN_CLAIMS if phrase in lowered]
+        found: list[str] = []
+
+        # Tier 1: Hard blocks — always forbidden.
+        for phrase in FactualValidator.HARD_BLOCK_CLAIMS:
+            if phrase in lowered:
+                found.append(phrase)
+
+        # Tier 2: Conditional — only forbidden when NOT data-backed.
+        for phrase in FactualValidator.CONDITIONAL_CLAIMS:
+            if phrase in lowered and not FactualValidator._is_data_backed(text, phrase):
+                found.append(phrase)
+
+        return found
 
     @staticmethod
     def _find_robotic_phrases(text: str) -> list[str]:
@@ -338,13 +404,19 @@ class FactualValidator:
     @staticmethod
     def _sanitize_text(text: str) -> str:
         sanitized = text
-        for phrase in FactualValidator.FORBIDDEN_CLAIMS:
+
+        # Strip Tier 1 hard blocks unconditionally.
+        for phrase in FactualValidator.HARD_BLOCK_CLAIMS:
             sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
+
+        # Strip Tier 2 conditional claims only when they are NOT data-backed.
+        for phrase in FactualValidator.CONDITIONAL_CLAIMS:
+            if not FactualValidator._is_data_backed(sanitized, phrase):
+                sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
+
+        # Tier 3 (soft-demote) phrases are NOT stripped — they are surfaced as warnings only.
 
         for phrase in FactualValidator.ROBOTIC_PHRASES:
-            sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
-
-        for phrase in FactualValidator.GENERIC_FILLER_PHRASES:
             sanitized = re.sub(re.escape(phrase), "", sanitized, flags=re.IGNORECASE)
 
         sanitized = re.sub(r"\s{2,}", " ", sanitized)
@@ -410,14 +482,6 @@ class FactualValidator:
         intersection = words_a.intersection(words_b)
         union = words_a.union(words_b)
         return len(intersection) / max(len(union), 1)
-
-    @staticmethod
-    def _has_residential_commercial_mixing(text: str) -> bool:
-        lowered = text.lower()
-        residential_markers = {"apartment", "flat", "villa", "builder floor", "plot", "house", "penthouse", "studio"}
-        has_residential = any(marker in lowered for marker in residential_markers)
-        has_commercial = any(marker in lowered for marker in FactualValidator.COMMERCIAL_TERMS)
-        return has_residential and has_commercial
 
     @staticmethod
     def _build_repetition_check(draft: dict) -> dict[str, Any]:
@@ -610,7 +674,6 @@ class FactualValidator:
     def _build_robotic_language_check(draft: dict) -> dict[str, Any]:
         warnings: list[str] = []
         phrase_hits: dict[str, int] = {}
-        filler_hits: dict[str, int] = {}
 
         texts = [
             draft.get("metadata", {}).get("title", ""),
@@ -628,26 +691,27 @@ class FactualValidator:
             if count:
                 phrase_hits[phrase] = count
 
+        total_hits = sum(phrase_hits.values())
+        if total_hits >= settings.editorial_robotic_phrase_threshold:
+            warnings.append("robotic_phrase_detected")
+
+        filler_hits = {}
+        filler_total = 0
         for phrase in FactualValidator.GENERIC_FILLER_PHRASES:
             count = full_text.count(phrase)
             if count:
                 filler_hits[phrase] = count
-
-        total_phrase_hits = sum(phrase_hits.values())
-        total_filler_hits = sum(filler_hits.values())
-
-        if total_phrase_hits >= settings.editorial_robotic_phrase_threshold:
-            warnings.append("robotic_phrase_detected")
-        if total_filler_hits >= settings.editorial_generic_filler_threshold:
+                filler_total += count
+        if filler_total >= 2:
             warnings.append("generic_filler_detected")
 
         return {
             "passed": len(warnings) == 0,
             "warnings": warnings,
             "phrase_hits": phrase_hits,
+            "total_hits": total_hits,
             "filler_hits": filler_hits,
-            "total_phrase_hits": total_phrase_hits,
-            "total_filler_hits": total_filler_hits,
+            "filler_total_hits": filler_total,
         }
 
     @staticmethod
@@ -774,6 +838,16 @@ class FactualValidator:
         }
 
     @staticmethod
+    def _section_has_mixed_scope(section_id: str | None, text: str) -> bool:
+        if section_id not in {"market_snapshot", "property_type_signals", "property_type_rate_snapshot"}:
+            return False
+
+        lowered = text.lower()
+        has_commercial = any(term in lowered for term in FactualValidator.COMMERCIAL_PROPERTY_TERMS)
+        has_residential = any(term in lowered for term in FactualValidator.RESIDENTIAL_PROPERTY_TERMS)
+        return has_commercial and has_residential
+
+    @staticmethod
     def _build_quality_report(draft: dict, validation_report: dict) -> dict[str, Any]:
         repetition_check = FactualValidator._build_repetition_check(draft)
         uniqueness_check = FactualValidator._build_page_uniqueness_check(draft)
@@ -869,7 +943,9 @@ class FactualValidator:
             else []
         )
         robotic_phrases = FactualValidator._find_robotic_phrases(text)
-        filler_phrases = FactualValidator._find_generic_filler(text)
+        generic_filler = FactualValidator._find_generic_filler(text)
+        # Tier 3: soft-demote warnings — flagged but NOT stripped, do NOT trigger issues.
+        soft_demote_warnings = FactualValidator._find_soft_demote_warnings(text)
         sanitized_text = FactualValidator._sanitize_text(text)
 
         issues: list[str] = []
@@ -883,8 +959,9 @@ class FactualValidator:
             "original_text": text,
             "sanitized_text": sanitized_text,
             "forbidden_claims": forbidden_claims,
+            "soft_demote_warnings": soft_demote_warnings,
             "robotic_phrases": robotic_phrases,
-            "filler_phrases": filler_phrases,
+            "generic_filler": generic_filler,
             "unreconciled_numbers": unreconciled_numbers,
             "metric_issues": metric_issues,
             "word_count": FactualValidator._word_count(text),
@@ -893,7 +970,7 @@ class FactualValidator:
         }
 
     @staticmethod
-    def validate_draft(draft: dict) -> dict:
+    def validate_draft(draft: dict) -> dict[str, Any]:
         content_plan = draft["content_plan"]
         full_allowed_numbers = FactualValidator._extract_allowed_numeric_strings(content_plan)
         canonical_metric_name = content_plan["metadata_plan"]["canonical_pricing_metric"]["metric_name"]
@@ -937,11 +1014,9 @@ class FactualValidator:
                 canonical_metric_name,
             )
 
-            section_id = section.get("id") or ""
-            if section_id in {"property_type_signals", "market_snapshot", "property_type_rate_snapshot"}:
-                if FactualValidator._has_residential_commercial_mixing(section.get("body", "")):
-                    body_check["issues"].append("residential_commercial_mixing_detected")
-                    body_check["passed"] = False
+            if FactualValidator._section_has_mixed_scope(section.get("id"), section.get("body", "")):
+                body_check["issues"] = sorted(set(body_check["issues"] + ["mixed_property_scope_detected"]))
+                body_check["passed"] = False
 
             section_checks.append(
                 {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -572,7 +572,7 @@ class CompetitorIntelligenceService:
 
         return {
             "version": "v1.1",
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "whitelist_domains": whitelist,
             "selected_competitors": selected_domains,
             "competitor_breakdown": competitor_breakdown,

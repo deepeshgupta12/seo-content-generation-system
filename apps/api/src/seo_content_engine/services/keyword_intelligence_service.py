@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -409,7 +409,7 @@ class KeywordIntelligenceService:
 
         return {
             "version": "v1.2",
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "page_type": page_type,
             "listing_type": entity["listing_type"],
             "entity": entity,

@@ -207,6 +207,30 @@ class ReviewVersionRestoreRequest(BaseModel):
     )
 
 
+class ReviewFaqRegenerateRequest(BaseModel):
+    """C1 — Regenerate all FAQs without touching sections or metadata."""
+
+    session_id: str = Field(..., description="Review session identifier")
+    persist_session: bool = True
+    action_label: str = Field(
+        default="faq_regenerate",
+        description="Mutation label to record in version history",
+    )
+
+
+class ReviewFaqUpdateRequest(BaseModel):
+    """C1 — Update the answer to a single FAQ by its question text."""
+
+    session_id: str = Field(..., description="Review session identifier")
+    question: str = Field(..., min_length=1, description="The exact FAQ question text to update")
+    answer: str = Field(..., min_length=1, description="Replacement answer text")
+    persist_session: bool = True
+    action_label: str = Field(
+        default="faq_edit",
+        description="Mutation label to record in version history",
+    )
+
+
 class ReviewSessionExportRequest(BaseModel):
     session_id: str = Field(..., description="Review session identifier")
     export_formats: list[ExportFormat] = Field(

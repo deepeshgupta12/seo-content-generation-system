@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,8 @@ from docx.shared import Pt
 from seo_content_engine.core.config import settings
 from seo_content_engine.services.output_formatter import OutputFormatter
 from seo_content_engine.utils.formatters import slugify
+
+logger = logging.getLogger(__name__)
 
 
 class ArtifactWriter:
@@ -39,6 +42,20 @@ class ArtifactWriter:
             file.write(markdown_text)
 
         return str(output_path)
+
+    @staticmethod
+    def _guard_review_block(draft: dict) -> None:
+        # Export is always allowed. When needs_review is True (hard validation fail),
+        # we log a warning so the exported artifact is clearly flagged but never blocked.
+        if draft.get("needs_review"):
+            entity_name = draft.get("entity", {}).get("entity_name", "unknown")
+            approval = draft.get("quality_report", {}).get("approval_status", "unknown")
+            logger.warning(
+                "Exporting draft with needs_review=True for entity=%s approval_status=%s. "
+                "Artifact will include review flag.",
+                entity_name,
+                approval,
+            )
 
     @staticmethod
     def _set_base_doc_styles(document: Document) -> None:
@@ -82,16 +99,23 @@ class ArtifactWriter:
         for section in sections:
             title = ArtifactWriter._safe_text(section.get("title"))
             body = str(section.get("body") or "").strip()
+            key_points: list[str] = [
+                str(point).strip()
+                for point in (section.get("key_points") or [])
+                if point and str(point).strip()
+            ]
 
             document.add_heading(title, level=3)
             if not body:
                 document.add_paragraph("No grounded narrative available for this section.")
-                continue
+            else:
+                for paragraph in body.split("\n"):
+                    paragraph = paragraph.strip()
+                    if paragraph:
+                        document.add_paragraph(paragraph)
 
-            for paragraph in body.split("\n"):
-                paragraph = paragraph.strip()
-                if paragraph:
-                    document.add_paragraph(paragraph)
+            for point in key_points:
+                document.add_paragraph(point, style="List Bullet")
 
     @staticmethod
     def _add_tables(document: Document, tables: list[dict]) -> None:
@@ -211,6 +235,18 @@ class ArtifactWriter:
         document = Document()
         ArtifactWriter._set_base_doc_styles(document)
 
+        # E3: Prepend a review banner when the draft failed hard validation.
+        if draft.get("needs_review"):
+            approval = draft.get("quality_report", {}).get("approval_status", "unknown")
+            banner = document.add_paragraph(
+                f"⚠️ REVIEW REQUIRED — Validation failed (approval_status={approval}). "
+                "Do not publish without editorial review."
+            )
+            banner.runs[0].bold = True
+            from docx.shared import RGBColor
+            banner.runs[0].font.color.rgb = RGBColor(0xC0, 0x3A, 0x00)
+            document.add_paragraph("")
+
         ArtifactWriter._add_metadata(document, draft.get("metadata", {}))
         ArtifactWriter._add_sections(document, draft.get("sections", []))
         ArtifactWriter._add_tables(document, draft.get("tables", []))
@@ -254,9 +290,23 @@ class ArtifactWriter:
             "    th { background: #f3f4f6; }",
             "    ul { margin-top: 8px; }",
             "    li { margin-bottom: 6px; }",
+            "    .review-banner { background: #fff3cd; border: 2px solid #c03a00; color: #c03a00; "
+            "padding: 14px 18px; border-radius: 6px; font-weight: bold; margin-bottom: 24px; }",
             "  </style>",
             "</head>",
             "<body>",
+        ]
+
+        # E3: Inject review banner at the top when draft failed hard validation.
+        if draft.get("needs_review"):
+            approval = draft.get("quality_report", {}).get("approval_status", "unknown")
+            html_parts.append(
+                f'  <div class="review-banner">⚠️ REVIEW REQUIRED — Validation failed '
+                f"(approval_status={html.escape(str(approval))}). "
+                "Do not publish without editorial review.</div>"
+            )
+
+        html_parts.extend([
             f"  <h1>{h1}</h1>",
             '  <div class="meta-block">',
             f"    <p>{intro_snippet}</p>",
@@ -264,7 +314,7 @@ class ArtifactWriter:
             f"    <p><strong>Title:</strong> {page_title}</p>",
             f"    <p><strong>Meta Description:</strong> {meta_description}</p>",
             "  </div>",
-        ]
+        ])
 
         if sections:
             html_parts.append('  <div class="section-block">')
@@ -272,6 +322,11 @@ class ArtifactWriter:
             for section in sections:
                 title = ArtifactWriter._html_escape(section.get("title"))
                 body = str(section.get("body") or "").strip()
+                key_points: list[str] = [
+                    str(point).strip()
+                    for point in (section.get("key_points") or [])
+                    if point and str(point).strip()
+                ]
                 html_parts.append(f"    <h3>{title}</h3>")
                 if body:
                     for paragraph in body.split("\n"):
@@ -280,6 +335,11 @@ class ArtifactWriter:
                             html_parts.append(f"    <p>{html.escape(paragraph)}</p>")
                 else:
                     html_parts.append("    <p class='muted'>No grounded narrative available for this section.</p>")
+                if key_points:
+                    html_parts.append("    <ul>")
+                    for point in key_points:
+                        html_parts.append(f"      <li>{html.escape(point)}</li>")
+                    html_parts.append("    </ul>")
             html_parts.append("  </div>")
 
         if tables:
@@ -409,6 +469,8 @@ class ArtifactWriter:
         draft: dict,
         export_formats: list[str] | None = None,
     ) -> dict[str, str]:
+        ArtifactWriter._guard_review_block(draft)
+
         requested_formats = export_formats or list(settings.draft_default_export_formats)
         requested_formats = [str(item).strip().lower() for item in requested_formats]
         requested_formats = list(dict.fromkeys(requested_formats))
