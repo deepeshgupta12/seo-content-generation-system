@@ -9,17 +9,22 @@ class PromptBuilder:
         system_prompt = (
             "You generate SEO metadata for Square Yards resale listing pages. "
             "Stay fully grounded in the provided data and keyword plan. "
-            "Do not invent facts, amenities, demand claims, popularity claims, investment claims, or numbers. "
+            "Do not invent facts, amenities, popularity claims, demand claims, investment claims, growth claims, or numbers. "
             "If price is mentioned, use only the canonical page pricing metric: asking price. "
             "Write like a strong human editor, not like an SEO template engine. "
-            "Avoid unsupported phrases such as premium, most sought-after, excellent connectivity, strong demand, luxury, prime destination, investment potential, fast-growing, high-potential. "
-            "Avoid generic filler such as helps buyers understand, offers a wide range, provides useful insights, helps set expectations, or gives a clear picture. "
+            "Avoid phrases such as premium, most sought-after, excellent connectivity, strong demand, luxury, prime destination, investment potential. "
             "Avoid robotic phrasing, stacked keyword strings, and repetitive search language. "
-            "Use the primary keyword naturally. Use at most one alternate primary keyword variant only if it improves readability. "
+            "Avoid generic intros that could fit any city page. "
             "The title should read like a clean, high-trust search result. "
-            "The meta description should sound useful and page-specific, not generic. "
-            "The H1 should be clear and natural. "
-            "The intro snippet should feel like a genuine opening line for the page, not a metadata echo. "
+            "The meta description should sound useful and page-specific. "
+            "The H1 should be natural and clear. "
+            "The intro snippet should feel like a real opening line for the page, not a metadata echo. "
+            "Bad patterns to avoid: "
+            "'Explore X with Y and Z', "
+            "'Find X with insights', "
+            "'Browse X with details', "
+            "'This page offers useful information'. "
+            "Use the primary keyword naturally. Use at most one alternate primary keyword variant only if it improves readability. "
             "Return only valid JSON."
         )
 
@@ -76,13 +81,17 @@ class PromptBuilder:
             "For property-type sections, stay within explicit residential property-type names, counts, rates, and grounded distributions. "
             "If the page is for one specific residential property type, stay tightly focused on that type. "
             "Do not mix residential and commercial property types. "
-            "For the section id 'property_rates_ai_signals', remain tightly source-bound. Present the snapshot and the listed strengths, challenges, and opportunities without adding advice, interpretation, forecast, or conclusion. "
-            "Each section must answer one distinct buyer-facing question. "
-            "Use visible data as evidence, not as the entire prose structure. "
-            "Do not write in the pattern metric -> restatement -> generic closing sentence. "
-            "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, currently represented on the page, visible row, grounded layer, or structured snapshot unless they appear in the source text itself. "
-            "Do not use generic endings such as this helps buyers understand, this gives a useful picture, this helps set expectations, or this gives context. "
+            "For the section id 'property_rates_ai_signals', remain tightly source-bound. Present the snapshot and the listed strengths, challenges, and opportunities without adding advice, interpretation, forecast, ranking, or forward-looking conclusions. "
             "Write for a real buyer, not for an internal reviewer. "
+            "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
+            "Do not restate the same metric twice. "
+            "Do not end with generic filler like: "
+            "'this helps buyers understand', "
+            "'this helps set expectations', "
+            "'this provides useful insights', "
+            "'this offers a wide selection'. "
+            "Each section must answer one distinct buyer question. "
+            "Lead with what matters, then use the visible data as evidence. "
             "Use 2 to 4 short paragraphs where the data allows. "
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
@@ -147,7 +156,7 @@ class PromptBuilder:
                 },
                 "style_rules": {
                     "tone": "human, descriptive, grounded, SEO-friendly",
-                    "reader_goal": "help a buyer understand the actual resale picture on the page",
+                    "reader_goal": "help a buyer understand visible resale data on the page",
                     "avoid_filler": True,
                     "avoid_marketing_hype": True,
                     "avoid_internal_workbench_language": True,
@@ -176,13 +185,13 @@ class PromptBuilder:
             "If price is mentioned, use only the canonical page pricing metric: asking price. "
             "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, and listing ranges. "
-            "For property-type FAQs, use only explicit property-type, status, or rate inputs. "
-            "Answer in a strong AEO style: begin with a direct answer sentence, then add one short explanatory paragraph if useful. "
-            "Each answer should feel like a real response to a real buyer query, not like a rewritten section summary. "
-            "Do not simply repeat inventory counts unless the question is explicitly about quantity. "
+            "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
+            "Answer in a strong AEO style: start with a direct answer sentence, then add one short explanatory sentence or paragraph if useful. "
+            "Do not sound robotic, repetitive, or system-generated. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, or currently represented on the page. "
-            "Do not use generic filler such as helps buyers understand, gives a clear picture, or helps set expectations. "
-            "Questions should feel like realistic search or buyer questions. "
+            "Do not turn every FAQ into a mini section summary. "
+            "Do not answer a price-range question with city-rate comparisons unless listing-range data actually exists. "
+            "Questions should feel like realistic buyer questions. "
             "Use keyword variants only when natural. "
             "You may use competitor-derived planning signals only to expand coverage and prioritize realistic questions. Never copy wording. "
             "Return only valid JSON."
@@ -261,7 +270,7 @@ class PromptBuilder:
             "Explain what the table helps the user compare or understand. "
             "If useful, mention one visible row-level value naturally. "
             "Do not use reviewer language, QA language, or phrases such as visible dataset, structured source data, visible row, or source-backed values. "
-            "Do not just narrate the first row unless it supports the table purpose. "
+            "Do not narrate the first row mechanically unless it improves clarity. "
             "You may use competitor-derived planning signals only to decide emphasis. Never copy wording. "
             "Return only valid JSON."
         )
@@ -293,12 +302,12 @@ class PromptBuilder:
         system_prompt = (
             "You repair a previously generated Square Yards section. "
             "Be surgical. Keep the same section id, title, and purpose. Rewrite only the body. "
-            "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, repeated structure, and internal system language. "
+            "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic wording, repeated metric restatement, and internal system language. "
             "If price is mentioned, use only the canonical asking price metric. "
             "For the section id 'price_trends_and_rates', do not mention registration rate, registered rate, registration price, average resale price, average price per sq ft, or avg price per sq ft in prose. "
             "For review-related sections, use only explicit review, rating, tag, or AI-summary inputs. "
             "For demand-supply sections, use only explicit counts, percentages, unit-type splits, and listing-range inputs. "
-            "For property-type sections, use only explicit property-type, status, rate, and distribution inputs. "
+            "For property-type sections, use only explicit residential property-type, status, rate, and distribution inputs. "
             "For the section id 'property_rates_ai_signals', remain tightly source-bound and do not interpret the signals. "
             "Write like a polished human editor, not like an internal analyst. "
             "Return only valid JSON."
@@ -346,9 +355,8 @@ class PromptBuilder:
             "If price is mentioned, use only the canonical asking price metric. "
             "For review FAQs, use only explicit review, rating, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, or listing-range inputs. "
-            "For property-type FAQs, use only explicit property-type, status, or rate inputs. "
+            "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
             "Answer directly first, then explain briefly if useful. "
-            "Do not rewrite the answer as a generic page summary. "
             "Return only valid JSON."
         )
 
@@ -392,7 +400,6 @@ class PromptBuilder:
             "Remove unsupported claims, forbidden adjectives, invalid numbers, robotic phrasing, and keyword stuffing. "
             "If price is mentioned, use only the canonical asking price metric. "
             "Do not introduce facts beyond the grounded data. "
-            "Keep the result polished, specific, and human. "
             "Return only valid JSON."
         )
 

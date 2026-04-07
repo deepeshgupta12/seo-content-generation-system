@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from seo_content_engine.domain.enums import PageType
 from seo_content_engine.utils.formatters import slugify
@@ -47,7 +47,7 @@ class BlueprintBuilder:
 
         return {
             "version": "v0",
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],
             "entity": entity,

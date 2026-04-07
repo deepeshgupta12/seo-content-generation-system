@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from seo_content_engine.core.config import settings
@@ -10,6 +10,17 @@ from seo_content_engine.utils.formatters import slugify
 
 
 class ContentPlanBuilder:
+    COMMERCIAL_PROPERTY_TERMS = {
+        "shop",
+        "office space",
+        "office spaces",
+        "co-working space",
+        "co working space",
+        "warehouse",
+        "showroom",
+        "commercial",
+    }
+
     @staticmethod
     def _top_keywords(records: list[dict], limit: int = 5) -> list[str]:
         return [record["keyword"] for record in records[:limit] if record.get("keyword")]
@@ -68,6 +79,64 @@ class ContentPlanBuilder:
             or (review_summary.get("negative_tags") or [])
             or ai_summary.get("locality_summary")
         )
+
+    @staticmethod
+    def _has_demand_supply_data(normalized: dict) -> bool:
+        demand_supply = normalized.get("demand_supply", {}) or {}
+        listing_ranges = normalized.get("listing_ranges", {}) or {}
+
+        sale = demand_supply.get("sale", {}) or {}
+        sale_unit_type = sale.get("unitType", []) or []
+        sale_listing_range = listing_ranges.get("sale_listing_range", {}) or {}
+
+        return bool(sale_unit_type or sale_listing_range)
+
+    @staticmethod
+    def _has_price_range_data(normalized: dict) -> bool:
+        sale_listing_range = (normalized.get("listing_ranges", {}) or {}).get("sale_listing_range", {}) or {}
+        return bool(sale_listing_range)
+
+    @staticmethod
+    def _filter_residential_property_types(records: list[dict]) -> list[dict]:
+        filtered: list[dict] = []
+        for item in records or []:
+            if not isinstance(item, dict):
+                continue
+            property_type = str(item.get("propertyType") or "").strip().lower()
+            if not property_type:
+                continue
+            if any(term in property_type for term in ContentPlanBuilder.COMMERCIAL_PROPERTY_TERMS):
+                continue
+            filtered.append(item)
+        return filtered
+
+    @staticmethod
+    def _filter_residential_distribution(records: list[dict]) -> list[dict]:
+        filtered: list[dict] = []
+        for item in records or []:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("key") or "").strip().lower()
+            if not key:
+                continue
+            if any(term in key for term in ContentPlanBuilder.COMMERCIAL_PROPERTY_TERMS):
+                continue
+            filtered.append(item)
+        return filtered
+
+    @staticmethod
+    def _has_residential_property_type_data(normalized: dict) -> bool:
+        pricing_summary = normalized.get("pricing_summary", {}) or {}
+        distributions = normalized.get("distributions", {}) or {}
+
+        property_types = ContentPlanBuilder._filter_residential_property_types(
+            pricing_summary.get("property_types", []) or []
+        )
+        property_mix = ContentPlanBuilder._filter_residential_distribution(
+            distributions.get("sale_property_type_distribution", []) or []
+        )
+
+        return bool(property_types or property_mix)
 
     @staticmethod
     def _build_city_zone_segmentation(pricing_summary: dict) -> dict[str, Any]:
@@ -297,7 +366,7 @@ class ContentPlanBuilder:
         mapping = {
             "pricing": ["pricing", "price_range"],
             "bhk": ["bhk_availability"],
-            "ready_to_move": [],
+            "ready_to_move": ["ready_to_move"],
             "locality_navigation": ["nearby_localities"],
             "reviews": ["review_signals"],
             "listing_discovery": ["inventory", "property_type_signals"],
@@ -310,7 +379,7 @@ class ContentPlanBuilder:
         mapping = {
             "pricing": ["price_trend_table", "location_rates_table"],
             "bhk": ["sale_unit_type_distribution_table"],
-            "ready_to_move": [],
+            "ready_to_move": ["property_status_table"],
             "locality_navigation": ["nearby_localities_table"],
             "listing_discovery": ["property_types_table", "coverage_summary_table"],
         }
@@ -474,7 +543,7 @@ class ContentPlanBuilder:
             "primary_keyword_variants": primary_keyword_variants,
             "supporting_keywords": metadata_keywords,
             "metadata_keyword_priority": metadata_keywords,
-            "recommended_h1": primary_keyword_text[:120],
+            "recommended_h1": f"Resale Properties in {location_label}"[:120],
             "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
@@ -491,9 +560,7 @@ class ContentPlanBuilder:
                 "source_data_path": "pricing_summary.price_trend",
                 "render_type": "deterministic",
                 "columns": ["quarterName", "locationRate", "micromarketRate", "cityRate"],
-                "summary_instruction": (
-                    "Explain what this table helps the user compare and mention one visible row naturally."
-                ),
+                "summary_instruction": "Explain what this table helps the user compare and mention one visible row naturally.",
             },
             {
                 "id": "sale_unit_type_distribution_table",
@@ -501,9 +568,7 @@ class ContentPlanBuilder:
                 "source_data_path": "distributions.sale_unit_type_distribution",
                 "render_type": "deterministic",
                 "columns": ["key", "doc_count"],
-                "summary_instruction": (
-                    "Explain what this table says about the available BHK mix and mention one visible row naturally."
-                ),
+                "summary_instruction": "Explain what this table says about the available BHK mix and mention one visible row naturally.",
             },
             {
                 "id": "nearby_localities_table",
@@ -511,9 +576,7 @@ class ContentPlanBuilder:
                 "source_data_path": "nearby_localities",
                 "render_type": "deterministic",
                 "columns": ["name", "distance_km", "sale_count", "sale_avg_price_per_sqft", "url"],
-                "summary_instruction": (
-                    "Explain how this table helps compare nearby alternatives and mention one visible row naturally."
-                ),
+                "summary_instruction": "Explain how this table helps compare nearby alternatives and mention one visible row naturally.",
             },
         ]
 
@@ -526,13 +589,13 @@ class ContentPlanBuilder:
                     "source_data_path": "pricing_summary.location_rates",
                     "render_type": "deterministic",
                     "columns": ["name", "avgRate", "changePercentage"],
-                    "summary_instruction": (
-                        "For city pages, treat these as city zones or micromarkets rather than locality rows."
-                    ),
+                    "summary_instruction": "For city pages, treat these as city zones or micromarkets rather than locality rows.",
                 }
             )
 
-        property_types = normalized.get("pricing_summary", {}).get("property_types", [])
+        property_types = ContentPlanBuilder._filter_residential_property_types(
+            normalized.get("pricing_summary", {}).get("property_types", []) or []
+        )
         if property_types:
             tables.append(
                 {
@@ -541,9 +604,20 @@ class ContentPlanBuilder:
                     "source_data_path": "pricing_summary.property_types",
                     "render_type": "deterministic",
                     "columns": ["propertyType", "avgPrice", "changePercent"],
-                    "summary_instruction": (
-                        "Explain the visible residential property-type pricing signals and mention one visible row naturally."
-                    ),
+                    "summary_instruction": "Explain the visible residential property-type pricing signals and mention one visible row naturally.",
+                }
+            )
+
+        property_status = normalized.get("pricing_summary", {}).get("property_status", []) or []
+        if property_status:
+            tables.append(
+                {
+                    "id": "property_status_table",
+                    "title": "Property Status Snapshot",
+                    "source_data_path": "pricing_summary.property_status",
+                    "render_type": "deterministic",
+                    "columns": ["status", "units", "avgPrice", "changePercent"],
+                    "summary_instruction": "Explain which visible property-status bucket is shown and mention one visible row naturally.",
                 }
             )
 
@@ -555,9 +629,7 @@ class ContentPlanBuilder:
                     "source_data_path": "listing_summary",
                     "render_type": "deterministic",
                     "columns": ["sale_count", "total_listings", "total_projects"],
-                    "summary_instruction": (
-                        "Explain that this table gives a quick scale view of the page using only visible values."
-                    ),
+                    "summary_instruction": "Explain that this table gives a quick scale view of the page using only visible values.",
                 }
             )
 
@@ -631,63 +703,86 @@ class ContentPlanBuilder:
         faq_intents = [
             {
                 "id": "pricing",
-                "question_template": f"What is the current asking price for resale properties in {location_label}?",
+                "question_template": f"What is the asking price signal for resale properties in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
                 "data_dependencies": ["pricing_summary.asking_price", "pricing_summary.price_trend"],
             },
             {
                 "id": "inventory",
-                "question_template": f"How much resale inventory is currently visible in {location_label}?",
+                "question_template": f"How many resale properties are currently visible in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
-                "data_dependencies": ["listing_summary.sale_count", "listing_summary.total_listings", "listing_summary.total_projects"],
+                "data_dependencies": ["listing_summary.sale_count", "listing_summary.total_listings"],
             },
             {
                 "id": "bhk_availability",
-                "question_template": f"Which home sizes are showing up most often in {location_label}?",
+                "question_template": f"Which BHK options are commonly visible in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 5),
                 "data_dependencies": ["distributions.sale_unit_type_distribution"],
             },
             {
                 "id": "nearby_localities",
-                "question_template": f"Which nearby areas can buyers compare with {location_label}?",
+                "question_template": f"Which nearby localities can buyers also consider around {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["nearby_localities"],
             },
             {
-                "id": "property_rates_ai_signals",
-                "question_template": f"What does the market-summary note say about {location_label}?",
-                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
-                "data_dependencies": ["property_rates_ai_summary"],
-            },
-            {
-                "id": "demand_supply",
-                "question_template": f"What do the current demand and supply numbers show for resale listings in {location_label}?",
-                "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
-                "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
-            },
-            {
                 "id": "property_type_signals",
-                "question_template": f"Which residential property types are showing up in {location_label}?",
+                "question_template": f"What residential property-type signals are visible for resale listings in {location_label}?",
                 "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                 "data_dependencies": ["pricing_summary.property_types", "distributions.sale_property_type_distribution"],
             },
-            {
-                "id": "price_range",
-                "question_template": f"What price range is currently visible for resale properties in {location_label}?",
-                "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
-                "data_dependencies": ["listing_ranges.sale_listing_range"],
-            },
         ]
 
+        property_status = (normalized.get("pricing_summary", {}) or {}).get("property_status", []) or []
+        if property_status:
+            faq_intents.append(
+                {
+                    "id": "ready_to_move",
+                    "question_template": f"Are ready-to-move resale properties visible in {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("ready_to_move_keywords", []), 4),
+                    "data_dependencies": ["pricing_summary.property_status"],
+                }
+            )
+
         if ContentPlanBuilder._has_review_signals(normalized):
-            faq_intents.insert(
-                4,
+            faq_intents.append(
                 {
                     "id": "review_signals",
-                    "question_template": f"What do the available reviews and ratings say about {location_label}?",
+                    "question_template": f"What review and rating signals are available for {location_label}?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                     "data_dependencies": ["review_summary", "ai_summary"],
-                },
+                }
+            )
+
+        property_rates_ai_summary = normalized.get("property_rates_ai_summary", {}) or {}
+        if property_rates_ai_summary:
+            faq_intents.append(
+                {
+                    "id": "property_rates_ai_signals",
+                    "question_template": f"What market strengths, challenges, and opportunities are highlighted for {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                    "data_dependencies": ["property_rates_ai_summary"],
+                }
+            )
+
+        if ContentPlanBuilder._has_demand_supply_data(normalized):
+            faq_intents.append(
+                {
+                    "id": "demand_supply",
+                    "question_template": f"What demand and supply signals are available for resale listings in {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
+                    "data_dependencies": ["demand_supply", "listing_ranges", "listing_summary"],
+                }
+            )
+
+        if ContentPlanBuilder._has_price_range_data(normalized):
+            faq_intents.append(
+                {
+                    "id": "price_range",
+                    "question_template": f"What price range is visible for resale listings in {location_label}?",
+                    "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 4),
+                    "data_dependencies": ["listing_ranges.sale_listing_range"],
+                }
             )
 
         rera_context = ContentPlanBuilder._extract_rera_context(normalized)
@@ -695,7 +790,7 @@ class ContentPlanBuilder:
             faq_intents.append(
                 {
                     "id": "rera_buyer_protection",
-                    "question_template": f"What RERA or buyer-protection details are available for {location_label}?",
+                    "question_template": f"What RERA or buyer-protection details are available for {location_label} on this page?",
                     "target_keywords": ContentPlanBuilder._top_keywords(faq_keywords, 4),
                     "data_dependencies": ["rera_context"],
                 }
@@ -709,15 +804,17 @@ class ContentPlanBuilder:
     @staticmethod
     def _build_sections(page_type: PageType, entity: dict, keyword_clusters: dict, normalized: dict) -> list[dict]:
         has_review_signals = ContentPlanBuilder._has_review_signals(normalized)
+        has_demand_supply = ContentPlanBuilder._has_demand_supply_data(normalized)
+        has_residential_property_signals = ContentPlanBuilder._has_residential_property_type_data(normalized)
+        has_property_rates_ai = bool(normalized.get("property_rates_ai_summary", {}) or {})
 
         common_sections = [
             {
                 "id": "market_snapshot",
                 "title": "Resale Market Snapshot",
                 "objective": (
-                    "Answer the buyer question: what kind of resale market am I looking at on this page? "
-                    "Open with a grounded overview of the visible resale picture, not with a raw data dump. "
-                    "If this page is for a specific residential property type, stay focused on that type only."
+                    "What is a buyer actually looking at on this page right now? "
+                    "Open with a grounded overview of the visible resale market, and keep it residential-first."
                 ),
                 "render_type": "generative",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 5),
@@ -727,8 +824,7 @@ class ContentPlanBuilder:
                 "id": "price_trends_and_rates",
                 "title": "Price Trends and Rates",
                 "objective": (
-                    "Answer the buyer question: what does the current asking price look like here, and how does the trend view help compare it? "
-                    "Keep the explanation grounded, readable, and non-technical."
+                    "What does the current asking-price view look like, and what does the trend table help a buyer compare?"
                 ),
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("price_keywords", []), 5),
@@ -742,8 +838,7 @@ class ContentPlanBuilder:
                 "id": "bhk_and_inventory_mix",
                 "title": "BHK and Inventory Mix",
                 "objective": (
-                    "Answer the buyer question: what kinds of home sizes are actually showing up here? "
-                    "Explain the visible BHK spread and inventory composition without repeating the market snapshot section."
+                    "Which home sizes and visible inventory buckets are showing up here, and how should a buyer read that mix?"
                 ),
                 "render_type": "hybrid",
                 "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("bhk_keywords", []), 6),
@@ -784,8 +879,7 @@ class ContentPlanBuilder:
             "id": "nearby_alternatives",
             "title": "Nearby Localities Buyers Can Also Explore",
             "objective": (
-                "Answer the buyer question: where else nearby can I compare resale options? "
-                "Use only actual nearby-locality data."
+                "Which nearby areas can a buyer compare without leaving the resale context, and what does the nearby view help with?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -796,8 +890,7 @@ class ContentPlanBuilder:
             "id": "review_and_rating_signals",
             "title": "Review and Rating Signals",
             "objective": (
-                "Answer the buyer question: what do the available reviews and ratings show here? "
-                "Summarize explicit review counts, ratings, visible tags, and locality summary text in a restrained way."
+                "What do the available review counts, ratings, and tags say about the feedback visible on this page?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -808,9 +901,7 @@ class ContentPlanBuilder:
             "id": "property_rates_ai_signals",
             "title": "Market Strengths, Challenges, and Opportunities",
             "objective": (
-                "Answer the buyer question: what does the structured market-summary note say here? "
-                "Present the structured property-rates AI fields exactly as a restrained editorial summary. "
-                "Do not add interpretation beyond the provided snapshot and lists."
+                "Present the property-rates AI notes exactly as a restrained summary of the supplied snapshot and lists, without interpreting them."
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -821,8 +912,7 @@ class ContentPlanBuilder:
             "id": "demand_and_supply_signals",
             "title": "Demand and Supply Signals",
             "objective": (
-                "Answer the buyer question: how broad does the currently visible resale stock look? "
-                "Explain counts, percentages, and listing ranges without adding unsupported interpretation."
+                "What resale breadth, configuration split, or listing-range cues are actually visible in this sample?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -833,9 +923,7 @@ class ContentPlanBuilder:
             "id": "property_type_signals",
             "title": "Property Type Signals",
             "objective": (
-                "Answer the buyer question: which residential property formats are showing up here? "
-                "Explain the visible residential mix only. "
-                "If the page is for a specific type, stay tightly focused on that type."
+                "Which residential property formats are visible here, and how do they appear in the current resale mix?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -850,8 +938,7 @@ class ContentPlanBuilder:
             "id": "property_type_rate_snapshot",
             "title": "Property Type Rate Snapshot",
             "objective": (
-                "Answer the buyer question: how are the visible property-type rates distributed here? "
-                "Translate property-type and location-level rate inputs into buyer-readable prose without repeating the market snapshot section."
+                "How should a buyer read the residential property-type and location-rate view without turning it into a generic market recap?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -867,8 +954,7 @@ class ContentPlanBuilder:
             "id": "locality_coverage",
             "title": "Localities Covered in This Micromarket",
             "objective": (
-                "Answer the buyer question: how does the resale picture vary across localities inside this micromarket? "
-                "Use grounded locality and rate inputs only."
+                "Which localities are visible inside this micromarket view, and what does that help a buyer compare?"
             ),
             "render_type": "generative",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -879,8 +965,7 @@ class ContentPlanBuilder:
             "id": "micromarket_coverage",
             "title": "Key Resale Zones Across the City",
             "objective": (
-                "Answer the buyer question: which city zones are visible in the current resale picture, and how do their rate bands compare? "
-                "If clear pricing tiers exist, explain them simply without making investment claims."
+                "How are visible resale rate signals distributed across the city, and where do the higher and lower visible bands sit?"
             ),
             "render_type": "hybrid",
             "target_keywords": ContentPlanBuilder._top_keywords(keyword_clusters.get("secondary_keywords", []), 4),
@@ -888,13 +973,20 @@ class ContentPlanBuilder:
         }
 
         sections = list(common_sections)
-        sections.insert(3, property_rates_ai_section)
-        sections.insert(4, demand_supply_section)
-        sections.insert(5, property_type_signals_section)
-        sections.insert(6, property_type_rate_snapshot_section)
 
         if has_review_signals:
             sections.insert(3, review_signals_section)
+
+        if has_property_rates_ai:
+            sections.insert(4 if has_review_signals else 3, property_rates_ai_section)
+
+        if has_demand_supply:
+            insert_index = 5 if has_review_signals and has_property_rates_ai else 4 if (has_review_signals or has_property_rates_ai) else 3
+            sections.insert(insert_index, demand_supply_section)
+
+        if has_residential_property_signals:
+            sections.insert(len(sections) - 2, property_type_signals_section)
+            sections.insert(len(sections) - 2, property_type_rate_snapshot_section)
 
         if page_type == PageType.RESALE_LOCALITY:
             return sections[:3] + [locality_specific] + sections[3:]
@@ -979,9 +1071,9 @@ class ContentPlanBuilder:
                 section_context["narrative_guardrails"] = {
                     "allowed_inputs": ["listing_summary", "pricing_summary", "distributions", "page_property_type_context"],
                     "instruction": (
-                        "Open with what a buyer is actually looking at here. "
+                        "Open with what a buyer is actually seeing here. "
                         "If page_property_type_context.scope is specific, talk only about that residential property type. "
-                        "If the page scope is all, summarize only the relevant residential property types visible in source data. "
+                        "If the page scope is all, summarize only relevant residential property types visible in source data. "
                         "Do not mix residential and commercial types."
                     ),
                 }
@@ -992,7 +1084,7 @@ class ContentPlanBuilder:
                     "disallowed_pricing_metrics": ["registration_rate", "sale_avg_price_per_sqft"],
                     "instruction": (
                         "Use only asking_price and price_trend in prose. "
-                        "Explain the number and the trend view in plain English."
+                        "Explain what the asking signal is and what the trend comparison helps a buyer understand."
                     ),
                 }
 
@@ -1001,7 +1093,7 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["review_summary", "ai_summary"],
                     "instruction": (
                         "Use only explicit review counts, rating values, tags, and ai_summary inputs. "
-                        "Do not infer sentiment, trust, desirability, or quality."
+                        "Do not infer trust, desirability, or sentiment beyond the source."
                     ),
                 }
 
@@ -1011,8 +1103,7 @@ class ContentPlanBuilder:
                     "instruction": (
                         "Use only explicit property_rates_ai_summary fields. "
                         "Break the response into a short snapshot followed by Strengths, Challenges, and Opportunities. "
-                        "Keep the wording concise, readable, and source-bound. "
-                        "Do not add advice, forecast, or interpretation."
+                        "Do not add advice, forecasts, or market interpretation."
                     ),
                 }
 
@@ -1021,7 +1112,7 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["demand_supply", "listing_ranges", "listing_summary"],
                     "instruction": (
                         "Use only explicit counts, percentages, availability, and listing-range values. "
-                        "Explain what is visible without overstating what it means."
+                        "If the source block is absent or thin, keep the section narrow and factual."
                     ),
                 }
 
@@ -1050,7 +1141,7 @@ class ContentPlanBuilder:
                     ],
                     "instruction": (
                         "Use only explicit residential property-type and location-rate inputs. "
-                        "Avoid technical field language and avoid sounding like a data dump."
+                        "Avoid technical field language and avoid repeating the market snapshot section."
                     ),
                 }
 
@@ -1071,7 +1162,8 @@ class ContentPlanBuilder:
     @staticmethod
     def build(normalized: dict, keyword_intelligence: dict) -> dict:
         entity = dict(normalized["entity"])
-        entity["canonical_asking_price"] = normalized["pricing_summary"].get("asking_price")
+        pricing_summary = normalized.get("pricing_summary", {}) or {}
+        entity["canonical_asking_price"] = pricing_summary.get("asking_price")
         page_type = PageType(entity["page_type"])
         keyword_clusters = keyword_intelligence["keyword_clusters"]
         raw_source_meta = normalized["raw_source_meta"]
@@ -1106,8 +1198,8 @@ class ContentPlanBuilder:
         )
 
         return {
-            "version": "v2.1",
-            "generated_at": datetime.now(UTC).isoformat(),
+            "version": "v1.8",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "page_type": entity["page_type"],
             "listing_type": entity["listing_type"],
             "entity": entity,

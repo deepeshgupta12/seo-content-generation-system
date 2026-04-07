@@ -6,6 +6,17 @@ from seo_content_engine.services.output_formatter import OutputFormatter
 
 
 class TableRenderer:
+    COMMERCIAL_PROPERTY_TERMS = {
+        "shop",
+        "office space",
+        "office spaces",
+        "co-working space",
+        "co working space",
+        "warehouse",
+        "showroom",
+        "commercial",
+    }
+
     @staticmethod
     def _resolve_path(data: dict[str, Any], path: str) -> Any:
         current: Any = data
@@ -17,12 +28,25 @@ class TableRenderer:
         return current
 
     @staticmethod
+    def _filter_property_type_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for row in rows:
+            property_type = str(row.get("propertyType") or "").strip().lower()
+            if property_type and any(term in property_type for term in TableRenderer.COMMERCIAL_PROPERTY_TERMS):
+                continue
+            filtered.append(row)
+        return filtered
+
+    @staticmethod
     def _build_table_summary(
         table_id: str,
         title: str,
         columns: list[str],
         rows: list[dict[str, Any]],
     ) -> str:
+        if table_id == "property_types_table":
+            rows = TableRenderer._filter_property_type_rows(rows)
+
         if not rows:
             return (
                 f"{title} is empty for this page right now. "

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from seo_content_engine.services.content_plan_builder import ContentPlanBuilder
 from seo_content_engine.services.draft_generation_service import DraftGenerationService
+from seo_content_engine.services.draft_publish_service import DraftPublishService
 from seo_content_engine.services.factual_validator import FactualValidator
 from seo_content_engine.services.keyword_intelligence_service import KeywordIntelligenceService
-from seo_content_engine.services.draft_publish_service import DraftPublishService
 from seo_content_engine.services.markdown_renderer import MarkdownRenderer
 from seo_content_engine.services.normalizer import EntityNormalizer
 from seo_content_engine.services.review_session_store import ReviewSessionStore
@@ -98,7 +98,38 @@ class ReviewWorkbenchService:
 
     @staticmethod
     def _now_iso() -> str:
-        return datetime.now(UTC).isoformat()
+        return datetime.now(timezone.utc).isoformat()
+
+    @staticmethod
+    def _can_rebuild_content_plan(normalized: dict) -> bool:
+        required_keys = {
+            "entity",
+            "listing_summary",
+            "pricing_summary",
+            "distributions",
+            "nearby_localities",
+            "links",
+            "top_projects",
+            "raw_source_meta",
+        }
+        return all(key in (normalized or {}) for key in required_keys)
+
+    @staticmethod
+    def _safe_refresh_content_plan(
+        session: dict,
+        normalized: dict,
+        keyword_intelligence: dict,
+    ) -> dict | None:
+        if not ReviewWorkbenchService._can_rebuild_content_plan(normalized):
+            return session.get("content_plan")
+
+        try:
+            return ContentPlanBuilder.build(
+                normalized=normalized,
+                keyword_intelligence=keyword_intelligence,
+            )
+        except Exception:
+            return session.get("content_plan")
 
     @staticmethod
     def _build_source_preview(normalized: dict) -> dict:
@@ -152,7 +183,7 @@ class ReviewWorkbenchService:
             "relevant_informational_keywords": competitor_intelligence.get("relevant_informational_keywords", []),
             "relevant_overlap_keywords": competitor_intelligence.get("relevant_overlap_keywords", []),
         }
-    
+
     @staticmethod
     def _build_section_review_payload(draft: dict) -> list[dict]:
         validation_report = draft.get("validation_report", {})
@@ -283,7 +314,7 @@ class ReviewWorkbenchService:
         updated.setdefault("version_history", []).append(version_entry)
         updated["latest_version_id"] = version_entry["version_id"]
         return updated
-    
+
     @staticmethod
     def _attach_export_artifacts(
         session: dict,
@@ -415,13 +446,14 @@ class ReviewWorkbenchService:
 
         updated_session = deepcopy(session)
         updated_session["keyword_intelligence"] = keyword_intelligence
-        updated_session["content_plan"] = ContentPlanBuilder.build(
-            normalized=updated_session["normalized"],
-            keyword_intelligence=keyword_intelligence,
+        updated_session["content_plan"] = ReviewWorkbenchService._safe_refresh_content_plan(
+            session,
+            updated_session["normalized"],
+            keyword_intelligence,
         )
         updated_session["keyword_preview"] = ReviewWorkbenchService._build_keyword_preview(
             keyword_intelligence,
-            updated_session["content_plan"],
+            updated_session.get("content_plan"),
         )
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
@@ -483,13 +515,14 @@ class ReviewWorkbenchService:
 
         updated_session = deepcopy(session)
         updated_session["keyword_intelligence"] = keyword_intelligence
-        updated_session["content_plan"] = ContentPlanBuilder.build(
-            normalized=updated_session["normalized"],
-            keyword_intelligence=keyword_intelligence,
+        updated_session["content_plan"] = ReviewWorkbenchService._safe_refresh_content_plan(
+            session,
+            updated_session["normalized"],
+            keyword_intelligence,
         )
         updated_session["keyword_preview"] = ReviewWorkbenchService._build_keyword_preview(
             keyword_intelligence,
-            updated_session["content_plan"],
+            updated_session.get("content_plan"),
         )
 
         updated_session = ReviewWorkbenchService._apply_draft_to_session(
@@ -617,7 +650,7 @@ class ReviewWorkbenchService:
             action_type=action_label,
             extra={"restored_from_version_id": version_id},
         )
-    
+
     @staticmethod
     def export_session(
         *,

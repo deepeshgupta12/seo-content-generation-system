@@ -41,6 +41,11 @@ class ArtifactWriter:
         return str(output_path)
 
     @staticmethod
+    def _guard_review_block(draft: dict) -> None:
+        if settings.block_artifact_write_on_review and draft.get("needs_review"):
+            raise ValueError("Draft still needs review")
+
+    @staticmethod
     def _set_base_doc_styles(document: Document) -> None:
         styles = document.styles
         if "Normal" in styles:
@@ -409,6 +414,8 @@ class ArtifactWriter:
         draft: dict,
         export_formats: list[str] | None = None,
     ) -> dict[str, str]:
+        ArtifactWriter._guard_review_block(draft)
+
         requested_formats = export_formats or list(settings.draft_default_export_formats)
         requested_formats = [str(item).strip().lower() for item in requested_formats]
         requested_formats = list(dict.fromkeys(requested_formats))

@@ -25,17 +25,20 @@ router = APIRouter(prefix="/v1/review", tags=["review"])
 @router.post("/session", response_model=ReviewSessionResponse)
 def create_review_session(payload: ReviewSessionCreateRequest) -> ReviewSessionResponse:
     try:
-        review_session = ReviewWorkbenchService.build_session(
-            main_datacenter_json_path=payload.main_datacenter_json_path,
-            property_rates_json_path=payload.property_rates_json_path,
-            listing_type=payload.listing_type,
-            location_name=payload.location_name,
-            language_name=payload.language_name,
-            limit=payload.limit,
-            include_historical=payload.include_historical,
-            persist_session=payload.persist_session,
-            primary_keyword_overrides=payload.primary_keyword_overrides,
-        )
+        build_kwargs = {
+            "main_datacenter_json_path": payload.main_datacenter_json_path,
+            "property_rates_json_path": payload.property_rates_json_path,
+            "listing_type": payload.listing_type,
+            "location_name": payload.location_name,
+            "language_name": payload.language_name,
+            "limit": payload.limit,
+            "include_historical": payload.include_historical,
+            "persist_session": payload.persist_session,
+        }
+        if payload.primary_keyword_overrides:
+            build_kwargs["primary_keyword_overrides"] = payload.primary_keyword_overrides
+
+        review_session = ReviewWorkbenchService.build_session(**build_kwargs)
         return ReviewSessionResponse(
             success=True,
             message="Review session created successfully",
