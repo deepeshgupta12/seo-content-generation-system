@@ -94,6 +94,14 @@ class PromptBuilder:
             "For property-type sections, stay within explicit residential property-type names, counts, rates, and grounded distributions. "
             "If the page is for one specific residential property type, stay tightly focused on that type. "
             "Do not mix residential and commercial property types. "
+            "CRITICAL — PAGE FILTER COMPLIANCE: "
+            "If page_filter_reminder is present in the section context and has active_filters, you MUST comply with ALL listed filters. "
+            "If bhk_config is set in page_property_type_context (e.g. '2 BHK'), EVERY paragraph and bullet MUST refer "
+            "exclusively to that BHK type. Never mention other BHK sizes as alternatives or context. "
+            "Never quote total-inventory counts that include all BHK types — only use the count for the filtered BHK. "
+            "If the section data shows multiple BHK rows, discuss ONLY the row matching the BHK filter. "
+            "Do NOT mention commercial property types (shops, office spaces, warehouses, showrooms) "
+            "in any section of a residential page. "
             "For the section id 'property_rates_ai_signals', remain tightly source-bound. Present the snapshot and the listed strengths, challenges, and opportunities without adding advice, interpretation, forecast, ranking, or forward-looking conclusions. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
             "Do not restate the same metric twice. "
@@ -249,6 +257,12 @@ class PromptBuilder:
             "Use only the provided section-level grounded context. "
             "Never invent numbers, claims, amenities, connectivity, demand strength, appreciation, investment potential, popularity, or buyer suitability unless explicitly present. "
             "If price is mentioned, use only the canonical page pricing metric: sale price. "
+            "CRITICAL — PAGE FILTER COMPLIANCE: "
+            "If page_filter_reminder is present in the section_context and has active_filters, comply with ALL listed filters. "
+            "If bhk_config is set in page_property_type_context (e.g. '2 BHK'), EVERY paragraph and bullet MUST refer "
+            "exclusively to that BHK type. Never mention other BHK sizes as primary topics. "
+            "Use only the filtered inventory count for that BHK — never quote the total unfiltered city count. "
+            "Do NOT mention commercial property types (shops, office spaces, warehouses, showrooms) on a residential page. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, visible row, grounded layer, or structured snapshot. "
             "Do not restate the same metric twice. "
             "Do not end with generic filler like 'this helps buyers understand', 'this helps set expectations', 'this provides useful insights'. "
@@ -356,11 +370,22 @@ class PromptBuilder:
             "The section generation context contains all grounded data available on this page — "
             "use it to generate FAQs that cover every major data axis: pricing, BHK availability, "
             "inventory, demand/supply, reviews, property type mix, nearby localities, and any AI signals. "
+            "CRITICAL — PAGE FILTER COMPLIANCE: "
+            "If page_filter_context is provided and scope is 'specific', all FAQ questions and answers "
+            "MUST be written exclusively for those filter constraints. "
+            "If bhk_config is set (e.g. '2 BHK'), every FAQ must refer ONLY to that BHK type. "
+            "NEVER ask about 'all BHK configurations' or list other BHK types as alternatives. "
+            "The inventory count in FAQs must reflect the filtered count (e.g. 6,100 2 BHK flats), "
+            "NOT the total unfiltered city count (e.g. 39,071). "
+            "If budget_label is set, frame all price answers relative to that budget band. "
+            "If furnishing_type is set, only discuss properties with that furnishing status. "
             "Do not invent numbers or claims. "
             "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
             "For demand-supply FAQs, use only explicit counts, percentages, unit-type splits, and listing ranges. "
             "For property-type FAQs, use only explicit residential property-type, status, or rate inputs. "
+            "Do NOT mention commercial property types (shops, office spaces, warehouses, showrooms) "
+            "in any FAQ unless this is explicitly a commercial property page. "
             "Answer in a strong AEO style: start with a direct answer sentence, then add 1 to 3 explanatory sentences. "
             "Do not sound robotic, repetitive, or system-generated. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, or currently represented on the page. "
@@ -419,9 +444,48 @@ class PromptBuilder:
         else:
             buyer_context = f"A buyer actively evaluating resale properties in {entity_name} and looking for specific, grounded answers before scheduling visits."
 
+        # Build the page filter context for the FAQ prompt.
+        # This is the authoritative signal the LLM must respect when scoping FAQs.
+        _entity_for_faq = content_plan["entity"]
+        _dc_pt_ctx = (content_plan.get("data_context") or {}).get("page_property_type_context") or {}
+        _faq_page_filter_context: dict = {}
+        _bhk_cfg = _dc_pt_ctx.get("bhk_config") or _entity_for_faq.get("page_bhk_config")
+        _budget_lbl = _dc_pt_ctx.get("budget_label") or _entity_for_faq.get("page_budget_label") or ""
+        _furnishing = _dc_pt_ctx.get("furnishing_type") or _entity_for_faq.get("page_furnishing_type")
+        _faq_scope = _dc_pt_ctx.get("scope") or _entity_for_faq.get("page_property_type_scope") or "all"
+        _filters_label = _dc_pt_ctx.get("filters_label") or _entity_for_faq.get("page_filters_label") or ""
+
+        if _faq_scope == "specific":
+            _faq_page_filter_context = {
+                "scope": _faq_scope,
+                "filters_label": _filters_label,
+                "bhk_config": _bhk_cfg,
+                "budget_label": _budget_lbl,
+                "furnishing_type": _furnishing,
+                "instruction": (
+                    f"All FAQs on this page are scoped to: {_filters_label or 'specific filter'}. "
+                    + (
+                        f"Every question and answer must be about {_bhk_cfg} properties ONLY. "
+                        f"Do NOT ask about or mention other BHK types. "
+                        f"Use the filtered inventory count ({_bhk_cfg} listings only), "
+                        f"not the total city count. "
+                        if _bhk_cfg else ""
+                    )
+                    + (
+                        f"All price discussions must be framed relative to the budget band: {_budget_lbl}. "
+                        if _budget_lbl else ""
+                    )
+                    + (
+                        f"All property discussions must reference {_furnishing} status. "
+                        if _furnishing else ""
+                    )
+                ),
+            }
+
         user_payload = {
             "entity": entity,
             "buyer_context": buyer_context,
+            "page_filter_context": _faq_page_filter_context if _faq_page_filter_context else None,
             "faq_plan": content_plan["faq_plan"],
             "data_context": content_plan["data_context"],
             "section_generation_context": content_plan.get("section_generation_context", {}),

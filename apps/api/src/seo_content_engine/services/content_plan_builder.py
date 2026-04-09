@@ -1328,6 +1328,27 @@ class ContentPlanBuilder:
                 value = ContentPlanBuilder._resolve_dependency_value(normalized, dependency)
                 if value is None:
                     continue
+
+                # When a BHK filter is active (e.g. "2 BHK" page), narrow the
+                # unit-type distribution to only the matching row so the LLM
+                # doesn't see—or write about—other BHK configurations.
+                if (
+                    dependency == "distributions"
+                    and isinstance(value, dict)
+                    and page_property_type_context.get("scope") == "specific"
+                    and page_property_type_context.get("bhk_config")
+                ):
+                    _bhk_target = page_property_type_context["bhk_config"].strip().lower()
+                    _raw_dist = value.get("sale_unit_type_distribution") or []
+                    _filtered_dist = [
+                        row for row in _raw_dist
+                        if isinstance(row, dict)
+                        and str(row.get("key") or "").strip().lower().startswith(_bhk_target)
+                    ]
+                    if _filtered_dist:
+                        value = dict(value)
+                        value["sale_unit_type_distribution"] = _filtered_dist
+
                 section_context[dependency] = value
 
             # Inject the entity_type_context into every section so the LLM understands
