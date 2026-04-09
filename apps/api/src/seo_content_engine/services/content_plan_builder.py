@@ -21,6 +21,110 @@ class ContentPlanBuilder:
         "commercial",
     }
 
+    # Session 5: Per-section data domain boundaries injected into section_generation_context
+    # so LLM knows which metrics each section owns and which belong to other sections.
+    # Prevents cross_section_incoherence_detected by ensuring each data point is
+    # the primary insight of exactly one section.
+    _SECTION_DATA_BOUNDARIES: dict[str, dict] = {
+        "market_snapshot": {
+            "owns": "Total listing count overview, general property type introduction, overall market opening summary.",
+            "do_not_headline_from_other_sections": (
+                "Per-sq-ft asking price (owned by price_trends_and_rates). "
+                "BHK configuration percentages (owned by bhk_and_inventory_mix). "
+                "Micromarket/zone-level price breakdowns (owned by micromarket_coverage). "
+                "Property type distribution counts (owned by property_type_signals)."
+            ),
+        },
+        "price_trends_and_rates": {
+            "owns": "Asking price per sq ft, quarter-over-quarter price trend percentage, price change direction.",
+            "do_not_headline_from_other_sections": (
+                "Total listing count (owned by market_snapshot). "
+                "BHK breakdown counts (owned by bhk_and_inventory_mix). "
+                "Zone or micromarket rate comparisons (owned by micromarket_coverage)."
+            ),
+        },
+        "bhk_and_inventory_mix": {
+            "owns": "BHK configuration names, listing counts per BHK type, BHK share percentages.",
+            "do_not_headline_from_other_sections": (
+                "Total inventory count or overall market opening (owned by market_snapshot). "
+                "Per-sq-ft price or trend (owned by price_trends_and_rates). "
+                "Zone/location-rate comparisons (owned by micromarket_coverage)."
+            ),
+        },
+        "property_type_signals": {
+            "owns": "Residential property type names, listing counts per type, distribution share percentages.",
+            "do_not_headline_from_other_sections": (
+                "Per-sq-ft rates by property type (owned by property_type_rate_snapshot). "
+                "Overall total listing count (owned by market_snapshot). "
+                "BHK breakdown (owned by bhk_and_inventory_mix)."
+            ),
+        },
+        "property_type_rate_snapshot": {
+            "owns": "Asking price per sq ft broken down by residential property type, price comparison across types.",
+            "do_not_headline_from_other_sections": (
+                "Listing counts per property type (owned by property_type_signals). "
+                "Zone-level or micromarket-level rates (owned by micromarket_coverage). "
+                "Overall market asking price (owned by price_trends_and_rates)."
+            ),
+        },
+        "micromarket_coverage": {
+            "owns": "Micromarket/zone names, zone-level sale price bands, location-rate comparisons across zones.",
+            "do_not_headline_from_other_sections": (
+                "Total listing count (owned by market_snapshot). "
+                "BHK configuration breakdown (owned by bhk_and_inventory_mix). "
+                "Overall per-sq-ft trend (owned by price_trends_and_rates)."
+            ),
+        },
+        "locality_coverage": {
+            "owns": "Locality names within micromarket, locality count, sub-area pricing tiers.",
+            "do_not_headline_from_other_sections": (
+                "Total city/micromarket listing count (owned by market_snapshot). "
+                "BHK breakdown (owned by bhk_and_inventory_mix)."
+            ),
+        },
+        "demand_and_supply_signals": {
+            "owns": "Demand score, supply availability signal, listing absorption rate, demand-supply balance.",
+            "do_not_headline_from_other_sections": (
+                "Total listing count (owned by market_snapshot). "
+                "Per-sq-ft price (owned by price_trends_and_rates)."
+            ),
+        },
+        "review_and_rating_signals": {
+            "owns": "Review counts, ratings, resident feedback tags, AI sentiment summary.",
+            "do_not_headline_from_other_sections": (
+                "Price data (owned by price_trends_and_rates). "
+                "Listing counts (owned by market_snapshot)."
+            ),
+        },
+        "market_registration_activity": {
+            "owns": "Registration transaction count, gross registered value, top developer names, date range.",
+            "do_not_headline_from_other_sections": (
+                "Asking price / sale price (owned by price_trends_and_rates). "
+                "Total resale listing count (owned by market_snapshot)."
+            ),
+        },
+        "property_rates_ai_signals": {
+            "owns": "AI market snapshot text, market strengths list, market challenges list, investment opportunities list.",
+            "do_not_headline_from_other_sections": (
+                "Raw listing counts (owned by market_snapshot). "
+                "Sale price per sq ft (owned by price_trends_and_rates)."
+            ),
+        },
+        "nearby_alternatives": {
+            "owns": "Nearby locality names, proximity descriptions, alternative locality price comparisons.",
+            "do_not_headline_from_other_sections": (
+                "Primary entity's own price (owned by price_trends_and_rates). "
+                "Total inventory count (owned by market_snapshot)."
+            ),
+        },
+        "neighbourhood_essentials": {
+            "owns": "Landmark category names, landmark counts, infrastructure category summaries.",
+            "do_not_headline_from_other_sections": (
+                "Price or listing count data (those belong to other sections)."
+            ),
+        },
+    }
+
     @staticmethod
     def _top_keywords(records: list[dict], limit: int = 5) -> list[str]:
         return [record["keyword"] for record in records[:limit] if record.get("keyword")]
@@ -1392,6 +1496,8 @@ class ContentPlanBuilder:
                 "avoid_repetition": True,
                 "avoid_internal_language": True,
                 "write_for_real_buyers_not_reviewers": True,
+                "vocabulary_diversity_required": True,
+                "vary_nouns_and_descriptors": "Do not repeat the same noun (properties, flats, listings, units) in consecutive sentences. Use natural synonyms.",
             }
 
             section_context["keyword_usage_plan"] = {
@@ -1403,6 +1509,7 @@ class ContentPlanBuilder:
                     "Where suitable, use one alternate primary keyword variant naturally in one other section. "
                     "Do not stuff keywords or repeat the same phrase across every section."
                 ),
+                "max_exact_primary_keyword_uses_this_section": 1,
             }
 
             section_context["page_property_type_context"] = page_property_type_context
@@ -1619,6 +1726,15 @@ class ContentPlanBuilder:
                 )
                 if bhk_phrases:
                     section_context["target_bhk_phrases"] = bhk_phrases
+
+            # Session 5: Inject per-section data domain boundary hints so the LLM
+            # understands which data points this section owns vs. which belong to
+            # other sections. This prevents cross-section repetition of the same
+            # metrics across multiple section bodies, addressing the
+            # cross_section_incoherence_detected validation warning.
+            _section_data_boundaries = ContentPlanBuilder._SECTION_DATA_BOUNDARIES.get(section["id"])
+            if _section_data_boundaries:
+                section_context["section_data_domain"] = _section_data_boundaries
 
             context_map[section["id"]] = section_context
 
