@@ -340,10 +340,21 @@ class DraftGenerationService:
 
         return None
 
-    # Commercial property type terms used to filter market signal items on residential pages.
+    # Commercial property type terms AND non-canonical rental/investment terms used to
+    # filter market signal list items on residential resale pages.  Extended to cover
+    # rental metrics (yield, rates, income, per-month pricing) so that "Strengths" /
+    # "Challenges" / "Opportunities" list items mentioning rental signals are stripped
+    # before they reach the LLM or the safe-body formatter.
     _COMMERCIAL_SIGNAL_TERMS: frozenset[str] = frozenset({
+        # Commercial property types
         "shop", "shops", "office space", "office spaces", "co-working", "coworking",
         "warehouse", "warehouses", "showroom", "showrooms", "commercial",
+        # Non-canonical rental / investment metrics (must not appear on sale pages)
+        "rental yield", "rental rate", "rental rates", "rental income",
+        "rental option", "rental options", "rental market",
+        "rent per", "per month", "lakh per month",
+        "investment opportunity", "investment potential",
+        "registered rate", "registration rate",
     })
 
     @staticmethod
@@ -974,6 +985,11 @@ class DraftGenerationService:
 
     @staticmethod
     def _build_property_type_rate_snapshot_safe_body(content_plan: dict) -> str:
+        """Generate buyer-facing prose for the property-type rate snapshot section.
+
+        Rewrites the raw API data into natural sentences a buyer can read,
+        avoiding internal language like "asking-rate signal" or "change signal".
+        """
         pricing_summary = content_plan["data_context"].get("pricing_summary", {}) or {}
         page_property_type_context = DraftGenerationService._page_property_type_context(content_plan)
         location_label = DraftGenerationService._location_label(content_plan)
@@ -986,6 +1002,7 @@ class DraftGenerationService:
 
         paragraphs: list[str] = []
 
+        # --- Specific property-type page (e.g. only apartments) ---
         if page_property_type_context.get("scope") == "specific" and page_property_type_context.get("property_type"):
             property_type = page_property_type_context.get("property_type")
             property_record = DraftGenerationService._find_property_type_record(
@@ -994,15 +1011,23 @@ class DraftGenerationService:
             )
 
             if property_record:
-                parts: list[str] = [
-                    f"For {location_label}, this rate snapshot stays focused on resale {property_type.lower()}s."
-                ]
-                if property_record.get("avgPrice") is not None:
-                    parts.append(f"The asking-rate signal for this category is ₹{property_record['avgPrice']:,}.")
-                if property_record.get("changePercent") is not None:
-                    parts.append(f"The visible change signal for this category is {property_record['changePercent']}.")
-                paragraphs.append(" ".join(parts))
+                parts: list[str] = []
+                avg_price = property_record.get("avgPrice")
+                change = property_record.get("changePercent")
+                if avg_price is not None:
+                    parts.append(
+                        f"{property_type.capitalize()}s in {location_label} are priced at an average of "
+                        f"₹{avg_price:,} per square foot."
+                    )
+                if change is not None:
+                    direction = "risen" if float(str(change).replace("%", "") or 0) >= 0 else "declined"
+                    parts.append(
+                        f"Average sale prices have {direction} by {change}% in the most recent period tracked."
+                    )
+                if parts:
+                    paragraphs.append(" ".join(parts))
 
+            # Locality / micromarket comparison
             comparison_row = None
             if location_rates and isinstance(location_rates[0], dict):
                 comparison_row = location_rates[0]
@@ -1010,30 +1035,39 @@ class DraftGenerationService:
                 comparison_row = micromarket_rates[0]
 
             if comparison_row and comparison_row.get("name") and comparison_row.get("avgRate") is not None:
+                name = comparison_row["name"]
+                rate = comparison_row["avgRate"]
                 paragraphs.append(
-                    f"For wider location context, {comparison_row.get('name')} is shown at ₹{comparison_row.get('avgRate'):,}."
+                    f"For wider context, {name} shows an average resale rate of ₹{rate:,} per square foot."
                 )
 
             if paragraphs:
                 return "\n\n".join(paragraphs)
 
+        # --- All-property page ---
         if residential_property_types:
-            visible_types = [item.get("propertyType") for item in residential_property_types[:3] if item.get("propertyType")]
-            if visible_types:
-                paragraphs.append(
-                    f"The current rate view for {location_label} covers residential categories such as {', '.join(visible_types)}."
-                )
-            first_type = residential_property_types[0]
-            type_bits: list[str] = []
-            if first_type.get("propertyType"):
-                type_bits.append(str(first_type.get("propertyType")))
-            if first_type.get("avgPrice") is not None:
-                type_bits.append(f"asking-rate signal of ₹{first_type.get('avgPrice'):,}")
-            if first_type.get("changePercent") is not None:
-                type_bits.append(f"change signal of {first_type.get('changePercent')}")
-            if type_bits:
-                paragraphs.append("One visible residential rate row shows " + ", ".join(type_bits) + ".")
+            # Build a readable sentence per property type (up to 3)
+            type_sentences: list[str] = []
+            for item in residential_property_types[:3]:
+                pt = item.get("propertyType")
+                avg = item.get("avgPrice")
+                chg = item.get("changePercent")
+                if not pt or avg is None:
+                    continue
+                sentence = f"{pt.capitalize()}s in {location_label} average ₹{avg:,} per square foot"
+                if chg is not None:
+                    try:
+                        chg_val = float(str(chg).replace("%", ""))
+                        direction = "up" if chg_val >= 0 else "down"
+                        sentence += f", {direction} {abs(chg_val):.2f}% recently"
+                    except (ValueError, TypeError):
+                        pass
+                sentence += "."
+                type_sentences.append(sentence)
+            if type_sentences:
+                paragraphs.append(" ".join(type_sentences))
 
+        # Locality / micromarket rate for broader comparison
         comparison_row = None
         if location_rates and isinstance(location_rates[0], dict):
             comparison_row = location_rates[0]
@@ -1041,15 +1075,24 @@ class DraftGenerationService:
             comparison_row = micromarket_rates[0]
 
         if comparison_row and comparison_row.get("name") and comparison_row.get("avgRate") is not None:
-            row_bits = [f"{comparison_row.get('name')} is shown at ₹{comparison_row.get('avgRate'):,}"]
-            if comparison_row.get("changePercentage") is not None:
-                row_bits.append(f"with a change signal of {comparison_row.get('changePercentage')}")
-            paragraphs.append("For broader comparison, " + " and ".join(row_bits) + ".")
+            name = comparison_row["name"]
+            rate = comparison_row["avgRate"]
+            chg_pct = comparison_row.get("changePercentage")
+            comp_sentence = f"{name} shows an average resale rate of ₹{rate:,} per square foot"
+            if chg_pct is not None:
+                try:
+                    chg_val = float(str(chg_pct).replace("%", ""))
+                    direction = "up" if chg_val >= 0 else "down"
+                    comp_sentence += f", {direction} {abs(chg_val):.2f}% from the previous period"
+                except (ValueError, TypeError):
+                    pass
+            comp_sentence += "."
+            paragraphs.append(comp_sentence)
 
         if not paragraphs:
             return (
-                f"This section explains the property-type and location-rate view available for {location_label}. "
-                "When those values are present, they add context to the current asking-price picture."
+                f"Resale property rates in {location_label} vary by property type and locality. "
+                "Comparing rates across categories helps buyers identify where their budget fits best."
             )
 
         return "\n\n".join(paragraphs)
@@ -1985,6 +2028,41 @@ class DraftGenerationService:
 
         return repaired_faqs
 
+    # Per-intent topic signatures used by _ensure_faq_coverage to detect whether
+    # the LLM already generated a FAQ covering that intent — even if the LLM
+    # rephrased the question_template (e.g. added "2 BHK" to the question).
+    # A match is detected when ANY existing question contains ALL signature terms.
+    _FAQ_INTENT_TOPIC_SIGNATURES: dict[str, tuple[str, ...]] = {
+        "pricing":               ("sale price",),
+        "price_range":           ("price range",),
+        "inventory":             ("how many",),
+        "bhk_availability":      ("bhk",),
+        "price_trend":           ("price", "changed"),
+        "nearby_localities":     ("near",),
+        "property_type_signals": ("types of", "residential"),
+        "ready_to_move":         ("ready to move",),
+        "review_signals":        ("residents say", "reviews", "ratings"),
+        "property_rates_ai_signals": ("market strengths",),
+        "demand_supply":         ("demand", "supply"),
+        "rera_buyer_protection": ("rera",),
+    }
+
+    @staticmethod
+    def _faq_intent_is_covered(intent_id: str, existing_questions: set[str]) -> bool:
+        """Return True if ANY existing FAQ question already covers this intent.
+
+        Uses topic signatures rather than exact string matching so that LLM-
+        rephrased questions (e.g. adding "2 BHK" to a template) are correctly
+        recognised as covering the intent and don't cause safe-body duplicates.
+        """
+        signatures = DraftGenerationService._FAQ_INTENT_TOPIC_SIGNATURES.get(intent_id)
+        if not signatures:
+            return False
+        return any(
+            all(sig in q for sig in signatures)
+            for q in existing_questions
+        )
+
     @staticmethod
     def _ensure_faq_coverage(content_plan: dict, faqs: list[dict]) -> list[dict]:
         normalized_faqs = DraftGenerationService._normalize_generated_faqs(content_plan, faqs)
@@ -2001,8 +2079,17 @@ class DraftGenerationService:
             if not question:
                 continue
 
+            # Primary check: exact match of the question_template.
             lowered = question.strip().lower()
             if lowered in existing_questions:
+                continue
+
+            # Secondary check: topic-signature match so that LLM-rephrased
+            # questions (e.g. "What is the sale price for 2 BHK resale
+            # properties in Gurgaon?" vs template "... for resale properties ...")
+            # are recognised as covering the same intent and don't produce a
+            # duplicate safe-body fallback FAQ.
+            if DraftGenerationService._faq_intent_is_covered(intent_id, existing_questions):
                 continue
 
             answer = DraftGenerationService._build_safe_faq_answer_for_intent(content_plan, intent_id)
