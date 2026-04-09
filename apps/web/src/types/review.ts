@@ -5,6 +5,7 @@ export type ReviewSessionCreateRequest = {
   main_datacenter_json_path: string;
   property_rates_json_path: string;
   listing_type: ListingType;
+  page_url?: string | null;
   location_name?: string | null;
   language_name?: string | null;
   limit?: number | null;

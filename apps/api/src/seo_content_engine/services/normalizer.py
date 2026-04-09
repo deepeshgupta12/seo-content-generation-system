@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from seo_content_engine.domain.enums import EntityType, ListingType, PageType
+from seo_content_engine.services.url_parser import UrlParser
 from seo_content_engine.utils.formatters import compact_dict
 
 
@@ -87,23 +88,75 @@ class EntityNormalizer:
         return None
 
     @staticmethod
+    def _build_page_filter_context_from_url(page_url: str) -> dict[str, Any]:
+        """Parse a canonical Square Yards page URL and return a full filter context dict.
+
+        This is the authoritative filter source when a page_url is provided.
+        The returned dict extends the legacy ``page_property_type_context`` shape
+        with additional URL-derived filter fields (BHK, budget, furnishing, amenities,
+        ownership, and the human-readable filters_label used for H1 assembly).
+        """
+        parsed = UrlParser.parse(page_url)
+        return {
+            "scope": parsed["scope"],
+            "property_type": parsed["property_type"],
+            "bhk_config": parsed["bhk_config"],
+            "budget_min": parsed["budget_min"],
+            "budget_max": parsed["budget_max"],
+            "budget_label": parsed["budget_label"],
+            "furnishing_type": parsed["furnishing_type"],
+            "amenities": parsed["amenities"],
+            "ownership_type": parsed["ownership_type"],
+            "filters_label": parsed["filters_label"],
+            "property_type_h1": parsed["property_type_h1"],
+            "source_url": page_url,
+            "source": "page_url",
+        }
+
+    @staticmethod
     def _infer_page_property_type_context(
         overview_url: str | None,
         property_rates_url: str | None,
+        page_url: str | None = None,
     ) -> dict[str, Any]:
+        # 1. Canonical page_url takes priority — it is explicitly provided by the user.
+        if page_url and isinstance(page_url, str) and page_url.strip():
+            return EntityNormalizer._build_page_filter_context_from_url(page_url.strip())
+
+        # 2. Fall back to scanning embedded JSON URLs for a property type token.
         for candidate_url in [overview_url, property_rates_url]:
             detected = EntityNormalizer._extract_specific_property_type_from_url(candidate_url)
             if detected:
                 return {
                     "scope": "specific",
                     "property_type": detected,
+                    "bhk_config": None,
+                    "budget_min": None,
+                    "budget_max": None,
+                    "budget_label": "",
+                    "furnishing_type": None,
+                    "amenities": [],
+                    "ownership_type": None,
+                    "filters_label": "",
+                    "property_type_h1": None,
                     "source_url": candidate_url,
+                    "source": "json_url",
                 }
 
         return {
             "scope": "all",
             "property_type": None,
+            "bhk_config": None,
+            "budget_min": None,
+            "budget_max": None,
+            "budget_label": "",
+            "furnishing_type": None,
+            "amenities": [],
+            "ownership_type": None,
+            "filters_label": "",
+            "property_type_h1": None,
             "source_url": overview_url or property_rates_url,
+            "source": "none",
         }
 
     @staticmethod
@@ -603,7 +656,12 @@ class EntityNormalizer:
         )
 
     @staticmethod
-    def normalize(main_data: dict[str, Any], rates_data: dict[str, Any], listing_type: ListingType) -> dict[str, Any]:
+    def normalize(
+        main_data: dict[str, Any],
+        rates_data: dict[str, Any],
+        listing_type: ListingType,
+        page_url: str | None = None,
+    ) -> dict[str, Any]:
         root = main_data.get("data", {})
         overview = root.get("localityOverviewData", {})
         locality_data = root.get("localityData", {})
@@ -645,6 +703,7 @@ class EntityNormalizer:
             page_property_type_context = EntityNormalizer._infer_page_property_type_context(
                 root.get("url"),
                 details.get("diUrl"),
+                page_url=page_url,
             )
             entity_name = details.get("name") or city_name
 
@@ -661,6 +720,16 @@ class EntityNormalizer:
                     "dotcom_city_id": root.get("dotcomCityId") or city_data.get("dotcomCityId"),
                     "page_property_type_scope": page_property_type_context.get("scope"),
                     "page_property_type": page_property_type_context.get("property_type"),
+                    "page_bhk_config": page_property_type_context.get("bhk_config"),
+                    "page_budget_min": page_property_type_context.get("budget_min"),
+                    "page_budget_max": page_property_type_context.get("budget_max"),
+                    "page_budget_label": page_property_type_context.get("budget_label") or None,
+                    "page_furnishing_type": page_property_type_context.get("furnishing_type"),
+                    "page_amenities": page_property_type_context.get("amenities") or None,
+                    "page_ownership_type": page_property_type_context.get("ownership_type"),
+                    "page_filters_label": page_property_type_context.get("filters_label") or None,
+                    "page_property_type_h1": page_property_type_context.get("property_type_h1"),
+                    "page_url": page_url or None,
                     "latitude": city_data.get("latitude"),
                     "longitude": city_data.get("longitude"),
                     "overview_url": root.get("url"),
@@ -690,6 +759,7 @@ class EntityNormalizer:
             page_property_type_context = EntityNormalizer._infer_page_property_type_context(
                 locality_data.get("overviewUrl") or root.get("url"),
                 details.get("diUrl"),
+                page_url=page_url,
             )
             entity = compact_dict(
                 {
@@ -706,6 +776,16 @@ class EntityNormalizer:
                     "dotcom_locality_id": locality_data.get("dotcomLocalityId"),
                     "page_property_type_scope": page_property_type_context.get("scope"),
                     "page_property_type": page_property_type_context.get("property_type"),
+                    "page_bhk_config": page_property_type_context.get("bhk_config"),
+                    "page_budget_min": page_property_type_context.get("budget_min"),
+                    "page_budget_max": page_property_type_context.get("budget_max"),
+                    "page_budget_label": page_property_type_context.get("budget_label") or None,
+                    "page_furnishing_type": page_property_type_context.get("furnishing_type"),
+                    "page_amenities": page_property_type_context.get("amenities") or None,
+                    "page_ownership_type": page_property_type_context.get("ownership_type"),
+                    "page_filters_label": page_property_type_context.get("filters_label") or None,
+                    "page_property_type_h1": page_property_type_context.get("property_type_h1"),
+                    "page_url": page_url or None,
                     "latitude": overview.get("latitude") or locality_data.get("sublocalityLatitude"),
                     "longitude": overview.get("longitude") or locality_data.get("sublocalityLongitude"),
                     "pincode": overview.get("pincode"),
@@ -842,6 +922,7 @@ class EntityNormalizer:
         property_rates_json_path: str,
         listing_type: ListingType,
         source_loader,
+        page_url: str | None = None,
     ) -> dict[str, Any]:
         main_data = source_loader.load_json(main_datacenter_json_path)
         rates_data = source_loader.load_json(property_rates_json_path)
@@ -849,4 +930,5 @@ class EntityNormalizer:
             main_data=main_data,
             rates_data=rates_data,
             listing_type=listing_type,
+            page_url=page_url,
         )

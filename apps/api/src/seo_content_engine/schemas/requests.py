@@ -111,6 +111,14 @@ class ReviewSessionCreateRequest(BaseModel):
         ..., description="Absolute or relative path to property rates JSON"
     )
     listing_type: ListingType = ListingType.RESALE
+    page_url: str | None = Field(
+        default=None,
+        description=(
+            "Square Yards canonical page URL (e.g. https://www.squareyards.com/sale/2-bhk-for-sale-in-gurgaon). "
+            "When provided, the URL is parsed to extract page filters (property type, BHK, budget, furnishing, etc.) "
+            "which override the filters inferred from embedded JSON URLs."
+        ),
+    )
     location_name: str | None = Field(
         default=None, description="Override DataForSEO location_name"
     )

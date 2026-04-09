@@ -62,6 +62,14 @@ class ContentPlanBuilder:
         return {
             "scope": context.get("scope") or entity.get("page_property_type_scope") or "all",
             "property_type": context.get("property_type") or entity.get("page_property_type"),
+            "bhk_config": context.get("bhk_config") or entity.get("page_bhk_config"),
+            "budget_min": context.get("budget_min") or entity.get("page_budget_min"),
+            "budget_max": context.get("budget_max") or entity.get("page_budget_max"),
+            "budget_label": context.get("budget_label") or entity.get("page_budget_label") or "",
+            "furnishing_type": context.get("furnishing_type") or entity.get("page_furnishing_type"),
+            "amenities": context.get("amenities") or entity.get("page_amenities") or [],
+            "ownership_type": context.get("ownership_type") or entity.get("page_ownership_type"),
+            "filters_label": context.get("filters_label") or entity.get("page_filters_label") or "",
             "source_url": context.get("source_url"),
         }
 
@@ -589,11 +597,14 @@ class ContentPlanBuilder:
             "value": entity.get("canonical_asking_price"),
         }
 
-        # Bug-fix: when the page is scoped to a specific property type (e.g. "flats",
-        # "villas"), the H1 and slug should reflect that filter instead of the generic
-        # "Resale Properties in ..." fallback.
+        # Build the H1 / slug using URL filter context when available.
+        # Priority:
+        #   1. Full filters_label from page_url (most specific — includes BHK, budget, etc.)
+        #   2. Property-type-only label (legacy fallback for pages without a URL)
+        #   3. Generic "Resale Properties in …"
         _pt_scope = entity.get("page_property_type_scope") or "all"
         _pt_type = entity.get("page_property_type")  # canonical, e.g. "Apartment"
+        _filters_label = entity.get("page_filters_label") or ""  # e.g. "2 BHK Flats Under ₹2 Cr"
 
         # Map canonical property types → buyer-friendly plural label used in H1/slug
         _pt_h1_labels: dict[str, str] = {
@@ -610,7 +621,14 @@ class ContentPlanBuilder:
             "Showroom": "Showrooms",
         }
 
-        if _pt_scope == "specific" and _pt_type and _pt_type in _pt_h1_labels:
+        if _pt_scope == "specific" and _filters_label:
+            # Full URL-derived label — use it verbatim for H1.
+            # e.g. "2 BHK Flats Under ₹2 Cr for Sale in Gurgaon"
+            recommended_h1 = f"{_filters_label} for Sale in {location_label}"[:120]
+            # For slug, strip special characters and use a simplified version.
+            _slug_base = _filters_label.lower()
+            recommended_slug = slugify(f"{_slug_base}-for-sale-{entity_name}-{city_name}")
+        elif _pt_scope == "specific" and _pt_type and _pt_type in _pt_h1_labels:
             _friendly = _pt_h1_labels[_pt_type]
             recommended_h1 = f"{_friendly} for Sale in {location_label}"[:120]
             recommended_slug = slugify(f"{_friendly.lower()}-for-sale-{entity_name}-{city_name}")
@@ -1338,6 +1356,63 @@ class ContentPlanBuilder:
             }
 
             section_context["page_property_type_context"] = page_property_type_context
+
+            # Build an explicit filter reminder so the LLM always knows which
+            # sub-filters are active on this page beyond just property type.
+            _pf_bhk = page_property_type_context.get("bhk_config")
+            _pf_budget_label = page_property_type_context.get("budget_label") or ""
+            _pf_furnishing = page_property_type_context.get("furnishing_type")
+            _pf_amenities: list[str] = page_property_type_context.get("amenities") or []
+            _pf_ownership = page_property_type_context.get("ownership_type")
+            _pf_filters_label = page_property_type_context.get("filters_label") or ""
+            _pf_scope = page_property_type_context.get("scope") or "all"
+
+            _filter_parts: list[str] = []
+            if _pf_scope == "specific":
+                if _pf_bhk:
+                    _filter_parts.append(f"BHK filter: {_pf_bhk} only")
+                if _pf_budget_label:
+                    _filter_parts.append(f"Budget filter: {_pf_budget_label}")
+                if _pf_furnishing:
+                    _filter_parts.append(f"Furnishing filter: {_pf_furnishing}")
+                if _pf_amenities:
+                    _filter_parts.append(f"Amenity filter: {', '.join(_pf_amenities)}")
+                if _pf_ownership:
+                    _filter_parts.append(f"Ownership filter: {_pf_ownership} listings only")
+
+            if _filter_parts:
+                _filter_instruction_parts: list[str] = []
+                if _pf_bhk:
+                    _filter_instruction_parts.append(
+                        f"This page is filtered to {_pf_bhk} units only. "
+                        f"ALWAYS refer to properties as '{_pf_bhk}' throughout. "
+                        f"Do NOT write about other BHK configurations."
+                    )
+                if _pf_budget_label:
+                    _filter_instruction_parts.append(
+                        f"This page shows properties {_pf_budget_label}. "
+                        f"Discuss pricing relative to this budget band."
+                    )
+                if _pf_furnishing:
+                    _filter_instruction_parts.append(
+                        f"This page is filtered to {_pf_furnishing} properties. "
+                        f"Mention furnishing status where relevant."
+                    )
+                if _pf_amenities:
+                    _filter_instruction_parts.append(
+                        f"This page highlights properties with: {', '.join(_pf_amenities)}. "
+                        f"Reference these amenities naturally in the content."
+                    )
+                if _pf_ownership:
+                    _filter_instruction_parts.append(
+                        f"This page shows {_pf_ownership.lower()} listings (no brokerage). "
+                        f"Mention this where relevant."
+                    )
+                section_context["page_filter_reminder"] = {
+                    "active_filters": _filter_parts,
+                    "filters_label": _pf_filters_label,
+                    "instruction": " ".join(_filter_instruction_parts),
+                }
 
             if buyer_segmentation:
                 section_context["buyer_segmentation"] = buyer_segmentation
