@@ -120,6 +120,36 @@ class PromptBuilder:
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
             "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
+            "CRITICAL — KEYWORD DISCIPLINE: "
+            "Use the exact primary keyword phrase at most ONCE per section. Do NOT repeat it again within the same section body or key_points. "
+            "Across all sections combined, the exact primary keyword phrase must appear no more than 3 times total. "
+            "For all subsequent mentions within or across sections, use keyword variants, synonyms, or natural location references. "
+            "This directly prevents exact_match_keyword_overused and primary_keyword_stuffing_detected validation warnings. "
+            "CRITICAL — VOCABULARY DIVERSITY: "
+            "Vary descriptive nouns throughout every section — do not repeat the same word (properties, flats, listings, units, options) "
+            "in consecutive or nearby sentences. Use natural synonyms: flat/apartment/unit/home, area/locality/neighbourhood, "
+            "property/listing/home, buyers/homebuyers/residents. "
+            "This prevents low_distinct_term_ratio_detected validation warnings. "
+            "CRITICAL — CROSS-SECTION DATA OWNERSHIP: "
+            "Each section must deliver a distinct, non-overlapping set of data insights. "
+            "Never repeat a specific number, rate, or count that is the primary insight of another section. "
+            "Data ownership boundaries: "
+            "(1) market_snapshot owns: total listing count overview, general property type mix introduction. "
+            "(2) price_trends_and_rates owns: asking price per sq ft value and quarter-over-quarter trend percentage. "
+            "(3) bhk_and_inventory_mix owns: BHK configuration names, their listing counts, and share percentages. "
+            "(4) property_type_signals owns: residential property type listing counts and distribution shares. "
+            "(5) property_type_rate_snapshot owns: per-sq-ft asking rates by property type. "
+            "(6) micromarket_coverage owns: zone/micromarket names, zone-level sale price bands, location-rate comparisons. "
+            "(7) demand_and_supply_signals owns: demand/supply scores, listing availability signals. "
+            "(8) market_registration_activity owns: registration transaction counts, registered gross value. "
+            "If the current section does not own a data point, do NOT make it the headline or primary evidence of this section. "
+            "Mentioning it briefly as supporting context (once, in passing) is acceptable only if it genuinely aids comprehension. "
+            "This prevents cross_section_incoherence_detected validation warnings. "
+            "CRITICAL — EEAT COMPLIANCE: "
+            "Experience: anchor every claim in specific visible data from section_context. "
+            "Expertise: explain what the data means for a buyer's decision, not just what it shows. "
+            "Authoritativeness: cite specific figures (₹X per sq ft, N listings, X% change) rather than vague signals. "
+            "Trustworthiness: never extrapolate beyond the data. No forecasts, growth predictions, or investment advice. "
             "Return only valid JSON."
         )
 
@@ -206,6 +236,12 @@ class PromptBuilder:
                     "avoid_cross_section_repetition": True,
                     "use_keywords_naturally": True,
                     "each_section_must_have_one_clear_takeaway": True,
+                    "primary_keyword_max_uses_per_section": 1,
+                    "primary_keyword_max_uses_across_all_sections": 3,
+                    "vocabulary_diversity_required": "Vary nouns and descriptors. Do not repeat the same word in consecutive or nearby sentences.",
+                    "cross_section_data_ownership_enforcement": "Each section owns one data domain. Do not repeat specific metrics (prices, counts, rates) that another section covers as its primary insight.",
+                    "eeat_ground_every_claim_in_visible_data": True,
+                    "no_forecasts_no_investment_claims": True,
                 },
                 "style_rules": {
                     "tone": "human, editorial, grounded, real-estate-buyer-friendly, SEO-friendly, AEO-ready",
@@ -275,6 +311,24 @@ class PromptBuilder:
             "Vary sentence openings. Avoid filler, repetition, and template-style openings. "
             "Use keywords naturally and sparingly. "
             "You may use competitor-derived planning signals only for structure, emphasis, and hierarchy. Never copy competitor wording. "
+            "CRITICAL — KEYWORD DISCIPLINE: "
+            "Use the exact primary keyword phrase at most ONCE in this section (prose + key_points combined). "
+            "For all subsequent mentions, use a keyword variant or natural synonym. "
+            "This prevents exact_match_keyword_overused and primary_keyword_stuffing_detected validation warnings. "
+            "CRITICAL — VOCABULARY DIVERSITY: "
+            "Vary descriptive nouns — do not repeat the same word (properties, flats, listings, units, options) "
+            "in consecutive or nearby sentences. Use natural synonyms (flat/apartment/unit, area/locality/neighbourhood). "
+            "This prevents low_distinct_term_ratio_detected validation warnings. "
+            "CRITICAL — CROSS-SECTION DATA OWNERSHIP: "
+            "This section must cover its own data domain exclusively. Do not repeat metrics owned by other sections. "
+            "Data ownership: market_snapshot owns total listing count; price_trends_and_rates owns per-sq-ft rate and trend; "
+            "bhk_and_inventory_mix owns BHK counts and shares; micromarket_coverage owns zone/location-rate comparisons; "
+            "property_type_signals owns type distribution counts; property_type_rate_snapshot owns per-type rate comparisons. "
+            "If this section is not the owner of a specific metric, do not headline it here. "
+            "This prevents cross_section_incoherence_detected validation warnings. "
+            "CRITICAL — EEAT COMPLIANCE: "
+            "Ground every claim in specific visible data from section_context. Explain what data means for a buyer's decision. "
+            "Cite specific figures rather than vague signals. Never extrapolate beyond the data. "
             "Return only valid JSON."
         )
 
@@ -348,7 +402,12 @@ class PromptBuilder:
                 "no_prose_bullet_duplication": "Facts stated in prose must NOT appear in bullets and vice versa — each must cover distinct information",
                 "allow_one_alternate_primary_keyword_variant_in_one_other_section": True,
                 "avoid_repeating_same_primary_keyword": True,
+                "primary_keyword_max_uses_this_section": 1,
                 "use_keywords_naturally": True,
+                "vocabulary_diversity_required": "Vary nouns and descriptors. Do not repeat the same word in consecutive or nearby sentences.",
+                "cross_section_data_ownership_rule": "Do not repeat specific metrics (prices, counts, rates) that are the primary insight of another section.",
+                "eeat_ground_every_claim_in_visible_data": True,
+                "no_forecasts_no_investment_claims": True,
             },
             "output_schema": {
                 "id": "string — same as input section id",
@@ -399,6 +458,12 @@ class PromptBuilder:
             "Do NOT mention commercial property types (shops, office spaces, warehouses, showrooms) "
             "in any FAQ unless this is explicitly a commercial property page. "
             "Answer in a strong AEO style: start with a direct answer sentence, then add 1 to 3 explanatory sentences. "
+            "CRITICAL — FAQ ANSWER MINIMUM LENGTH: "
+            "Every FAQ answer MUST contain at least 2 sentences. A single-sentence answer is NEVER acceptable. "
+            "Required structure: (1) direct answer sentence with the key fact, "
+            "(2) at least one supporting sentence with data, context, or practical guidance that helps a buyer act on the answer. "
+            "Ideal answer length: 2 to 4 sentences. Short answers signal low quality to search engines. "
+            "This directly prevents faq_too_short validation warnings. "
             "Do not sound robotic, repetitive, or system-generated. "
             "Do not use phrases such as visible dataset, structured inputs, source-backed layer, current structured data, or currently represented on the page. "
             "Do not turn every FAQ into a mini section summary. "
@@ -579,7 +644,10 @@ class PromptBuilder:
                     "exclude_non_canonical_pricing_metrics_from_price_answers": True,
                     "cover_all_required_data_axes_from_data_coverage_guide": True,
                     "prefer_broader_coverage_over_depth_repetition": True,
-                    "prefer_descriptive_answers_1_to_3_sentences": True,
+                    "min_answer_sentences": 2,
+                    "max_answer_sentences": 4,
+                    "one_sentence_answers_are_not_acceptable": True,
+                    "answer_structure": "Sentence 1: direct answer with key fact. Sentence 2+: supporting data, context, or buyer guidance.",
                     "allow_some_keyword_variant_question_phrasing": True,
                     "target_min_faqs": 10,
                     "target_max_faqs": 15,

@@ -103,6 +103,31 @@ In `faq_prompts()`, `data_coverage_guide` block used `_bhk_cfg` on line 422 but 
 
 ---
 
+## Session 5 — Content Quality: Validation Warning Fixes + SEO/EEAT Enforcement
+
+### Issues identified from `gurgaon-resale_city-draft.json` analysis and user report
+
+**Root causes:**
+1. `exact_match_keyword_overused` / `primary_keyword_stuffing_detected`: No per-section limit on exact primary keyword uses — LLM repeated primary keyword in every section body and bullets.
+2. `low_distinct_term_ratio_detected`: No vocabulary diversity instruction — same nouns (properties, flats, listings) repeated monotonously in consecutive sentences.
+3. `cross_section_incoherence_detected`: Same specific metrics (e.g., Golf Course Road ₹23,263/sq ft) appeared as headline data in multiple sections (market_snapshot, micromarket_coverage, property_type_rate_snapshot) because each section independently had access to the same data sources without knowing what other sections had already stated.
+4. `faq_too_short`: FAQ answers were sometimes single-sentence — no minimum length enforced in prompt or requirements.
+5. No EEAT compliance rules — content lacked explicit grounding instructions, expertise framing, or trustworthiness constraints.
+6. Bullets sometimes generic (e.g., "monthly search volumes 3,600") — not section-relevant data-driven insights.
+
+**Impacted files:**
+
+| File | Change |
+|---|---|
+| `apps/api/src/seo_content_engine/services/prompt_builder.py` | `sections_prompts()` system prompt: Added CRITICAL KEYWORD DISCIPLINE block (max 1 exact primary keyword per section, max 3 total across all sections). Added CRITICAL VOCABULARY DIVERSITY block (vary nouns, use synonyms). Added CRITICAL CROSS-SECTION DATA OWNERSHIP block (8-point ownership map covering which section owns which data domain). Added CRITICAL EEAT COMPLIANCE block (Experience/Expertise/Authoritativeness/Trustworthiness rules). Added corresponding enforcement flags to requirements dict. |
+| `apps/api/src/seo_content_engine/services/prompt_builder.py` | `section_prompt_single()` system prompt: Same 4 CRITICAL blocks added (adapted for single-section context). Added `primary_keyword_max_uses_this_section: 1`, `vocabulary_diversity_required`, `cross_section_data_ownership_rule`, EEAT flags to requirements dict. |
+| `apps/api/src/seo_content_engine/services/prompt_builder.py` | `faq_prompts()` system prompt: Added CRITICAL FAQ ANSWER MINIMUM LENGTH block — every answer must be at least 2 sentences (direct answer + supporting context). Prevents `faq_too_short` warnings. Updated requirements: `min_answer_sentences: 2`, `max_answer_sentences: 4`, `one_sentence_answers_are_not_acceptable: True`, `answer_structure` guidance. |
+| `apps/api/src/seo_content_engine/services/content_plan_builder.py` | Added class-level `_SECTION_DATA_BOUNDARIES` dict mapping each section_id to `owns` (what data the section is responsible for) and `do_not_headline_from_other_sections` (what belongs to other sections). 12 sections covered. |
+| `apps/api/src/seo_content_engine/services/content_plan_builder.py` | In `_build_section_generation_context()`, after per-section narrative_guardrails: inject `section_data_domain` from `_SECTION_DATA_BOUNDARIES` into each section's context. LLM now receives explicit per-section ownership boundary alongside its data. |
+| `apps/api/src/seo_content_engine/services/content_plan_builder.py` | In `writing_style` dict per section: added `vocabulary_diversity_required: True` and `vary_nouns_and_descriptors` instruction. In `keyword_usage_plan`: added `max_exact_primary_keyword_uses_this_section: 1`. |
+
+---
+
 ## Key Invariants to Maintain
 
 These rules must be respected in all future changes:
@@ -126,3 +151,13 @@ These rules must be respected in all future changes:
 9. **BHK filtering in FAQ prompt**: `prompt_builder.faq_prompts()` filters `data_context.distributions.sale_unit_type_distribution` to target BHK rows when `_bhk_cfg` is set. This must mirror the filtering in `content_plan_builder._build_section_generation_context()`.
 
 10. **Property Type Rates safe-body**: `_build_property_type_rate_snapshot_safe_body()` uses buyer-facing prose. Do NOT revert to raw data format ("asking-rate signal of…", "change signal of…").
+
+11. **Keyword discipline enforcement**: Both `sections_prompts()` and `section_prompt_single()` system prompts enforce max 1 exact primary keyword per section, max 3 total. Do NOT weaken these rules. Also reflected in `keyword_usage_plan.max_exact_primary_keyword_uses_this_section` per-section context field.
+
+12. **Section data domain boundaries**: `_SECTION_DATA_BOUNDARIES` class dict on `ContentPlanBuilder` defines which data each section owns. `section_data_domain` is injected into each section's context in `_build_section_generation_context()`. If you add a new section type, add a corresponding entry to `_SECTION_DATA_BOUNDARIES`.
+
+13. **FAQ minimum answer length**: `faq_prompts()` requires minimum 2 sentences per FAQ answer. `min_answer_sentences: 2` is set in requirements. Do NOT reduce this — single-sentence answers trigger `faq_too_short` validation warnings and are poor for SEO/AEO.
+
+14. **EEAT compliance blocks**: All section system prompts (both batch and single) include EEAT blocks. Do NOT remove them — they prevent unsupported forecasts, investment claims, and non-grounded content.
+
+15. **Vocabulary diversity rules**: Both section prompt system prompts and per-section `writing_style` context include vocabulary diversity instructions. Do NOT remove — they prevent `low_distinct_term_ratio_detected` warnings.
