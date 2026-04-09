@@ -540,21 +540,41 @@ class DraftGenerationService:
 
         if price_trend:
             latest = price_trend[0]
-            trend_parts: list[str] = []
-            if latest.get("quarterName"):
-                trend_parts.append(f"the latest tracked quarter is {latest.get('quarterName')}")
-            if latest.get("locationRate") is not None:
-                trend_parts.append(f"the locality-level entry shows ₹{latest.get('locationRate'):,}")
-            if latest.get("micromarketRate") is not None:
-                trend_parts.append(f"the micromarket comparison is ₹{latest.get('micromarketRate'):,}")
-            if latest.get("cityRate") is not None:
-                trend_parts.append(f"the city comparison is ₹{latest.get('cityRate'):,}")
+            quarter = latest.get("quarterName")
+            loc_rate = latest.get("locationRate")
+            mm_rate = latest.get("micromarketRate")
+            city_rate = latest.get("cityRate")
 
-            if trend_parts:
+            trend_sentences: list[str] = []
+            if quarter:
+                intro = f"The most recent quarter tracked is {quarter}"
+                rate_parts: list[str] = []
+                if loc_rate is not None:
+                    rate_parts.append(f"a locality asking rate of ₹{loc_rate:,} per sq ft")
+                if mm_rate is not None:
+                    rate_parts.append(f"a micromarket average of ₹{mm_rate:,} per sq ft")
+                if city_rate is not None:
+                    rate_parts.append(f"a city-level rate of ₹{city_rate:,} per sq ft")
+                if rate_parts:
+                    trend_sentences.append(intro + ", with " + " and ".join(rate_parts) + ".")
+                else:
+                    trend_sentences.append(intro + ".")
+            elif loc_rate is not None or mm_rate is not None or city_rate is not None:
+                rate_parts = []
+                if loc_rate is not None:
+                    rate_parts.append(f"locality rate of ₹{loc_rate:,}")
+                if mm_rate is not None:
+                    rate_parts.append(f"micromarket average of ₹{mm_rate:,}")
+                if city_rate is not None:
+                    rate_parts.append(f"city rate of ₹{city_rate:,}")
+                trend_sentences.append(
+                    "The trend data shows a " + ", ".join(rate_parts) + " per sq ft."
+                )
+
+            if trend_sentences:
                 paragraphs.append(
                     "The trend view is useful because it places that asking signal alongside the broader local comparison points. "
-                    + ", ".join(trend_parts)
-                    + "."
+                    + " ".join(trend_sentences)
                 )
 
         if not paragraphs:
@@ -586,7 +606,8 @@ class DraftGenerationService:
         overview = review_summary.get("overview", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
 
-        avg_rating = overview.get("avg_rating")
+        avg_rating_raw = overview.get("avg_rating")
+        avg_rating = round(float(avg_rating_raw), 2) if avg_rating_raw is not None else None
         review_count = overview.get("review_count")
         positive_tags = review_summary.get("positive_tags", []) or []
         negative_tags = review_summary.get("negative_tags", []) or []
@@ -1275,17 +1296,25 @@ class DraftGenerationService:
 
         if price_trend:
             latest = price_trend[0]
-            trend_bits: list[str] = []
-            if latest.get("quarterName"):
-                trend_bits.append(f"the latest tracked quarter is {latest['quarterName']}")
-            if latest.get("locationRate") is not None:
-                trend_bits.append(f"the locality-level entry is ₹{latest['locationRate']:,}")
-            if latest.get("micromarketRate") is not None:
-                trend_bits.append(f"the micromarket comparison is ₹{latest['micromarketRate']:,}")
-            if latest.get("cityRate") is not None:
-                trend_bits.append(f"the city comparison is ₹{latest['cityRate']:,}")
-            if trend_bits:
-                parts.append("The available trend view also shows " + ", ".join(trend_bits) + ".")
+            quarter = latest.get("quarterName")
+            loc_rate = latest.get("locationRate")
+            mm_rate = latest.get("micromarketRate")
+            city_rate = latest.get("cityRate")
+            rate_bits: list[str] = []
+            if loc_rate is not None:
+                rate_bits.append(f"a locality rate of ₹{loc_rate:,} per sq ft")
+            if mm_rate is not None:
+                rate_bits.append(f"a micromarket average of ₹{mm_rate:,} per sq ft")
+            if city_rate is not None:
+                rate_bits.append(f"a city rate of ₹{city_rate:,} per sq ft")
+            if quarter or rate_bits:
+                q_clause = f"as of {quarter}, " if quarter else ""
+                r_clause = ("showing " + " and ".join(rate_bits)) if rate_bits else ""
+                parts.append(
+                    f"The recent trend data, {q_clause}{r_clause}, helps place the asking price in context against nearby benchmarks."
+                    if r_clause else
+                    f"The recent trend data as of {quarter} helps place the asking price in context against nearby benchmarks."
+                )
 
         return " ".join(parts)
 
@@ -1406,7 +1435,8 @@ class DraftGenerationService:
         overview = review_summary.get("overview", {}) or {}
         location_label = DraftGenerationService._location_label(content_plan)
 
-        avg_rating = overview.get("avg_rating")
+        avg_rating_raw = overview.get("avg_rating")
+        avg_rating = round(float(avg_rating_raw), 2) if avg_rating_raw is not None else None
         review_count = overview.get("review_count")
         positive_tags = review_summary.get("positive_tags", []) or []
         negative_tags = review_summary.get("negative_tags", []) or []
@@ -1942,87 +1972,115 @@ class DraftGenerationService:
     def _summarize_price_trend_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show the latest asking-price trend when data is available."
+            return "The asking-price trend data will appear here when available."
 
         first = rows[0]
         parts: list[str] = []
-        if first.get("quarterName") not in {None, "", "—"}:
-            parts.append(f"{first['quarterName']}")
-        if first.get("locationRate") not in {None, "", "—"}:
-            parts.append(f"locality rate {first['locationRate']}")
-        if first.get("micromarketRate") not in {None, "", "—"}:
-            parts.append(f"micromarket rate {first['micromarketRate']}")
-        if first.get("cityRate") not in {None, "", "—"}:
-            parts.append(f"city rate {first['cityRate']}")
+        quarter = first.get("quarterName")
+        loc_rate = first.get("locationRate")
+        mm_rate = first.get("micromarketRate")
+        city_rate = first.get("cityRate")
 
+        if quarter not in {None, "", "—"}:
+            intro = f"The most recent quarter tracked is {quarter}"
+        else:
+            intro = "The price trend data here"
+
+        if loc_rate not in {None, "", "—"}:
+            parts.append(f"a locality asking rate of {loc_rate}")
+        if mm_rate not in {None, "", "—"}:
+            parts.append(f"a micromarket comparison of {mm_rate}")
+        if city_rate not in {None, "", "—"}:
+            parts.append(f"a city-level rate of {city_rate}")
+
+        detail = (", showing " + ", ".join(parts) + ".") if parts else "."
         return (
-            "This table shows the recent resale price trend and nearby benchmark levels. "
-            + (f"One entry shown here includes {', '.join(parts)}." if parts else "")
+            f"{intro}{detail} "
+            "Use this data to track how asking prices have moved across recent quarters "
+            "and compare the local rate against broader market benchmarks."
         )
 
     @staticmethod
     def _summarize_bhk_mix_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show the BHK mix when inventory data is available."
+            return "The BHK configuration breakdown will appear here when inventory data is available."
 
         first = rows[0]
-        lead = []
-        if first.get("key") not in {None, "", "—"}:
-            lead.append(str(first["key"]))
-        if first.get("doc_count") not in {None, "", "—"}:
-            lead.append(f"{first['doc_count']} listings")
+        label = first.get("key")
+        count = first.get("doc_count")
+
+        if label not in {None, "", "—"} and count not in {None, "", "—"}:
+            lead = f"For example, {label} accounts for {count} listings."
+        elif label not in {None, "", "—"}:
+            lead = f"{label} is one of the configurations shown."
+        else:
+            lead = ""
 
         return (
-            "This table makes it easier to see which home configurations are showing up most often. "
-            + (f"For example, one visible row shows {' with '.join(lead)}." if lead else "")
-        )
+            f"The breakdown below shows how resale listings are distributed across different BHK configurations. "
+            f"{lead} "
+            "Buyers can use this to quickly gauge which apartment sizes are most common and how choice varies by unit type."
+        ).strip()
 
     @staticmethod
     def _summarize_nearby_localities_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show nearby localities when comparison data is available."
+            return "Nearby locality comparison data will appear here when available."
 
         first = rows[0]
-        bits: list[str] = []
-        if first.get("name") not in {None, "", "—"}:
-            bits.append(f"{first['name']}")
-        if first.get("distance_km") not in {None, "", "—"}:
-            bits.append(f"{first['distance_km']} away")
-        if first.get("sale_count") not in {None, "", "—"}:
-            bits.append(f"with {first['sale_count']} resale listings")
+        name = first.get("name")
+        dist = first.get("distance_km")
+        count = first.get("sale_count")
 
+        detail_parts: list[str] = []
+        if name not in {None, "", "—"}:
+            detail_parts.append(str(name))
+        if dist not in {None, "", "—"}:
+            detail_parts.append(f"{dist} km away")
+        if count not in {None, "", "—"}:
+            detail_parts.append(f"with {count} resale listings")
+
+        detail = (", ".join(detail_parts) + ", ") if detail_parts else ""
         return (
-            "This table helps compare nearby alternatives around the current location. "
-            + (f"The first option shown is {' '.join(bits)}." if bits else "")
+            f"Nearby localities are listed here for buyers who want to compare resale options beyond the current area. "
+            f"The closest alternative shown is {detail}giving buyers a starting point for exploring price differences and inventory nearby."
+            if detail_parts
+            else "Nearby localities are listed here for buyers who want to compare options close to the current area."
         )
 
     @staticmethod
     def _summarize_location_rates_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show location-level asking-rate signals when data is available."
+            return "Location-level asking-rate data will appear here when available."
 
         first = rows[0]
-        bits: list[str] = []
-        if first.get("name") not in {None, "", "—"}:
-            bits.append(f"{first['name']}")
-        if first.get("avgRate") not in {None, "", "—"}:
-            bits.append(f"at {first['avgRate']}")
-        if first.get("changePercentage") not in {None, "", "—"}:
-            bits.append(f"with a change signal of {first['changePercentage']}")
+        name = first.get("name")
+        rate = first.get("avgRate")
+        change = first.get("changePercentage")
 
+        detail_parts: list[str] = []
+        if name not in {None, "", "—"}:
+            detail_parts.append(str(name))
+        if rate not in {None, "", "—"}:
+            detail_parts.append(f"averaging {rate} per sq ft")
+        if change not in {None, "", "—"}:
+            detail_parts.append(f"with a recent change of {change}")
+
+        detail = ("The highest-ranked location is " + " ".join(detail_parts) + ". ") if detail_parts else ""
         return (
-            "This table helps compare asking-rate signals across the covered locations. "
-            + (f"One visible entry shows {' '.join(bits)}." if bits else "")
+            f"Asking-rate signals are compared across the covered locations in the rows below. "
+            f"{detail}"
+            "Use this view to identify where prices are highest, lowest, or moving fastest."
         )
 
     @staticmethod
     def _summarize_property_types_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show property-type pricing signals when data is available."
+            return "Property-type pricing data will appear here when available."
 
         filtered_rows = []
         for row in rows:
@@ -2032,47 +2090,57 @@ class DraftGenerationService:
             filtered_rows.append(row)
 
         if not filtered_rows:
-            return "This table will show residential property-type pricing signals when data is available."
+            return "Residential property-type pricing data will appear here when available."
 
         first = filtered_rows[0]
-        bits: list[str] = []
-        if first.get("propertyType") not in {None, "", "—"}:
-            bits.append(str(first["propertyType"]))
-        if first.get("avgPrice") not in {None, "", "—"}:
-            bits.append(f"at {first['avgPrice']}")
-        if first.get("changePercent") not in {None, "", "—"}:
-            bits.append(f"with a change signal of {first['changePercent']}")
+        ptype = first.get("propertyType")
+        price = first.get("avgPrice")
+        change = first.get("changePercent")
 
+        detail_parts: list[str] = []
+        if ptype not in {None, "", "—"}:
+            detail_parts.append(str(ptype))
+        if price not in {None, "", "—"}:
+            detail_parts.append(f"priced at {price} per sq ft")
+        if change not in {None, "", "—"}:
+            detail_parts.append(f"with a {change} recent change")
+
+        detail = (", ".join(detail_parts) + ". ") if detail_parts else ""
         return (
-            "This table helps compare how different residential property types appear in the pricing view. "
-            + (f"The first residential row shown is {' '.join(bits)}." if bits else "")
+            f"Average asking rates are shown for each residential property type available on this page. "
+            f"{detail}"
+            "Buyers can use this breakdown to understand how price levels differ across apartments, villas, and other formats."
         )
 
     @staticmethod
     def _summarize_property_status_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show property-status buckets when data is available."
+            return "Property-status inventory data will appear here when available."
 
         first = rows[0]
         bits: list[str] = []
         if first.get("status") not in {None, "", "—"}:
             bits.append(str(first["status"]))
         if first.get("units") not in {None, "", "—"}:
-            bits.append(f"with {first['units']} units")
+            bits.append(f"{first['units']} units")
         if first.get("avgPrice") not in {None, "", "—"}:
-            bits.append(f"and an average listed value of {first['avgPrice']}")
+            bits.append(f"averaging {first['avgPrice']} per sq ft")
 
+        detail = (" — " + ", ".join(bits[1:])) if len(bits) > 1 else ""
+        lead = (bits[0] + detail + ". ") if bits else ""
         return (
-            "This table helps explain which status buckets are visible in the resale inventory. "
-            + (f"One visible row shows {' '.join(bits)}." if bits else "")
+            f"The resale inventory is split by project status in the rows below. "
+            f"{lead}"
+            "Ready-to-move properties are particularly useful for buyers seeking immediate possession, "
+            "while under-construction listings may offer different pricing dynamics."
         )
 
     @staticmethod
     def _summarize_coverage_summary_table(table: dict) -> str:
         rows = table.get("rows", []) or []
         if not rows:
-            return "This table will show the page-level coverage summary when data is available."
+            return "A summary of page-level coverage will appear here when data is available."
 
         first = rows[0]
         bits: list[str] = []
@@ -2081,11 +2149,12 @@ class DraftGenerationService:
         if first.get("total_listings") not in {None, "", "—"}:
             bits.append(f"{first['total_listings']} total listings")
         if first.get("total_projects") not in {None, "", "—"}:
-            bits.append(f"{first['total_projects']} total projects")
+            bits.append(f"{first['total_projects']} projects")
 
+        detail = (": " + ", ".join(bits) + ".") if bits else "."
         return (
-            "This table gives a quick sense of the overall scale of this page. "
-            + (f"The current summary includes {', '.join(bits)}." if bits else "")
+            f"A quick snapshot of the overall inventory scale covered on this page{detail} "
+            "Use this as a reference for how much data and how many options are represented here."
         )
 
     @staticmethod
@@ -2121,6 +2190,10 @@ class DraftGenerationService:
         if DraftGenerationService._looks_machine_written(cleaned):
             return False
         if len(cleaned.split()) < 10:
+            return False
+        # Reject summaries that open with the forbidden "This table" pattern —
+        # the static fallbacks produce better alternatives.
+        if cleaned.lower().startswith("this table"):
             return False
         return True
 

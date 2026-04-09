@@ -114,6 +114,20 @@ class TableRenderer:
         )
 
     @staticmethod
+    def _filter_to_specific_property_type(
+        rows: list[dict[str, Any]],
+        specific_type: str,
+    ) -> list[dict[str, Any]]:
+        """Keep only the row(s) matching a specific property type (case-insensitive)."""
+        target = specific_type.strip().lower()
+        filtered = [
+            row for row in rows
+            if str(row.get("propertyType") or "").strip().lower() == target
+        ]
+        # Fall back to all residential rows if the specific type isn't found
+        return filtered if filtered else rows
+
+    @staticmethod
     def render_table(table_plan: dict, data_context: dict) -> dict:
         rows_source = TableRenderer._resolve_path(data_context, table_plan["source_data_path"])
         columns = table_plan["columns"]
@@ -134,6 +148,13 @@ class TableRenderer:
         # only contains residential property types.
         if table_plan["id"] == "property_types_table":
             rows = TableRenderer._filter_property_type_rows(rows)
+            # When the page is scoped to a single property type (e.g. "Flats" page →
+            # property_type="Apartment"), further narrow the rows to that type only.
+            pt_context = (data_context.get("page_property_type_context") or {})
+            if pt_context.get("scope") == "specific" and pt_context.get("property_type"):
+                rows = TableRenderer._filter_to_specific_property_type(
+                    rows, pt_context["property_type"]
+                )
 
         formatted_rows: list[dict[str, Any]] = []
         for row in rows:
