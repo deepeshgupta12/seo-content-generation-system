@@ -414,6 +414,17 @@ class PromptBuilder:
         city_name = entity.get("city_name", entity_name)
         page_type = entity.get("page_type", "")
 
+        # Extract page filter context FIRST — these variables are used both in the
+        # data_coverage_guide block below and in the user payload further down.
+        _entity_for_faq = entity
+        _dc_pt_ctx = (content_plan.get("data_context") or {}).get("page_property_type_context") or {}
+        _faq_page_filter_context: dict = {}
+        _bhk_cfg = _dc_pt_ctx.get("bhk_config") or _entity_for_faq.get("page_bhk_config")
+        _budget_lbl = _dc_pt_ctx.get("budget_label") or _entity_for_faq.get("page_budget_label") or ""
+        _furnishing = _dc_pt_ctx.get("furnishing_type") or _entity_for_faq.get("page_furnishing_type")
+        _faq_scope = _dc_pt_ctx.get("scope") or _entity_for_faq.get("page_property_type_scope") or "all"
+        _filters_label = _dc_pt_ctx.get("filters_label") or _entity_for_faq.get("page_filters_label") or ""
+
         # Build a data coverage guide so the model knows which axes to cover (C2 — per-axis limits)
         # When a BHK/budget/furnishing filter is active, suppress the ai_market_signals axis —
         # that data is city-level and not filtered to the specific property type; surfacing it
@@ -480,17 +491,7 @@ class PromptBuilder:
         else:
             buyer_context = f"A buyer actively evaluating resale properties in {entity_name} and looking for specific, grounded answers before scheduling visits."
 
-        # Build the page filter context for the FAQ prompt.
-        # This is the authoritative signal the LLM must respect when scoping FAQs.
-        _entity_for_faq = content_plan["entity"]
-        _dc_pt_ctx = (content_plan.get("data_context") or {}).get("page_property_type_context") or {}
-        _faq_page_filter_context: dict = {}
-        _bhk_cfg = _dc_pt_ctx.get("bhk_config") or _entity_for_faq.get("page_bhk_config")
-        _budget_lbl = _dc_pt_ctx.get("budget_label") or _entity_for_faq.get("page_budget_label") or ""
-        _furnishing = _dc_pt_ctx.get("furnishing_type") or _entity_for_faq.get("page_furnishing_type")
-        _faq_scope = _dc_pt_ctx.get("scope") or _entity_for_faq.get("page_property_type_scope") or "all"
-        _filters_label = _dc_pt_ctx.get("filters_label") or _entity_for_faq.get("page_filters_label") or ""
-
+        # Build the page filter context object that goes into the user payload.
         if _faq_scope == "specific":
             _faq_page_filter_context = {
                 "scope": _faq_scope,
