@@ -379,6 +379,18 @@ class PromptBuilder:
             "NOT the total unfiltered city count (e.g. 39,071). "
             "If budget_label is set, frame all price answers relative to that budget band. "
             "If furnishing_type is set, only discuss properties with that furnishing status. "
+            "CRITICAL — FILTERED PAGE CONTENT RESTRICTIONS: "
+            "When bhk_config is set in page_filter_context, you MUST NOT generate any FAQ about: "
+            "(1) market strengths, challenges, or investment opportunities — this data is not BHK-specific; "
+            "(2) rental yield, rental rates, or rental income — this is a sale page, not a rental page; "
+            "(3) registered transaction rates — use only the asking-price (sale price) metric; "
+            "(4) commercial property types (shops, office spaces, warehouses, showrooms) — "
+            "this is a residential resale page. "
+            "CRITICAL — NO TOPIC OVERLAP OR ANSWER BLEED: "
+            "Each FAQ question must address a unique topic not already covered by another FAQ in your output. "
+            "Each answer must contain only information relevant to its own question. "
+            "Do not repeat the same statistic, count, or claim across multiple answers. "
+            "If two candidate questions would use the same data point, merge them into one richer FAQ. "
             "Do not invent numbers or claims. "
             "If price is mentioned, use only the canonical page pricing metric: sale price. "
             "For review FAQs, use only explicit rating, review-count, tag, or AI-summary inputs. "
@@ -403,12 +415,41 @@ class PromptBuilder:
         page_type = entity.get("page_type", "")
 
         # Build a data coverage guide so the model knows which axes to cover (C2 — per-axis limits)
+        # When a BHK/budget/furnishing filter is active, suppress the ai_market_signals axis —
+        # that data is city-level and not filtered to the specific property type; surfacing it
+        # on a filtered page (e.g. "2 BHK for sale in Gurgaon") would introduce commercial,
+        # rental, and investment content that is irrelevant and misleading for that buyer intent.
+        _bhk_filter_active = bool(_bhk_cfg)
+        _optional_axes = [
+            "rera_or_buyer_protection — Are listings RERA-registered?",
+            "location_comparison — How do prices here compare to the city or micromarket average?",
+            "micromarket_or_locality_coverage — How many areas does this page cover?",
+        ]
+        if not _bhk_filter_active:
+            # Only include ai_market_signals on unfiltered (all-BHK) pages where the
+            # city-level market snapshot data is actually relevant to the reader's query.
+            _optional_axes.insert(
+                1,
+                "ai_market_signals — What strengths, challenges, or opportunities does the data highlight?",
+            )
+
+        _market_signals_axis_target = (
+            {"min": 0, "max": 0} if _bhk_filter_active else {"min": 1, "max": 2}
+        )
+
         data_coverage_guide = {
             "instruction": (
                 "Ensure at least one FAQ covers each of the following data axes "
                 "when data is present in data_context or section_generation_context. "
                 "Skip an axis only if no data exists for it. "
                 "Respect per_axis_target limits to avoid over-indexing on pricing at the expense of other axes."
+                + (
+                    " IMPORTANT: ai_market_signals is suppressed on this page because the page is "
+                    "filtered to a specific BHK type. Do NOT generate a FAQ about market strengths, "
+                    "challenges, investment opportunities, or the overall market outlook — that data "
+                    "is not scoped to the BHK filter and would mislead buyers."
+                    if _bhk_filter_active else ""
+                )
             ),
             "required_axes": [
                 "sale_price_or_price_range — What does a buyer pay for a resale property here?",
@@ -420,12 +461,7 @@ class PromptBuilder:
                 "reviews_and_ratings — What do residents say about this location?",
                 "demand_supply — What does the supply picture look like?",
             ],
-            "optional_axes_if_data_present": [
-                "rera_or_buyer_protection — Are listings RERA-registered?",
-                "ai_market_signals — What strengths, challenges, or opportunities does the data highlight?",
-                "location_comparison — How do prices here compare to the city or micromarket average?",
-                "micromarket_or_locality_coverage — How many areas does this page cover?",
-            ],
+            "optional_axes_if_data_present": _optional_axes,
             "per_axis_target": {
                 "pricing_and_price_range": {"min": 2, "max": 3},
                 "bhk_and_inventory": {"min": 1, "max": 2},
@@ -433,7 +469,7 @@ class PromptBuilder:
                 "reviews_and_ratings": {"min": 1, "max": 2},
                 "demand_supply": {"min": 1, "max": 2},
                 "property_type_mix": {"min": 1, "max": 2},
-                "market_context_and_ai_signals": {"min": 1, "max": 2},
+                "market_context_and_ai_signals": _market_signals_axis_target,
             },
         }
 
@@ -526,6 +562,21 @@ class PromptBuilder:
                     "target_max_faqs": 15,
                     "avoid_duplicate_questions": True,
                     "avoid_duplicate_answers": True,
+                    "no_topic_overlap_between_faqs": (
+                        "Each FAQ must cover a UNIQUE topic. "
+                        "Before writing each FAQ, check that no other FAQ in your output "
+                        "already addresses the same data point or buyer question. "
+                        "If two candidate questions are about the same topic (e.g. both about price, "
+                        "or both about inventory count), MERGE them into one FAQ with a richer answer "
+                        "rather than producing two separate near-duplicate questions. "
+                        "Do NOT split a single data point across multiple questions just to reach the minimum FAQ count."
+                    ),
+                    "no_answer_content_bleed": (
+                        "Each answer must contain ONLY information relevant to its own question. "
+                        "Do not repeat the same number, statistic, or claim in more than one answer. "
+                        "If a fact (e.g. the total listing count) was used in one answer, "
+                        "do not reference it again in another answer."
+                    ),
                     "prefer_people_also_ask_style_questions": True,
                     "direct_answer_first_then_explanation": True,
                 },

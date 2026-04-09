@@ -885,7 +885,15 @@ class ContentPlanBuilder:
             )
 
         property_rates_ai_summary = normalized.get("property_rates_ai_summary", {}) or {}
-        if property_rates_ai_summary:
+        # Suppress the market-signals FAQ on BHK-filtered pages.
+        # The marketSnapshotOverview / strengths / challenges / opportunities data is
+        # city-level and not scoped to any BHK type.  Surfacing it on a filtered page
+        # (e.g. "2 BHK for sale in Gurgaon") generates a FAQ about commercial property
+        # rates, rental yields, and investment advice that is irrelevant and misleading
+        # for that buyer intent.  The FAQ is only useful on unfiltered (all-BHK) pages
+        # where the city-level context genuinely matches what the reader is looking for.
+        _bhk_filter_active_faq = bool(entity.get("page_bhk_config"))
+        if property_rates_ai_summary and not _bhk_filter_active_faq:
             faq_intents.append(
                 {
                     "id": "property_rates_ai_signals",
@@ -1018,7 +1026,15 @@ class ContentPlanBuilder:
         has_review_signals = ContentPlanBuilder._has_review_signals(normalized)
         has_demand_supply = ContentPlanBuilder._has_demand_supply_data(normalized)
         has_residential_property_signals = ContentPlanBuilder._has_residential_property_type_data(normalized)
-        has_property_rates_ai = bool(normalized.get("property_rates_ai_summary", {}) or {})
+        # Suppress the "Market Insights" (property_rates_ai_signals) section on BHK-filtered
+        # pages.  The marketSnapshotOverview / strengths / challenges data is city-level and
+        # not scoped to any specific BHK type; showing it on a "2 BHK for sale in Gurgaon"
+        # page would surface commercial, rental, and investment content that misleads buyers.
+        _bhk_filter_active_section = bool(entity.get("page_bhk_config"))
+        has_property_rates_ai = (
+            bool(normalized.get("property_rates_ai_summary", {}) or {})
+            and not _bhk_filter_active_section
+        )
         has_landmarks = ContentPlanBuilder._has_landmarks_data(normalized)
         has_registration = ContentPlanBuilder._has_registration_data(normalized)
 
