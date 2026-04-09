@@ -18,6 +18,35 @@ logger = logging.getLogger(__name__)
 
 
 class ArtifactWriter:
+    # Map raw data field names to human-readable table column headers shown to buyers.
+    COLUMN_DISPLAY_NAMES: dict[str, str] = {
+        "quarterName": "Quarter",
+        "locationRate": "Locality Rate (₹/sq ft)",
+        "micromarketRate": "Micromarket Rate (₹/sq ft)",
+        "cityRate": "City Rate (₹/sq ft)",
+        "key": "Configuration",
+        "doc_count": "Listings",
+        "name": "Area",
+        "distance_km": "Distance (km)",
+        "sale_count": "Resale Listings",
+        "sale_avg_price_per_sqft": "Avg Sale Price (₹/sq ft)",
+        "url": "Link",
+        "avgRate": "Avg Rate (₹/sq ft)",
+        "changePercentage": "Change (%)",
+        "propertyType": "Property Type",
+        "avgPrice": "Avg Sale Price (₹/sq ft)",
+        "changePercent": "Change (%)",
+        "status": "Project Status",
+        "units": "Units",
+        "total_listings": "Total Listings",
+        "total_projects": "Total Projects",
+    }
+
+    @staticmethod
+    def _column_label(column_name: str) -> str:
+        """Return the human-readable display label for a data column name."""
+        return ArtifactWriter.COLUMN_DISPLAY_NAMES.get(column_name, column_name)
+
     @staticmethod
     def _ensure_artifacts_dir() -> Path:
         artifacts_dir = Path(settings.artifacts_dir)
@@ -142,7 +171,7 @@ class ArtifactWriter:
             doc_table.style = "Table Grid"
             header_cells = doc_table.rows[0].cells
             for index, column_name in enumerate(columns):
-                header_cells[index].text = str(column_name)
+                header_cells[index].text = ArtifactWriter._column_label(column_name)
 
             if rows:
                 for row in rows:
@@ -375,7 +404,7 @@ class ArtifactWriter:
                 html_parts.append("    <table>")
                 html_parts.append("      <thead><tr>")
                 for column_name in columns:
-                    html_parts.append(f"        <th>{html.escape(str(column_name))}</th>")
+                    html_parts.append(f"        <th>{html.escape(ArtifactWriter._column_label(column_name))}</th>")
                 html_parts.append("      </tr></thead>")
                 html_parts.append("      <tbody>")
 

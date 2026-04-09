@@ -589,13 +589,42 @@ class ContentPlanBuilder:
             "value": entity.get("canonical_asking_price"),
         }
 
+        # Bug-fix: when the page is scoped to a specific property type (e.g. "flats",
+        # "villas"), the H1 and slug should reflect that filter instead of the generic
+        # "Resale Properties in ..." fallback.
+        _pt_scope = entity.get("page_property_type_scope") or "all"
+        _pt_type = entity.get("page_property_type")  # canonical, e.g. "Apartment"
+
+        # Map canonical property types → buyer-friendly plural label used in H1/slug
+        _pt_h1_labels: dict[str, str] = {
+            "Apartment": "Flats",
+            "Villa": "Villas",
+            "Builder Floor": "Builder Floors",
+            "Plot": "Plots",
+            "House": "Houses",
+            "Penthouse": "Penthouses",
+            "Studio": "Studio Apartments",
+            "Office Space": "Office Spaces",
+            "Shop": "Shops",
+            "Warehouse": "Warehouses",
+            "Showroom": "Showrooms",
+        }
+
+        if _pt_scope == "specific" and _pt_type and _pt_type in _pt_h1_labels:
+            _friendly = _pt_h1_labels[_pt_type]
+            recommended_h1 = f"{_friendly} for Sale in {location_label}"[:120]
+            recommended_slug = slugify(f"{_friendly.lower()}-for-sale-{entity_name}-{city_name}")
+        else:
+            recommended_h1 = f"Resale Properties in {location_label}"[:120]
+            recommended_slug = slugify(f"resale-properties-{entity_name}-{city_name}")
+
         return {
             "primary_keyword": primary_keyword_text,
             "primary_keyword_variants": primary_keyword_variants,
             "supporting_keywords": metadata_keywords,
             "metadata_keyword_priority": metadata_keywords,
-            "recommended_h1": f"Resale Properties in {location_label}"[:120],
-            "recommended_slug": slugify(f"resale-properties-{entity_name}-{city_name}"),
+            "recommended_h1": recommended_h1,
+            "recommended_slug": recommended_slug,
             "title_candidates": title_candidates,
             "meta_description_candidates": description_candidates,
             "canonical_pricing_metric": canonical_pricing,
@@ -1318,8 +1347,9 @@ class ContentPlanBuilder:
                     "allowed_inputs": ["listing_summary", "pricing_summary", "distributions", "page_property_type_context"],
                     "instruction": (
                         "Open with what a buyer is actually seeing here. "
-                        "If page_property_type_context.scope is specific, talk only about that residential property type. "
-                        "If the page scope is all, summarize only relevant residential property types visible in source data. "
+                        "CRITICAL: If page_property_type_context.scope is 'specific', you MUST write ONLY about that one property type "
+                        "(e.g. only apartments/flats, only villas, only plots). Do NOT mention other property types at all. "
+                        "If the page scope is 'all', summarize only relevant residential property types visible in source data. "
                         "Do not mix residential and commercial types."
                     ),
                 }
@@ -1371,7 +1401,8 @@ class ContentPlanBuilder:
                     ],
                     "instruction": (
                         "Use only explicit residential property-type, rate, and mix inputs. "
-                        "If the page is specific to one residential property type, stay focused on that type only. "
+                        "CRITICAL: If page_property_type_context.scope is 'specific', write ONLY about that single property type. "
+                        "Do not mention any other property types. Focus entirely on inventory count, price, and BHK breakdown for that type. "
                         "Do not mix in commercial categories. "
                         "Do not use status commentary here."
                     ),
@@ -1387,6 +1418,8 @@ class ContentPlanBuilder:
                     ],
                     "instruction": (
                         "Use only explicit residential property-type and location-rate inputs. "
+                        "CRITICAL: If page_property_type_context.scope is 'specific', discuss rates only for that property type. "
+                        "Do not mention other property types. "
                         "Avoid technical field language and avoid repeating the market snapshot section."
                     ),
                 }

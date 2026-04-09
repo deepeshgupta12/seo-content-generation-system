@@ -1,9 +1,32 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from seo_content_engine.domain.enums import EntityType, ListingType, PageType
 from seo_content_engine.utils.formatters import compact_dict
+
+
+def _strip_html(value: Any) -> str | None:
+    """Strip HTML tags from a string value returned by the API.
+
+    Some API fields (e.g. marketSnapshotOverview) embed ``<ul><li>`` markup
+    directly in prose text.  We normalise these to plain text so downstream
+    rendering (which HTML-escapes all content) does not show raw tags.
+
+    Returns the cleaned string, or ``None`` if the input was falsy.
+    """
+    if not value or not isinstance(value, str):
+        return None
+    # Replace <li> with a bullet-style prefix so list items don't merge
+    text = re.sub(r"<li[^>]*>", " • ", value, flags=re.IGNORECASE)
+    # Drop all remaining HTML tags
+    text = re.sub(r"<[^>]+>", " ", text, flags=re.IGNORECASE)
+    # Collapse multiple spaces / stray bullet runs at the start of the string
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.strip(" •\n")
+    return text or None
 
 
 class EntityNormalizer:
@@ -181,22 +204,29 @@ class EntityNormalizer:
                         cleaned_values.append(item.strip())
             normalized_lists[field_name] = cleaned_values
 
+        # Strip HTML tags from all prose text fields — some API responses embed
+        # <ul><li> markup directly in description strings (e.g. Bangalore's
+        # marketSnapshotOverview).  Plain-text normalisation here prevents the
+        # HTML-escaping step in the artifact writer from showing raw tag strings.
+        def _s(key: str) -> str | None:
+            return _strip_html(property_rates_ai_data.get(key))
+
         return compact_dict(
             {
-                "market_snapshot": property_rates_ai_data.get("marketSnapshotOverview"),
-                "insights_long": property_rates_ai_data.get("insightsLong"),
-                "insights_short": property_rates_ai_data.get("insightsShort"),
-                "asking_price_trends_description": property_rates_ai_data.get("askingPriceTrendsDescription"),
-                "by_area_description": property_rates_ai_data.get("byAreaDescription"),
-                "rates_by_property_types_description": property_rates_ai_data.get("ratesByPropertyTypesDescription"),
-                "rates_by_project_status_description": property_rates_ai_data.get("ratesByProjectStatusDescription"),
-                "top_projects_asking_description": property_rates_ai_data.get("topProjectsAskingDescription"),
-                "registration_overview_description": property_rates_ai_data.get("registrationOverviewDescription"),
-                "top_projects_by_transactions_description": property_rates_ai_data.get("topProjectsByTransactionsDescription"),
-                "top_projects_by_value_description": property_rates_ai_data.get("topProjectsByValueDescription"),
-                "top_developers_by_transactions_description": property_rates_ai_data.get("topDevelopersByTransactionsDescription"),
-                "top_developers_by_value_description": property_rates_ai_data.get("topDevelopersByValueDescription"),
-                "recent_transactions_description": property_rates_ai_data.get("recentTransactionsDescription"),
+                "market_snapshot": _s("marketSnapshotOverview"),
+                "insights_long": _s("insightsLong"),
+                "insights_short": _s("insightsShort"),
+                "asking_price_trends_description": _s("askingPriceTrendsDescription"),
+                "by_area_description": _s("byAreaDescription"),
+                "rates_by_property_types_description": _s("ratesByPropertyTypesDescription"),
+                "rates_by_project_status_description": _s("ratesByProjectStatusDescription"),
+                "top_projects_asking_description": _s("topProjectsAskingDescription"),
+                "registration_overview_description": _s("registrationOverviewDescription"),
+                "top_projects_by_transactions_description": _s("topProjectsByTransactionsDescription"),
+                "top_projects_by_value_description": _s("topProjectsByValueDescription"),
+                "top_developers_by_transactions_description": _s("topDevelopersByTransactionsDescription"),
+                "top_developers_by_value_description": _s("topDevelopersByValueDescription"),
+                "recent_transactions_description": _s("recentTransactionsDescription"),
                 "investment_opportunities": normalized_lists["investmentOpportunities"],
                 "market_challenges": normalized_lists["marketChallenges"],
                 "market_strengths": normalized_lists["marketStrengths"],
