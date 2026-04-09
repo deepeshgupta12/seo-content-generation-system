@@ -84,6 +84,25 @@ In `faq_prompts()`, `data_coverage_guide` block used `_bhk_cfg` on line 422 but 
 
 ---
 
+---
+
+## Session 4 — HTML Output Review: 5 Content Quality Fixes (commit `2c1914f`)
+
+### Issues identified from reviewing `gurgaon-2bhk-properties.html` and `gurgaon-resale_city-draft.html`
+
+**Impacted files:**
+
+| File | Fix |
+|---|---|
+| `apps/api/src/seo_content_engine/services/draft_generation_service.py` | Fix 1: Added `_FAQ_INTENT_TOPIC_SIGNATURES` dict and `_faq_intent_is_covered()` to `_ensure_faq_coverage()` — LLM-rephrased questions (e.g. "2 BHK" added to template) now recognized as covering the intent, preventing safe-body duplicate FAQs. |
+| `apps/api/src/seo_content_engine/services/draft_generation_service.py` | Fix 2: Extended `_COMMERCIAL_SIGNAL_TERMS` frozenset to include rental metrics: "rental yield", "rental rate", "rental rates", "rental income", "rental option", "rental options", "rental market", "rent per", "per month", "lakh per month", "investment opportunity", "investment potential", "registered rate", "registration rate". |
+| `apps/api/src/seo_content_engine/services/normalizer.py` | Fix 2 (part 2): Extended `_COMMERCIAL_PROSE_TERMS` with "rental options", "rental rates", "per month", "lakh per month" so the prose sanitizer strips rental-amount sentences from market_snapshot. |
+| `apps/api/src/seo_content_engine/services/content_plan_builder.py` | Fix 3: In `_build_section_generation_context()`, applied `_filter_residential_distribution()` to `sale_property_type_distribution` before storing in section context — prevents LLM from citing shop/office space counts on residential pages. |
+| `apps/api/src/seo_content_engine/services/draft_generation_service.py` | Fix 4: Rewrote `_build_property_type_rate_snapshot_safe_body()` to produce buyer-facing prose ("Villas in Gurgaon average ₹25,262 per sq ft, up 0.87% recently") instead of raw data format ("asking-rate signal of ₹25,262, change signal of 0.87"). |
+| `apps/api/src/seo_content_engine/services/prompt_builder.py` | Fix 5: In `faq_prompts()`, filter `data_context.distributions.sale_unit_type_distribution` to target BHK rows when `_bhk_cfg` is set, so LLM doesn't list all BHK types in the bhk_availability FAQ on a 2 BHK page. |
+
+---
+
 ## Key Invariants to Maintain
 
 These rules must be respected in all future changes:
@@ -98,4 +117,12 @@ These rules must be respected in all future changes:
 
 5. **Table BHK filtering**: Applied in `table_renderer.render_table()` via `_filter_to_target_bhk()`. Only for `sale_unit_type_distribution_table` and only when `bhk_config` is set.
 
-6. **Commercial item stripping in lists**: `draft_generation_service._clean_market_signal_items(exclude_commercial=True)` strips commercial items from `market_strengths`, `market_challenges`, `investment_opportunities` lists at safe-body generation time.
+6. **Commercial item stripping in lists**: `draft_generation_service._clean_market_signal_items(exclude_commercial=True)` strips commercial items from `market_strengths`, `market_challenges`, `investment_opportunities` lists at safe-body generation time. `_COMMERCIAL_SIGNAL_TERMS` also covers rental metrics — do not remove rental terms from this set.
+
+7. **`sale_property_type_distribution` commercial filtering**: Applied in `content_plan_builder._build_section_generation_context()` for ALL pages (not just BHK-filtered). Uses `_filter_residential_distribution()` to strip shops/office spaces before LLM sees the data.
+
+8. **FAQ deduplication — topic signatures**: `_ensure_faq_coverage()` uses BOTH exact string match AND `_faq_intent_is_covered()` topic-signature match. If you add new `faq_plan` intent IDs, add a corresponding entry to `_FAQ_INTENT_TOPIC_SIGNATURES` in `draft_generation_service.py` so the LLM's rephrased question is recognized as covering that intent.
+
+9. **BHK filtering in FAQ prompt**: `prompt_builder.faq_prompts()` filters `data_context.distributions.sale_unit_type_distribution` to target BHK rows when `_bhk_cfg` is set. This must mirror the filtering in `content_plan_builder._build_section_generation_context()`.
+
+10. **Property Type Rates safe-body**: `_build_property_type_rate_snapshot_safe_body()` uses buyer-facing prose. Do NOT revert to raw data format ("asking-rate signal of…", "change signal of…").

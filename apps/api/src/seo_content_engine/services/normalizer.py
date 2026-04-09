@@ -35,6 +35,7 @@ def _strip_html(value: Any) -> str | None:
 # stripped before the text reaches the LLM, preventing commercial/rental data
 # from leaking onto residential resale pages.
 _COMMERCIAL_PROSE_TERMS: tuple[str, ...] = (
+    # Commercial property types
     "shop",
     "shops",
     "office space",
@@ -45,18 +46,25 @@ _COMMERCIAL_PROSE_TERMS: tuple[str, ...] = (
     "showroom",
     "commercial property",
     "commercial properties",
+    # Non-canonical rental metrics (must not appear on sale/resale pages)
     "rental yield",
     "rental rate",
+    "rental rates",
     "rental income",
+    "rental option",
+    "rental options",
+    "rental market",
     "rent per sq",
     "rent per square",
+    "per month",          # rental pricing is expressed as ₹X per month
+    "lakh per month",
+    # Non-canonical transaction/investment metrics
     "registered rate",
     "registration rate",
     "lease rate",
     "investment opportunity",
     "investment potential",
     "investment advice",
-    "rental market",
 )
 
 

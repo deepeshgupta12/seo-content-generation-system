@@ -1365,6 +1365,19 @@ class ContentPlanBuilder:
                         value = dict(value)
                         value["sale_unit_type_distribution"] = _filtered_dist
 
+                # Always strip commercial property type rows (shops, office spaces,
+                # warehouses) from sale_property_type_distribution before injecting
+                # into section context.  This prevents the LLM from mentioning
+                # commercial counts (e.g. "633 shops") on residential resale pages.
+                if dependency == "distributions" and isinstance(value, dict):
+                    _raw_pt_dist = value.get("sale_property_type_distribution") or []
+                    _filtered_pt_dist = ContentPlanBuilder._filter_residential_distribution(
+                        _raw_pt_dist
+                    )
+                    if len(_filtered_pt_dist) != len(_raw_pt_dist):
+                        value = dict(value)
+                        value["sale_property_type_distribution"] = _filtered_pt_dist
+
                 section_context[dependency] = value
 
             # Inject the entity_type_context into every section so the LLM understands

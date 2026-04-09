@@ -519,12 +519,34 @@ class PromptBuilder:
                 ),
             }
 
+        # When a BHK filter is active, narrow sale_unit_type_distribution in
+        # data_context.distributions to only the matching BHK row.  Without
+        # this, the LLM sees all BHK rows through data_context even though
+        # section_generation_context is already filtered, and it incorrectly
+        # lists all BHK configurations in the "bhk_availability" FAQ answer.
+        _faq_data_context = content_plan["data_context"]
+        if _bhk_cfg and isinstance(_faq_data_context, dict):
+            _faq_dists = (_faq_data_context.get("distributions") or {})
+            if isinstance(_faq_dists, dict):
+                _raw_unit_dist = _faq_dists.get("sale_unit_type_distribution") or []
+                _bhk_target_lower = _bhk_cfg.strip().lower()
+                _filtered_unit_dist = [
+                    row for row in _raw_unit_dist
+                    if isinstance(row, dict)
+                    and str(row.get("key") or "").strip().lower().startswith(_bhk_target_lower)
+                ]
+                if _filtered_unit_dist:
+                    _faq_dists = dict(_faq_dists)
+                    _faq_dists["sale_unit_type_distribution"] = _filtered_unit_dist
+                    _faq_data_context = dict(_faq_data_context)
+                    _faq_data_context["distributions"] = _faq_dists
+
         user_payload = {
             "entity": entity,
             "buyer_context": buyer_context,
             "page_filter_context": _faq_page_filter_context if _faq_page_filter_context else None,
             "faq_plan": content_plan["faq_plan"],
-            "data_context": content_plan["data_context"],
+            "data_context": _faq_data_context,
             "section_generation_context": content_plan.get("section_generation_context", {}),
             "data_coverage_guide": data_coverage_guide,
             "canonical_pricing_metric": content_plan["metadata_plan"]["canonical_pricing_metric"],
