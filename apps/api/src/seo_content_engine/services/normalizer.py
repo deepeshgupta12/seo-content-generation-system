@@ -30,6 +30,65 @@ def _strip_html(value: Any) -> str | None:
     return text or None
 
 
+# Terms that signal commercial property data or non-canonical resale metrics.
+# Any sentence in a prose market-snapshot field containing these tokens is
+# stripped before the text reaches the LLM, preventing commercial/rental data
+# from leaking onto residential resale pages.
+_COMMERCIAL_PROSE_TERMS: tuple[str, ...] = (
+    "shop",
+    "shops",
+    "office space",
+    "office spaces",
+    "co-working",
+    "coworking",
+    "warehouse",
+    "showroom",
+    "commercial property",
+    "commercial properties",
+    "rental yield",
+    "rental rate",
+    "rental income",
+    "rent per sq",
+    "rent per square",
+    "registered rate",
+    "registration rate",
+    "lease rate",
+    "investment opportunity",
+    "investment potential",
+    "investment advice",
+    "rental market",
+)
+
+
+def _sanitize_prose_for_resale(text: str | None) -> str | None:
+    """Remove sentences that reference commercial or non-canonical rental/investment
+    signals from a prose market-snapshot string.
+
+    This is applied to ``property_rates_ai_summary`` prose fields so that raw
+    API text containing commercial property rates, rental yields, or investment
+    advice never reaches the LLM on a residential resale page.
+
+    Splits on sentence boundaries (period/exclamation/question mark followed by
+    whitespace or end-of-string), filters out any sentence whose lower-cased
+    form contains one of the ``_COMMERCIAL_PROSE_TERMS`` tokens, then rejoins.
+    Falls back to the original text if the sanitised result would be empty.
+    """
+    if not text:
+        return text
+
+    # Split into sentences; keep the trailing punctuation attached.
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    cleaned: list[str] = []
+    for sentence in sentences:
+        lower = sentence.lower()
+        if any(term in lower for term in _COMMERCIAL_PROSE_TERMS):
+            continue
+        cleaned.append(sentence)
+
+    result = " ".join(cleaned).strip()
+    return result if result else text
+
+
 class EntityNormalizer:
     @staticmethod
     def detect_entity_type(main_data: dict[str, Any], rates_data: dict[str, Any]) -> EntityType:
@@ -264,17 +323,25 @@ class EntityNormalizer:
         def _s(key: str) -> str | None:
             return _strip_html(property_rates_ai_data.get(key))
 
+        # Sanitise prose fields that are known to carry mixed commercial/rental
+        # data from the raw API.  We strip any sentence mentioning commercial
+        # property types (shops, office spaces, warehouses) or non-canonical
+        # resale metrics (rental yield, rental rates, registered rate, investment
+        # advice) before storing so this noise never reaches the LLM.
+        def _ss(key: str) -> str | None:
+            return _sanitize_prose_for_resale(_strip_html(property_rates_ai_data.get(key)))
+
         return compact_dict(
             {
-                "market_snapshot": _s("marketSnapshotOverview"),
-                "insights_long": _s("insightsLong"),
-                "insights_short": _s("insightsShort"),
-                "asking_price_trends_description": _s("askingPriceTrendsDescription"),
+                "market_snapshot": _ss("marketSnapshotOverview"),
+                "insights_long": _ss("insightsLong"),
+                "insights_short": _ss("insightsShort"),
+                "asking_price_trends_description": _ss("askingPriceTrendsDescription"),
                 "by_area_description": _s("byAreaDescription"),
-                "rates_by_property_types_description": _s("ratesByPropertyTypesDescription"),
+                "rates_by_property_types_description": _ss("ratesByPropertyTypesDescription"),
                 "rates_by_project_status_description": _s("ratesByProjectStatusDescription"),
                 "top_projects_asking_description": _s("topProjectsAskingDescription"),
-                "registration_overview_description": _s("registrationOverviewDescription"),
+                "registration_overview_description": _ss("registrationOverviewDescription"),
                 "top_projects_by_transactions_description": _s("topProjectsByTransactionsDescription"),
                 "top_projects_by_value_description": _s("topProjectsByValueDescription"),
                 "top_developers_by_transactions_description": _s("topDevelopersByTransactionsDescription"),
