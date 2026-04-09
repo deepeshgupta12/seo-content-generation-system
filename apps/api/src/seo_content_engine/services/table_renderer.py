@@ -128,6 +128,25 @@ class TableRenderer:
         return filtered if filtered else rows
 
     @staticmethod
+    def _filter_to_target_bhk(
+        rows: list[dict[str, Any]],
+        bhk_config: str,
+    ) -> list[dict[str, Any]]:
+        """Keep only the row(s) matching the target BHK configuration.
+
+        The ``key`` field in unit-type distribution rows contains values like
+        "2 BHK Flats in Gurgaon".  We match rows whose key *starts with* the
+        bhk_config token (e.g. "2 BHK") case-insensitively.
+        Falls back to all rows if no match is found.
+        """
+        target = bhk_config.strip().lower()
+        filtered = [
+            row for row in rows
+            if str(row.get("key") or "").strip().lower().startswith(target)
+        ]
+        return filtered if filtered else rows
+
+    @staticmethod
     def render_table(table_plan: dict, data_context: dict) -> dict:
         rows_source = TableRenderer._resolve_path(data_context, table_plan["source_data_path"])
         columns = table_plan["columns"]
@@ -144,17 +163,24 @@ class TableRenderer:
         else:
             rows = []
 
+        pt_context = (data_context.get("page_property_type_context") or {})
+
         # Filter commercial property rows before formatting so the rendered table
         # only contains residential property types.
         if table_plan["id"] == "property_types_table":
             rows = TableRenderer._filter_property_type_rows(rows)
             # When the page is scoped to a single property type (e.g. "Flats" page →
             # property_type="Apartment"), further narrow the rows to that type only.
-            pt_context = (data_context.get("page_property_type_context") or {})
             if pt_context.get("scope") == "specific" and pt_context.get("property_type"):
                 rows = TableRenderer._filter_to_specific_property_type(
                     rows, pt_context["property_type"]
                 )
+
+        # When the page is scoped to a specific BHK configuration, show ONLY that
+        # BHK row in the unit-type distribution table.
+        if table_plan["id"] == "sale_unit_type_distribution_table":
+            if pt_context.get("scope") == "specific" and pt_context.get("bhk_config"):
+                rows = TableRenderer._filter_to_target_bhk(rows, pt_context["bhk_config"])
 
         formatted_rows: list[dict[str, Any]] = []
         for row in rows:

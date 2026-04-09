@@ -340,8 +340,24 @@ class DraftGenerationService:
 
         return None
 
+    # Commercial property type terms used to filter market signal items on residential pages.
+    _COMMERCIAL_SIGNAL_TERMS: frozenset[str] = frozenset({
+        "shop", "shops", "office space", "office spaces", "co-working", "coworking",
+        "warehouse", "warehouses", "showroom", "showrooms", "commercial",
+    })
+
     @staticmethod
-    def _clean_market_signal_items(items: list[str], limit: int = 4) -> list[str]:
+    def _is_commercial_signal(text: str) -> bool:
+        """Return True if the text item primarily concerns a commercial property type."""
+        lowered = text.lower()
+        return any(term in lowered for term in DraftGenerationService._COMMERCIAL_SIGNAL_TERMS)
+
+    @staticmethod
+    def _clean_market_signal_items(
+        items: list[str],
+        limit: int = 4,
+        exclude_commercial: bool = True,
+    ) -> list[str]:
         cleaned: list[str] = []
 
         for item in items or []:
@@ -352,6 +368,11 @@ class DraftGenerationService:
             text = " ".join(text.split())
             text = text.rstrip(" .;,:")
             if not text:
+                continue
+
+            # Skip items that are primarily about commercial property types on
+            # residential pages — they pollute the residential buyer narrative.
+            if exclude_commercial and DraftGenerationService._is_commercial_signal(text):
                 continue
 
             cleaned.append(text)
@@ -773,13 +794,41 @@ class DraftGenerationService:
         distributions = content_plan.get("data_context", {}).get("distributions", {}) or {}
         page_property_type_context = DraftGenerationService._page_property_type_context(content_plan)
 
-        sale_count = listing_summary.get("sale_count")
+        # When a BHK filter is active, use the filtered BHK count as the primary
+        # inventory figure rather than the total unfiltered sale_count.
+        _bhk_config = page_property_type_context.get("bhk_config")
+        if _bhk_config and page_property_type_context.get("scope") == "specific":
+            _bhk_target = _bhk_config.strip().lower()
+            _unit_dist = distributions.get("sale_unit_type_distribution") or []
+            _bhk_count: int | None = None
+            for row in _unit_dist:
+                if isinstance(row, dict) and str(row.get("key") or "").strip().lower().startswith(_bhk_target):
+                    try:
+                        _bhk_count = int(row.get("doc_count") or 0)
+                    except (TypeError, ValueError):
+                        pass
+                    break
+            sale_count = _bhk_count if _bhk_count is not None else listing_summary.get("sale_count")
+        else:
+            sale_count = listing_summary.get("sale_count")
         residential_property_types = DraftGenerationService._filter_residential_property_types(
             pricing_summary.get("property_types", []) or []
         )
         property_mix = DraftGenerationService._filter_residential_distribution_rows(
             distributions.get("sale_property_type_distribution", []) or []
         )
+
+        if page_property_type_context.get("scope") == "specific" and _bhk_config and not page_property_type_context.get("property_type"):
+            # BHK-only filter (e.g. "2 BHK for sale in Gurgaon") — no specific property type scoping.
+            paragraphs: list[str] = [
+                f"This page covers {_bhk_config} resale options in {location_label}."
+            ]
+            if sale_count is not None:
+                paragraphs.append(
+                    f"Around {sale_count:,} {_bhk_config} resale listings are currently visible, "
+                    f"giving buyers a focused view of this configuration across the city."
+                )
+            return "\n\n".join(paragraphs)
 
         if page_property_type_context.get("scope") == "specific" and page_property_type_context.get("property_type"):
             property_type = page_property_type_context.get("property_type")
