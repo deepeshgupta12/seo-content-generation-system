@@ -173,6 +173,7 @@ function KeywordChipList({
 export function ReviewWorkbenchPage() {
   const [mainPath, setMainPath] = useState(DEFAULT_MAIN_PATH);
   const [ratesPath, setRatesPath] = useState(DEFAULT_RATES_PATH);
+  const [pageUrl, setPageUrl] = useState("");
   const [includeHistorical, setIncludeHistorical] = useState(true);
   const [persistSession, setPersistSession] = useState(true);
   const [primaryKeywordOverride, setPrimaryKeywordOverride] = useState("");
@@ -354,6 +355,7 @@ export function ReviewWorkbenchPage() {
         main_datacenter_json_path: mainPath,
         property_rates_json_path: ratesPath,
         listing_type: "resale",
+        page_url: pageUrl.trim() || undefined,
         include_historical: includeHistorical,
         persist_session: persistSession,
         primary_keyword_overrides: parseKeywordOverridesInput(primaryKeywordOverride).length
@@ -753,6 +755,23 @@ export function ReviewWorkbenchPage() {
               value={ratesPath}
               onChange={(event) => setRatesPath(event.target.value)}
             />
+          </label>
+
+          <label className="field">
+            <span className="field-label">
+              Page URL{" "}
+              <span style={{ fontWeight: 400, color: "#888" }}>(optional — Square Yards canonical URL)</span>
+            </span>
+            <input
+              className="field-input"
+              type="url"
+              placeholder="https://www.squareyards.com/sale/2-bhk-for-sale-in-gurgaon"
+              value={pageUrl}
+              onChange={(event) => setPageUrl(event.target.value)}
+            />
+            <span style={{ fontSize: "0.78rem", color: "#888", marginTop: "4px", display: "block" }}>
+              Extracts filters (property type, BHK, budget, furnishing, amenities) to scope content generation.
+            </span>
           </label>
 
           <label className="field">

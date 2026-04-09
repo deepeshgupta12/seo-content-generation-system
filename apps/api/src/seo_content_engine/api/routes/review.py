@@ -43,6 +43,8 @@ def create_review_session(payload: ReviewSessionCreateRequest) -> ReviewSessionR
             "include_historical": payload.include_historical,
             "persist_session": payload.persist_session,
         }
+        if payload.page_url:
+            build_kwargs["page_url"] = payload.page_url
         if payload.primary_keyword_overrides:
             build_kwargs["primary_keyword_overrides"] = payload.primary_keyword_overrides
 

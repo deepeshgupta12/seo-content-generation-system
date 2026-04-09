@@ -365,6 +365,7 @@ class ReviewWorkbenchService:
         main_datacenter_json_path: str,
         property_rates_json_path: str,
         listing_type,
+        page_url: str | None = None,
         location_name: str | None = None,
         language_name: str | None = None,
         limit: int | None = None,
@@ -377,6 +378,7 @@ class ReviewWorkbenchService:
             property_rates_json_path=property_rates_json_path,
             listing_type=listing_type,
             source_loader=SourceLoader,
+            page_url=page_url,
         )
 
         keyword_intelligence = KeywordIntelligenceService.build_keyword_intelligence(
@@ -417,6 +419,7 @@ class ReviewWorkbenchService:
                 "main_datacenter_json_path": main_datacenter_json_path,
                 "property_rates_json_path": property_rates_json_path,
                 "listing_type": getattr(listing_type, "value", str(listing_type)),
+                "page_url": page_url,
                 "location_name": location_name,
                 "language_name": language_name,
                 "limit": limit,
